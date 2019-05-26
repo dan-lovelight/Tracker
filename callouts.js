@@ -2,104 +2,35 @@
 //******************* WHEN CREATE/EDIT CALL OUT FORMS ARE RENDERED **********
 //***************************************************************************
 
-
-/* Limit the time selection options in the create callout form*/
 // https://lovelight.knack.com/tracker#jobs/view-job-details/{id}/add-a-call-out/{id}/
 // https://builder.knack.com/lovelight/tracker#pages/scene_641/views/view_1437
-//*************THIS USUALLY WORKS BUT A BIT INCONSISTENT
 $(document).on('knack-view-render.view_1437', function(event, view, data) {
-  $('#view_1437-field_924-time').timepicker({
-    'minTime': '5:00am',
-    'maxTime': '8:00pm',
-    'showDuration': false
-  });
+  pimpTimePicker('view_1437-field_924')
+})
 
-  //Update to time when it get's the focus
-  //*************THIS SOMETIMES WORKS, BUT ONLY WHEN THE FIELD IS EMPTY
-  $("input#view_1437-field_924-time-to").on('focus', function() {
-
-    var startTime = $('#view_1437-field_924-time').val();
-
-    //console.log(startTime);
-
-    $('#view_1437-field_924-time-to').timepicker({
-      'showClear': true,
-      'minTime': startTime,
-      'maxTime': '8:00pm',
-      'showDuration': true
-    });
-
-  });
-
-});
-
-/* Limit the time selection options in the create callout form*/
 // https://lovelight.knack.com/tracker#jobs/view-job-details/{id}/edit-call-out/{id}/
 // https://builder.knack.com/lovelight/tracker#pages/scene_576/views/view_1294
 $(document).on('knack-view-render.view_1294', function(event, view, data) {
-  $('#view_1294-field_924-time').timepicker({
-    'minTime': '5:00am',
-    'maxTime': '8:00pm',
-    'showDuration': false
-  });
-
-  //Update to time when it get's the focus
-  $("input#view_1294-field_924-time-to").on('focus', function() {
-
-    var startTime = $('#view_1294-field_924-time').val();
-
-    //console.log(startTime);
-
-    $('#view_1294-field_924-time-to').timepicker({
-      'showClear': true,
-      'minTime': startTime,
-      'maxTime': '8:00pm',
-      'showDuration': true
-    });
-
-  });
-
+  pimpTimePicker('view_1294-field_924')
 });
 
-/* Limit the time selection options in the create callout form*/
 // https://lovelight.knack.com/tracker#developments/view-development-details/{id}/
 // https://builder.knack.com/lovelight/tracker#pages/scene_1024/views/view_2126
 $(document).on('knack-view-render.view_2126', function(event, view, data) {
-  $('#view_2126-field_924-time').timepicker({
-    'minTime': '5:00am',
-    'maxTime': '8:00pm',
-    'showDuration': false
-  });
-
-  //Update to time when it get's the focus
-  $("input#view_2126-field_924-time-to").on('focus', function() {
-
-    var startTime = $('#view_2126-field_924-time').val();
-
-    //console.log(startTime);
-
-    $('#view_2126-field_924-time-to').timepicker({
-      'showClear': true,
-      'minTime': startTime,
-      'maxTime': '8:00pm',
-      'showDuration': true
-    });
-
-  });
-
+  pimpTimePicker('view_2126-field_924')
 });
 
 // ***************************************************************************
 // ******************* WHEN A CALL OUT IS UPDATED ****************************
 // ***************************************************************************
 
-function processCallOutChanges(record) {
-  updateCallOutDataForChanges(record)
-    .then((updatedRecord) => {
-      return updateCallOutCalendarEvents(record, updatedRecord)
-    })
-    .catch((err) => errorHandler(err, record))
-  //.then(() => { Knack.views["view_1347"].model.fetch() })
+async function processCallOutChanges(record) {
+  try {
+    let updatedRecord = await updateCallOutDataForChanges(record)
+    return updateCallOutCalendarEvents(record, updatedRecord)
+  } catch (err) {
+    errorHandler(err, record)
+  }
 }
 
 function updateCallOutDataForChanges(callOut) {
@@ -122,153 +53,70 @@ function updateCallOutDataForChanges(callOut) {
     })
 }
 
-function getCallOutChangeResetData(callOut) {
-  return Promise.try(() => {
-    let updateData = {}
-    // isTimeUpdated
-    if (JSON.stringify(callOut.field_1026) !== JSON.stringify(callOut.field_924)) {
-      updateData.field_1026 = {
-        date: callOut.field_924_raw.date_formatted,
-        hours: callOut.field_924_raw.hours,
-        minutes: callOut.field_924_raw.minutes,
-        am_pm: callOut.field_924_raw.am_pm,
-        to: {
-          date: callOut.field_924_raw.to.date_formatted,
-          hours: callOut.field_924_raw.to.hours,
-          minutes: callOut.field_924_raw.to.minutes,
-          am_pm: callOut.field_924_raw.to.am_pm
-        }
-      }
-    }
-    // isInstallerUpdated
-    if (JSON.stringify(callOut.field_1034) !== JSON.stringify(callOut.field_927)) {
-      updateData.field_1034 = getConnectionIDs(callOut.field_927_raw)
-    }
+// Compare the current value of key fields with the stored previous value
+async function getCallOutChangeResetData(callOut) {
 
-    // is Sales Updated
-    if (JSON.stringify(callOut.field_985) !== JSON.stringify(callOut.field_1504)) {
-      updateData.field_1504 = getConnectionIDs(callOut.field_985_raw)
-    }
+  let fieldsToCheck = [
+    ['field_924', 'field_1026'], // Scheduled Date
+    ['field_927', 'field_1034'], // Installer
+    ['field_985', 'field_1504'], // Salesperson
+    ['field_1474', 'field_1505'], // Ops person
+    ['field_1503', 'field_1506'], // Other attendees
+    ['field_981', 'field_1478'], // Address
+    ['field_955', 'field_1028'], // Status
+    ['field_925', 'field_1492'], // Type
+    ['field_928', 'field_1493'], // Job
+  ]
 
-    // is Ops Updated
-    if (JSON.stringify(callOut.field_1474) !== JSON.stringify(callOut.field_1505)) {
-      updateData.field_1505 = getConnectionIDs(callOut.field_1474_raw)
-    }
-
-    // is Other Attendees Updated
-    if (JSON.stringify(callOut.field_1503) !== JSON.stringify(callOut.field_1506)) {
-      updateData.field_1506 = callOut.field_1503
-    }
-
-    // isAddressUpdated
-    if (JSON.stringify(callOut.field_981) !== JSON.stringify(callOut.field_1478)) {
-      if (callOut.field_981.length > 0) {
-        updateData.field_1478 = {
-          street: callOut.field_981_raw.street,
-          street2: callOut.field_981_raw.street2,
-          city: callOut.field_981_raw.city,
-          state: callOut.field_981_raw.state,
-          zip: callOut.field_981_raw.zip
-        }
-      } else {
-        updateData.field_1478 = {
-          street: '',
-          street2: '',
-          city: '',
-          state: '',
-          zip: ''
-        }
-      }
-    }
-
-    // isStatusUpdated
-    if (JSON.stringify(callOut.field_955) !== JSON.stringify(callOut.field_1028)) {
-      updateData.field_1028 = callOut.field_955
-    }
-    // isTypeUpdated
-    if (JSON.stringify(callOut.field_925) !== JSON.stringify(callOut.field_1492)) {
-      updateData.field_1492 = callOut.field_925
-    }
-    // isJobUpdated
-    if (JSON.stringify(callOut.field_928) !== JSON.stringify(callOut.field_1493)) {
-      updateData.field_1493 = getConnectionIDs(callOut.field_928_raw)
-    }
-    if (Object.entries(updateData).length === 0) {
-      console.log('No reset data required')
-    }
-    return updateData
-  })
+  // If there are any changes, return object to update all 'previous' fields
+  if (isObjectUpdated(callOut, fieldsToCheck)) {
+    return copyFieldsToNewObject(callOut, fieldsToCheck)
+  }
+  return {}
 }
 
-function getCallOutUpdateDataFromJob(callOut) {
-  return Promise.try(() => {
-    if (callOut.field_928.length > 0 && callOut.field_1492.length === 0) {
-      // The callout has just had a job added
-      return Promise.try(() => {
-          let jobIDs = getConnectionIDs(callOut.field_928_raw)
-          let firstJob = []
-          firstJob.push(jobIDs['0']) // Can currently only handle a single job
-          return getRecordsByID('jobs', firstJob)
-        })
-        .then((jobs) => {
-          return jobs['0']
-        })
-        .then((job) => {
-          let updateData = {}
+async function getCallOutUpdateDataFromJob(callOut) {
+  let calloutJobFields = ['field_928', 'field_1493'] // Live jobs field, previous jobs field
+  let isJobDataRequired = isFieldJustAdded(callOut, calloutJobFields)
+  console.log(isJobDataRequired ? 'Call out now has a job: update details from job' : 'Job has not changed')
 
-          // Get the salesperson if available
-          if (job.field_1276.length > 0) {
-            updateData.field_985 = job.field_1276_raw['0'].id
-          }
+  return isJobDataRequired ? getJobData(callOut) : {}
+}
 
-          // Get the opsperson if available
-          if (job.field_1277.length > 0) {
-            updateData.field_1474 = job.field_1277_raw['0'].id
-          }
+async function getJobData(callOut) {
 
-          // Get the site contact if required and available
-          if (callOut.field_1025.length === 0 && callOut.field_1024 === 'Yes' && job.field_432.length > 0) {
-            updateData.field_1025 = job.field_432_raw['0'].id
-          }
+  let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
 
-          // Get the address if required and available
-          if (callOut.field_981 === '' && callOut.field_982 === 'Yes' && job.field_12 !== '') {
-            updateData.field_981 = {
-              street: job.field_12_raw.street,
-              street2: job.field_12_raw.street2,
-              city: job.field_12_raw.city,
-              state: job.field_12_raw.state,
-              zip: job.field_12_raw.zip
-            }
+  let fieldsToCopy = [
+    ['field_1276', 'field_985'], // Salesperson
+    ['field_1277', 'field_1474'], // Ops person
+    ['field_58', 'field_1494'], // State
+    ['field_186', 'field_1482'], // Development
+    ['field_59', 'field_1495'], // Busines Unit
+  ]
 
-          // If updating from the Job, need to also update the 'previous' address field
-          // This is usually set by getCallOutChangeResetData. As this runs in parallel the previous field isn't updated
-          updateData.field_1478 = updateData.field_981
+  let addressFieldsToCopy = [
+    ['field_12', 'field_981'], // Address
+    ['field_12', 'field_1478'], // Previous address (to remove has changed flag)
+  ]
 
-          }
+  let siteContactFieldsToCopy = [
+    ['field_432', 'field_1025'] // Site contact
+  ]
 
-          // Get the state
-          updateData.field_1494 = [job.field_58]
+  // Copy site contact if required
+  if (callOut.field_1024 === 'Yes') {
+    fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
+  }
+  // Copy address (and to previous address to remove flag) if required
+  if (callOut.field_982 === 'Yes') {
+    fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
+  }
 
-          // Get the busines unit
-          if(job.field_59 === 'Apartments' || job.field_59 === 'Projects') {
-          updateData.field_1495 = ['Commercial']
-          } else {
-            updateData.field_1495 = [job.field_59]
-          }
+   // Preprocess the job business unit
+  (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? job.field_59 = ['Commercial']: [job.field_59]
 
-          // Get the development if available
-          if (job.field_186.length > 0) {
-            updateData.field_1482 = job.field_186_raw['0'].id
-          }
-
-          return updateData
-        })
-    } else {
-      console.log('There are no job updates')
-      return {}
-    }
-  })
+  return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
 
 function getCallOutUpdateNameData(callOut) {
@@ -643,10 +491,10 @@ $(document).on('knack-form-submit.view_1541', function(event, view, record) {
 
 
 //ReSync Callout
-https://builder.knack.com/lovelight/tracker#pages/scene_950/views/view_1967
-$(document).on('knack-form-submit.view_1967', function(event, view, record) {
-  processCallOutChanges(record);
-});
+https: //builder.knack.com/lovelight/tracker#pages/scene_950/views/view_1967
+  $(document).on('knack-form-submit.view_1967', function(event, view, record) {
+    processCallOutChanges(record);
+  });
 
 //******************* RECORD DELETED ****************************************
 
