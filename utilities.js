@@ -81,13 +81,11 @@ function isFieldJustAdded(object,fieldPairArray){
 // takes an object name (eg 'object_1') and a data object
 // POSTs the data to create the record and returns the record
 async function getRecordPromise(object, id) {
-
   const url = 'https://api.knackhq.com/v1/objects/' + object + '/records/' + id
   const init = {
     method: 'GET',
     headers: myKnackHeaders
   }
-
   try {
     let response = await fetch(url, init)
     if (!response.ok) throw Error(response.statusText)
@@ -96,9 +94,25 @@ async function getRecordPromise(object, id) {
   } catch (err) {
     logError(getRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
-
 }
 
+// Updates record and returns the updated record
+async function updateRecordPromise(object, id, data) {
+  const url = 'https://api.knackhq.com/v1/objects/' + object + '/records/' + id
+  const init = {
+    method: 'PUT',
+    headers: myKnackHeaders,
+    body: JSON.stringify(data)
+  }
+  try {
+    let response = await fetch(url, init)
+    if (!response.ok) throw Error(response.statusText)
+    let json = await response.json()
+    return json
+  } catch (err) {
+  logError(updateViewPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+  }
+}
 // -------------------- ERROR HANDLING ---------------------
 
 // Takes an error object, and a boolean that indicates if the error should be thrown again
