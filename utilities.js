@@ -113,6 +113,61 @@ async function updateRecordPromise(object, id, data) {
   logError(updateViewPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
+
+// Returns an array of records
+async function searchRecordsPromise(object, filter) {
+
+  const url = 'https://api.knackhq.com/v1/objects/' + object + '/records/'
+  const search = '?rows_per_page=1000&filters=' + encodeURI(JSON.stringify(filter))
+  const searchUrl = url + search
+  const init = {
+    method: 'GET',
+    headers: myKnackHeaders
+  }
+
+  try {
+    let response = await fetch(searchUrl, init)
+    if (!response.ok) throw Error(response.statusText)
+    let json = await response.json()
+    let records = await json.records
+    return records
+  } catch (err) {
+    logError(filterViewPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+  }
+}
+
+// Builds a filter for Knack to be used for fetching multiple records
+// Filter is for each ID in the array
+function createFilterFromArrayOfIDs (arrRecordIDs) {
+  if (!isItAnArray(arrRecordIDs)) {
+    throw new Error('you must pass an array to getKnackRecordsUsingIDs')
+  }
+  let filter = {}
+  filter.match = 'or'
+
+  let rules = []
+  arrRecordIDs.map(value => {
+    rules.push({
+      'field': 'id',
+      'operator': 'is',
+      'value': value
+    })
+  })
+
+  filter.rules = rules
+  return filter
+}
+
+// Function checks if the passed variable is an array
+// Feturns true or false
+function isItAnArray (array) {
+  if (array.length === 0 || !Array.isArray(array)) {
+    return false
+  } else {
+    return true
+  }
+}
+
 // -------------------- ERROR HANDLING ---------------------
 
 // Takes an error object, and a boolean that indicates if the error should be thrown again
