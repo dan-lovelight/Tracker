@@ -28,45 +28,96 @@ $(document).on('knack-view-render.view_2126', function(event, view, data) {
 // The previous value is updated in code whenever there is a change
 // This acts as a flag - any submission where the two fields differ
 // indicates that the change is yet to be processed
-const trackChangeFields = [
+const trackChangeCoreFields = [
   ['field_924', 'field_1026'], // Scheduled Date
-  ['field_927', 'field_1034'], // Installer
-  ['field_985', 'field_1504'], // Salesperson
-  ['field_1474', 'field_1505'], // Ops person
-  ['field_1503', 'field_1506'], // Other attendees
   ['field_981', 'field_1478'], // Address
   ['field_955', 'field_1028'], // Status
   ['field_925', 'field_1492'], // Type
+  ['field_927', 'field_1034'], // Installer
+  ['field_1503', 'field_1506'] // Other attendees
+]
+
+const trackChangeSalesOpsFields = [
+  ['field_985', 'field_1504'], // Salesperson
+  ['field_1474', 'field_1505'] // Ops person
+]
+
+const trackChangeJobFields = [
   ['field_928', 'field_1493'], // Job
 ]
+
+const trackChangeFields = trackChangeCoreFields.concat(trackChangeSalesOpsFields, trackChangeJobFields)
 
 async function processCallOutChanges(record) {
   try {
 
-    // Exit early if nothing has changed
-    if (!isObjectUpdated(record, trackChangeFields)) {
+    // Determine what changes have been made to the record
+    let isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
+    let isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
+    let isAttendeeDataUpdated = record.field_1476.indexOf('Yes') ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
+    let isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
+    let isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
+
+    let isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
+    let isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet // always false if isDataUpdateRequired is false
+
+    let updatedRecord = record
+
+    // Update the callout data if required
+    if (!isDataUpdateRequired) {
       console.log('No update required')
+    } else {
+
+      // Gather all data that needs to be updated as a result of the changes
+      let resetData = copyFieldsToNewObject(record, trackChangeFields)
+      let jobData = isJobUpdated ? await getJobDataForCallOut(record) : {}
+      let nameData = await getCallOutName(record)
+      let pendingCalendarUpdateFlag = isCalendarUpdateRequired ? {
+        'field_1496': 'Yes'
+      } : {} // Flag for update required, only reset on success
+
+      // Merge the data
+      let updateData = {
+        ...resetData,
+        ...jobData,
+        ...nameData,
+        ...pendingCalendarUpdateFlag
+      }
+
+      // Update the callout record
+      updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
+      console.log('Record updated')
     }
 
-    // Gather all data that needs to be updated
-    let resetData = copyFieldsToNewObject(record, trackChangeFields)
-    let jobData = await getJobDataForCallOut(record)
-    let nameData = await getCallOutName(record)
+    // Update calendar events if required
+    if (!isCalendarUpdateRequired) {
+      console.log('No calendar invites update required')
+    } else {
 
-    // Merge the data
-    let updateData = {
-      ...resetData,
-      ...jobData,
-      ...nameData
+      // Exit if there is an update in progress
+      if (record.field_1101 === 'Yes') {
+        console.log('Callendar updates cancelled because an update is arleady in progress')
+        return
+      }
+
+      // Variables that tell us what we need to do this this callout
+      let isConfirmed = record.field_955 === 'No' // If the callout is not 'Tentative' then it is isConfirmed
+      let isInCalendar = record.field_1082.length > 1 // If the callout has a matching calendar item the id will be in this field
+      let isCancelled = record.field_1005 === 'Cancelled'
+
+      let isNewEventRequired = isConfirmed && !isInCalendar && !isCancelled
+      let isEventUpdateRequired = isConfirmed && isInCalendar && !isCancelled
+      let isEventCancellationRequired = isInCalendar && (!isConfirmed || isCancelled)
+
+      if (isNewEventRequired) processGoogleEvent('new', updatedRecord)
+      if (isEventUpdateRequired) processGoogleEvent('update', updatedRecord)
+      if (isEventCancellationRequired) processGoogleEvent('delete', updatedRecord)
+
     }
-
-    // Update the callout record
-    updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
-
-    // Send calendar invites
-    return updateCallOutCalendarEvents(record, updatedRecord)
-  } catch (err) {
-    logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    return
+  }
+  catch (err) {
+    logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, false)
   }
 }
 
@@ -165,7 +216,9 @@ async function getCallOutName(callOut) {
 
   // Build indicator of multiple installers if this is required
   if (callOut.field_927_raw === undefined ? 0 : callOut.field_927_raw.length) {
-    let installers = await getRecordsByID('installers', getConnectionIDs(callOut.field_927_raw))
+    let installerIDs = getConnectionIDs(callOut.field_927_raw)
+    let installerFilter = createFilterFromArrayOfIDs(installerIDs)
+    let installers = await searchRecordsPromise('object_71', installerFilter)
     multiInstallerIndicator = installers.reduce(function(colouredHeads, installer) {
       colouredHeads += '<span style="background-color:' + installer.field_1486 + '">👤</span>'
       return colouredHeads
@@ -180,213 +233,101 @@ async function getCallOutName(callOut) {
   return name
 }
 
-
-// A callout has been created or updated. What should we do?
-function updateCallOutCalendarEvents(callOut, updatedCallOut) {
-  return Promise.try(function() {
-    // Variables that tell us if the callout has been updated
-    let isTimeUpdated = JSON.stringify(callOut.field_1026) !== JSON.stringify(callOut.field_924)
-    let isInstallerPresent = callOut.field_927.length > 0 ? true : false
-    let isInstallerUpdated = JSON.stringify(callOut.field_1034) !== JSON.stringify(callOut.field_927)
-    let isAddressUpdated = JSON.stringify(callOut.field_981) !== JSON.stringify(callOut.field_1478)
-    let isTypeUpdated = JSON.stringify(callOut.field_925) !== JSON.stringify(callOut.field_1492)
-    let isJobUpdated = JSON.stringify(callOut.field_928) !== JSON.stringify(callOut.field_1493)
-    let isAdditionalAttendeeUpdated = JSON.stringify(callOut.field_1503) !== JSON.stringify(callOut.field_1506)
-
-    // Variables that tell us what we need to do this this callout
-    let isConfirmed = callOut.field_955 === 'No' // If the callout is not 'Tentative' then it is isConfirmed
-    let isInCalendar = callOut.field_1082.length > 1 // If the callout has a matching calendar item the id will be in this field
-    let isUpdated = (isTimeUpdated || isInstallerUpdated || isAddressUpdated || isTypeUpdated || isJobUpdated || isAdditionalAttendeeUpdated)
-    let isUpdateInProgress = callOut.field_1101 === 'Yes'
-    let isCancelled = callOut.field_1005 === 'Cancelled'
-
-    // |isConfirmed|isInCalendar|isUpdated|isUpdateInProgress|ACTION|
-    // |-----------|------------|---------|------------------|------|
-    // |   any     |    any     |  any    |       true       |nothing|
-    // |   true    |    false   |  any    |       false      |CREATE|
-    // |   true    |    true    |  true   |       false      |UPDATE|
-    // |   false   |    true    |  any    |       false      |DELETE|
-    // |   true    |    true    |  false  |       false      |nothing|
-    // |   false   |    false   |  any    |       false      |nothing|
-
-    // only proceed if there's no change already underway
-    if (isUpdateInProgress) {
-      console.log('updateCallOutCalendarEvents ran: Update already in progress, didn\'t create event')
-      return updatedCallOut
-    } else if (isConfirmed && !isInCalendar && !isCancelled && isInstallerPresent) {
-      console.log('updateCallOutCalendarEvents ran: Need to create a new event')
-      return createGoogleEvent(updatedCallOut)
-    } else if (isConfirmed && isUpdated && !isCancelled && isInstallerPresent) {
-      console.log('updateCallOutCalendarEvents ran: Need to update an existing event')
-      return updateGoogleEvent(updatedCallOut)
-    } else if ((!isConfirmed && isInCalendar) || (isInCalendar && isCancelled) || (isInCalendar && !isInstallerPresent)) {
-      console.log('updateCallOutCalendarEvents ran: Need to delete an existing event')
-      return deleteGoogleEvent(updatedCallOut)
-    } else {
-      console.log('updateCallOutCalendarEvents ran: No update required to calendar events')
-      return updatedCallOut
-    }
-  })
-}
-
 // Gather key callout data with human readable names
 function getPrettyCallOut(callOut) {
-  return Promise.try(() => {
-      let attendees = [callOut.field_1503] // Other Attendees
-      if (callOut.field_1476.indexOf('Yes') !== -1) { // User can choose not to email sales & ops
-        // Add sales and ops emails to array
-        attendees.push(callOut.field_1081)
-        attendees.push(callOut.field_1475)
-      }
-      attendees = attendees.join()
-
-      return {
-        'id': callOut.id,
-        'fromTime': callOut.field_924_raw.timestamp,
-        'toTime': callOut.field_924_raw.to.timestamp,
-        'jobs': callOut.field_928.length > 0 ? getConnectionIdentifiers(callOut.field_928_raw).join(', ') : undefined,
-        'jobID': callOut.field_928.length > 0 ? callOut.field_928_raw['0'].id : undefined,
-        'address': callOut.field_981.replace(/<\/?[^>]+(>|$)/g, ' '), // remove </br> from address string
-        'type': callOut.field_925,
-        'salesName': callOut.field_985.length > 0 ? callOut.field_985_raw['0'].identifier : undefined,
-        'salesEmail': callOut.field_1081,
-        'opsName': callOut.field_1474.length > 0 ? callOut.field_1474_raw['0'].identifier : undefined,
-        'opsEmail': callOut.field_1475,
-        'status': callOut.field_1005,
-        'calendarID': callOut.field_1082,
-        'installers': callOut.field_927.length > 0 ? getConnectionIdentifiers(callOut.field_927_raw).join(', ') : undefined,
-        'attendees': attendees,
-        'productToInstall': callOut.field_954.length > 0 ? getConnectionIdentifiers(callOut.field_954_raw).join(', ') : undefined,
-        'instructions': callOut.field_929,
-        'displayName': callOut.field_1488
-      }
-    })
-    .then(response => postToConsole(response, 'getPrettyCallOut ran'))
+  return {
+    'id': callOut.id,
+    'fromTime': callOut.field_924_raw.timestamp,
+    'toTime': callOut.field_924_raw.to.timestamp,
+    'jobs': callOut.field_928.length > 0 ? getConnectionIdentifiers(callOut.field_928_raw).join(', ') : undefined,
+    'jobID': callOut.field_928.length > 0 ? callOut.field_928_raw['0'].id : undefined,
+    'address': callOut.field_981.replace(/<\/?[^>]+(>|$)/g, ' '), // remove </br> from address string
+    'type': callOut.field_925,
+    'salesName': callOut.field_985.length > 0 ? callOut.field_985_raw['0'].identifier : undefined,
+    'salesEmail': callOut.field_1081,
+    'opsName': callOut.field_1474.length > 0 ? callOut.field_1474_raw['0'].identifier : undefined,
+    'opsEmail': callOut.field_1475,
+    'status': callOut.field_1005,
+    'calendarID': callOut.field_1082,
+    'installers': callOut.field_927.length > 0 ? getConnectionIdentifiers(callOut.field_927_raw).join(', ') : undefined,
+    'attendees': callOut.field_1476.indexOf('Yes') ? [callOut.field_1503, callOut.field_1081, callOut.field_1475].join() : [callOut.field_1503],
+    'productToInstall': callOut.field_954.length > 0 ? getConnectionIdentifiers(callOut.field_954_raw).join(', ') : undefined,
+    'instructions': callOut.field_929,
+    'displayName': callOut.field_1488
+  }
 }
+
 // Returns a string of emails for the installers associated with a call out
-function getInstallerEmailsString(callout) {
-  return Promise.try(() => {
-      if (callout.field_927.length === 0) {
-        throw new Error("Can't get installer emails without installer IDs")
-      } else {
-        return Promise.try(() => {
-            let installerIDs = getConnectionIDs(callout.field_927_raw)
-            return getRecordsByID('installers', installerIDs)
-          })
-          //.then(response => response.json())
-          //.then(installers => installers.records)
-          .then(installercallOuts => {
-            return installercallOuts.reduce((emails, installer) => {
-              emails.push(installer.field_870_raw.email)
-              return emails
-            }, []).join()
-          })
-      }
-    })
-    .then(response => postToConsole(response, 'getInstallerEmailsString ran'))
+async function getInstallerEmailsString(callout) {
+
+  if (callout.field_927.length === 0) {
+    throw new Error("Can't get installer emails without installer IDs")
+  }
+
+  let installerIDs = getConnectionIDs(callout.field_927_raw)
+  let installerFilter = createFilterFromArrayOfIDs(installerIDs)
+  let installers = await searchRecordsPromise('object_71', installerFilter)
+
+  return installers.reduce((emails, installer) => {
+    emails.push(installer.field_870_raw.email)
+    return emails
+  }, []).join()
+
 }
 
-function createGoogleEvent(callOut) {
-  return Promise.try(() => {
-      if (callOut.field_927.length === 0) {
-        throw new Error("Can't create an event with no installers")
-      } else {
-        return Promise.try(() => {
-            // let installerIDs = getConnectionIDs(callOut.field_927_raw)
-            let promiseArray = [getPrettyCallOut(callOut), getInstallerEmailsString(callOut), updateRecordByID('callouts', callOut.id, { //
-              'field_1101': 'Yes', // Flag for update in progress, reset in error handling as well as success
-              'field_1496': 'Yes' // Flag for update required, only reset on success
-            })]
-            return Promise.all(promiseArray)
-          })
-          .spread(function(prettyCallOut, installerEmails, fullCallOut) {
-            prettyCallOut.attendees = prettyCallOut.attendees + ',' + installerEmails
-            return manageGoogleEvent('new', prettyCallOut)
-          })
-          .then(() => {
-            return callOut
-          })
-          .catch((err) => {
-            gCalErrorHandler(err, callOut)
-          })
-      }
-    })
-    .then(response => postToConsole(response, 'createGoogleEvent ran'))
-}
+async function processGoogleEvent(eventAction, callOut) {
 
-function updateGoogleEvent(callOut) {
-  return Promise.try(() => {
-      if (callOut.field_927.length === 0) {
-        throw new Error("Can't create an event with no installers")
-      } else {
-        return Promise.try(() => {
-            // let installerIDs = getConnectionIDs(callOut.field_927_raw)
-            let promiseArray = [getPrettyCallOut(callOut), getInstallerEmailsString(callOut), updateRecordByID('callouts', callOut.id, {
-              'field_1496': 'Yes' // Flag for update required, only reset on success
-            })]
-            return promiseArray
-          })
-          .then(Promise.all)
-          .spread(function(prettyCallOut, installerEmails, fullCallOut) {
-            prettyCallOut.attendees = prettyCallOut.attendees + ',' + installerEmails
-            return manageGoogleEvent('update', prettyCallOut)
-          })
-          .then(() => {
-            return callOut
-          })
-      }
-    })
-    .then(response => postToConsole(response, 'updateGoogleEvent ran'))
-}
+  // Target zaps that manage event changes
+  let webhookArray = [{
+      action: 'new',
+      zap: 'xpuj8p',
+      message: 'new event created'
+    },
+    {
+      action: 'update',
+      zap: 'xnc85h',
+      message: 'event updated'
+    },
+    {
+      action: 'delete',
+      zap: 'xp4tzz',
+      message: 'event deleted'
+    }
+  ]
 
-function deleteGoogleEvent(callout) {
-  return Promise.try(() => {
-      return manageGoogleEvent('delete', callout)
-    })
-    .then(() => {
-      return callout
-    })
-    .then(response => postToConsole(response, 'deleteGoogleEvent ran'))
-}
+  // Exit if no installers are invited - is a required field, shouldn't happen
+  if (callOut.field_927.length === 0) {
+    throw new Error("Can't create an event with no installers")
+  }
 
-function gCalErrorHandler(err, callOut) {
-  updateRecordByID('callouts', callOut.id, {
-      'field_1101': 'No' // Reset update in progress flag
-    })
-    .then(() => {
-      console.log('error creating event, update in progress flag reset')
-      throw err
-    })
-}
-
-// Add, update or delete an event in google calendar via Zapier
-function manageGoogleEvent(updateType, data) {
-  return Promise.try(() => {
-
-      let webhookArray = [{
-          action: 'new',
-          zap: 'xpuj8p',
-          message: 'new event created'
-        },
-        {
-          action: 'update',
-          zap: 'xnc85h',
-          message: 'event updated'
-        },
-        {
-          action: 'delete',
-          zap: 'xp4tzz',
-          message: 'event deleted'
-        }
-      ]
-
-      let action = webhookArray.find(zap => {
-        return zap.action === updateType
+  try {
+    // Gather the data required for the event change
+    let prettyCallOut = callOut
+    if (eventAction !== 'delete') {
+      prettyCallOut = getPrettyCallOut(callOut)
+      prettyCallOut.attendees += (',' + await getInstallerEmailsString(callOut)) // Add installer emails to the attendee list
+      // Add a record flag to indciate there's an update in progress to prevent race conditions
+      await updateRecordPromise('object_78', callOut.id, {
+        'field_1101': 'Yes'
       })
+    }
 
-      return sendHookToZapier(action.zap, data, action.message)
+    // Get the target zap
+    let eventChange = webhookArray.find(zap => {
+      return zap.action === eventAction
     })
-    .then(response => postToConsole(response, 'manageGoogleEvent ran'))
+
+    triggerZap(eventChange.zap, prettyCallOut, eventChange.message)
+
+  } catch (err) {
+    // Update is no longer in progress, reset the flag
+    await updateRecordByID('object_78', callOut.id, {
+      'field_1101': 'No'
+    })
+    console.log('error managing event changes:' + eventAction)
+    logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+
+  }
 }
 
 //***************************************************************************
