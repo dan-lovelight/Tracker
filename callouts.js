@@ -24,68 +24,59 @@ $(document).on('knack-view-render.view_2126', function(event, view, data) {
 // ******************* WHEN A CALL OUT IS UPDATED ****************************
 // ***************************************************************************
 
+// A list of key fields, with the live field and the 'previous' field
+// The previous value is updated in code whenever there is a change
+// This acts as a flag - any submission where the two fields differ
+// indicates that the change is yet to be processed
+const trackChangeFields = [
+  ['field_924', 'field_1026'], // Scheduled Date
+  ['field_927', 'field_1034'], // Installer
+  ['field_985', 'field_1504'], // Salesperson
+  ['field_1474', 'field_1505'], // Ops person
+  ['field_1503', 'field_1506'], // Other attendees
+  ['field_981', 'field_1478'], // Address
+  ['field_955', 'field_1028'], // Status
+  ['field_925', 'field_1492'], // Type
+  ['field_928', 'field_1493'], // Job
+]
+
 async function processCallOutChanges(record) {
   try {
-    let updatedRecord = await updateCallOutDataForChanges(record)
+
+    // Exit early if nothing has changed
+    if (!isObjectUpdated(record, trackChangeFields)) {
+      console.log('No update required')
+    }
+
+    // Gather all data that needs to be updated
+    let resetData = copyFieldsToNewObject(record, trackChangeFields)
+    let jobData = await getJobDataForCallOut(record)
+    let nameData = await getCallOutName(record)
+
+    // Merge the data
+    let updateData = {
+      ...resetData,
+      ...jobData,
+      ...nameData
+    }
+
+    // Update the callout record
+    updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
+
+    // Send calendar invites
     return updateCallOutCalendarEvents(record, updatedRecord)
   } catch (err) {
-    errorHandler(err, record)
+    logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
 
-function updateCallOutDataForChanges(callOut) {
-  return Promise.try(function() {
-      let promiseArray = [getCallOutChangeResetData(callOut), getCallOutUpdateDataFromJob(callOut), getCallOutUpdateNameData(callOut)]
-      return Promise.all(promiseArray)
-    })
-    .spread((reset, job, name) => {
-      let updateData = {
-        ...reset,
-        ...job,
-        ...name
-      }
-      if (Object.entries(updateData).length === 0) {
-        console.log('No updates required')
-        return callOut
-      } else {
-        return updateRecordByID('callouts', callOut.id, updateData)
-      }
-    })
-}
+// Get all relevant data from job to update callout details
+// Returns a partial callout object with all the necessary fields populated
+async function getJobDataForCallOut(callOut) {
 
-// Compare the current value of key fields with the stored previous value
-async function getCallOutChangeResetData(callOut) {
-
-  let fieldsToCheck = [
-    ['field_924', 'field_1026'], // Scheduled Date
-    ['field_927', 'field_1034'], // Installer
-    ['field_985', 'field_1504'], // Salesperson
-    ['field_1474', 'field_1505'], // Ops person
-    ['field_1503', 'field_1506'], // Other attendees
-    ['field_981', 'field_1478'], // Address
-    ['field_955', 'field_1028'], // Status
-    ['field_925', 'field_1492'], // Type
-    ['field_928', 'field_1493'], // Job
+  let trackJobChangeFields = [
+    ['field_928', 'field_1493'] // Live jobs field, previous jobs field
   ]
-
-  // If there are any changes, return object to update all 'previous' fields
-  if (isObjectUpdated(callOut, fieldsToCheck)) {
-    return copyFieldsToNewObject(callOut, fieldsToCheck)
-  }
-  return {}
-}
-
-async function getCallOutUpdateDataFromJob(callOut) {
-  let calloutJobFields = ['field_928', 'field_1493'] // Live jobs field, previous jobs field
-  let isJobDataRequired = isFieldJustAdded(callOut, calloutJobFields)
-  console.log(isJobDataRequired ? 'Call out now has a job: update details from job' : 'Job has not changed')
-
-  return isJobDataRequired ? getJobData(callOut) : {}
-}
-
-async function getJobData(callOut) {
-
-  let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
 
   let fieldsToCopy = [
     ['field_1276', 'field_985'], // Salesperson
@@ -104,46 +95,91 @@ async function getJobData(callOut) {
     ['field_432', 'field_1025'] // Site contact
   ]
 
-  // Copy site contact if required
+  // Return early if the job is not updated
+  if (!isObjectUpdated(callOut, trackJobChangeFields)) {
+    return {}
+  }
+
+  // Get the job details
+  let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
+
+  // Add site contact to fiels to copy if required
   if (callOut.field_1024 === 'Yes') {
     fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
   }
-  // Copy address (and to previous address to remove flag) if required
+  // Add address to fields to copy (and to previous address to remove flag) if required
   if (callOut.field_982 === 'Yes') {
     fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
   }
 
-   // Preprocess the job business unit
+  // Preprocess the job business unit
   (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? job.field_59 = ['Commercial']: [job.field_59]
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
 
-function getCallOutUpdateNameData(callOut) {
-  return Promise.try(() => {
-    let isInstallerUpdated = JSON.stringify(callOut.field_1034) !== JSON.stringify(callOut.field_927)
-    let isStatusUpdated = JSON.stringify(callOut.field_955) !== JSON.stringify(callOut.field_1028)
-    let isTypeUpdated = JSON.stringify(callOut.field_925) !== JSON.stringify(callOut.field_1492)
-    let isJobUpdated = JSON.stringify(callOut.field_928) !== JSON.stringify(callOut.field_1493)
-    let countInstallers = callOut.field_927.length > 0 ? callOut.field_927_raw.length : 0
+// Create the display names for the call out
+// Returns a partial callout object with all the necessary fields populated
+async function getCallOutName(callOut) {
 
-    if (isTypeUpdated || isJobUpdated || isStatusUpdated || (isInstallerUpdated && countInstallers > 1)) {
-      return getCallOutName(callOut)
-        .then((name) => {
-          let updateData = {}
+  let name = {}
 
-          updateData.field_1481 = name.calendarName
-          updateData.field_1488 = name.formName
-          updateData.field_1490 = name.statusTypeInstallers
+  const tentativeIcon = '❓'
+  const completeIcon = '✔️'
+  const scheduledIcon = '📆'
+  const typeIcons = [
+    ['Unavailable/Leave', '🏄'],
+    ['Install', '🔨'],
+    ['Service & Install', '👷🔨'],
+    ['Measure & Install', '📏🔨'],
+    ['Measure', '📏'],
+    ['Service Call', '👷'],
+    ['Drop Off', '🚚'],
+    ['Pick Up', '🚚'],
+  ]
 
-          return updateData
-        })
-    } else {
-      console.log('No name update required')
-      return {}
-    }
-  })
+  // Collect Name Variables
+  let confirmationIcon = callOut.field_955 === 'No' ? '' : '[' + tentativeIcon + ']' // Show confirmed / tentative status
+  let type = callOut.field_925 === 'Other' ? callOut.field_1477 : callOut.field_925 // The selected callout type - install, measure etc, unless type is 'other'
+  let jobsCount = callOut.field_928.length > 0 ? callOut.field_928_raw.length : 0
+  let jobsCountDisplay = jobsCount > 1 ? '(+' + (jobsCount - 1) + ' others)' : ''
+  let firstJob = jobsCount > 0 ? callOut.field_928_raw['0'].identifier : ''
+  let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
+  let jobDisplay = firstJob.length < 1 ? '' : `${firstJobNoNumbers} ${jobsCountDisplay}`
+  let completionIcon = callOut.field_1005 === 'Complete' ? completeIcon : scheduledIcon
+  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street : ''
+  let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
+  let address = street + ' ' + city
+  let addressDisplay = address.length < 2 ? '' : '| ' + address
+  let installers = getConnectionIdentifiers(callOut.field_927_raw).join(', ')
+  let development = callOut.field_1482.length > 0 ? callOut.field_1482_raw['0'].identifier : ''
+  let nameToDisplay = jobsCount > 0 ? jobDisplay : development
+  let typeIcon = ''
+  let multiInstallerIndicator = ''
+
+  // Get type icon
+  typeIcon = typeIcons.reduce((icon, iconPair) => {
+    icon += iconPair[0] === type ? iconPair[1] : ''
+    return icon
+  }, '')
+
+  // Build indicator of multiple installers if this is required
+  if (callOut.field_927_raw === undefined ? 0 : callOut.field_927_raw.length) {
+    let installers = await getRecordsByID('installers', getConnectionIDs(callOut.field_927_raw))
+    multiInstallerIndicator = installers.reduce(function(colouredHeads, installer) {
+      colouredHeads += '<span style="background-color:' + installer.field_1486 + '">👤</span>'
+      return colouredHeads
+    }, '')
+  }
+
+  // Build Display Names
+  name.field_1488 = `${confirmationIcon}${typeIcon}${type} | ${nameToDisplay}`.trim() // Form display name
+  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}`.trim() // Calendar display name
+  name.field_1490 = `${confirmationIcon}${completionIcon} | ${typeIcon}${type} (${installers})` // Scheduled status and installers display
+
+  return name
 }
+
 
 // A callout has been created or updated. What should we do?
 function updateCallOutCalendarEvents(callOut, updatedCallOut) {
@@ -191,99 +227,6 @@ function updateCallOutCalendarEvents(callOut, updatedCallOut) {
       return updatedCallOut
     }
   })
-}
-
-// Create the display name for the call out
-function formatCallOutName(callOut) {
-  return Promise.try(function() {
-      let name = {}
-
-      // Show if the bookings is confirmed or tentative
-      name.confirmationIcon = callOut.field_955 === 'No' ? '' : '[❓]' // Show confirmed / tentative status
-      name.type = callOut.field_925 // The selected callout type - install, measure etc
-      name.typeIcon = ''
-      name.jobsCount = callOut.field_928.length > 0 ? callOut.field_928_raw.length : 0
-      name.jobsCountDisplay = name.jobsCount > 1 ? '(+' + (name.jobsCount - 1) + ' others)' : ''
-      name.firstJob = name.jobsCount > 0 ? callOut.field_928_raw['0'].identifier : ''
-      name.firstJobNoNumbers = name.jobsCount > 0 ? name.firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + name.firstJob.split('-')['1'] : '' // strip numbers from job name
-      name.jobDisplay = name.firstJob.length < 1 ? '' : `${name.firstJobNoNumbers} ${name.jobsCountDisplay}`
-      name.completionIcon = callOut.field_1005 === 'Complete' ? '✔️' : '📆'
-      name.street = callOut.field_981.length > 0 ? callOut.field_981_raw.street : ''
-      name.city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
-      name.address = name.street + ' ' + name.city
-      name.addressDisplay = name.address.length < 2 ? '' : '| ' + name.address
-      name.installers = getConnectionIdentifiers(callOut.field_927_raw).join(', ')
-      name.development = callOut.field_1482.length > 0 ? callOut.field_1482_raw['0'].identifier : ''
-      name.nameToDisplay = name.jobsCount > 0 ? name.jobDisplay : name.development
-
-      switch (callOut.field_925) {
-        case 'Other':
-          name.type = callOut.field_1477 // Custom callout name
-          break
-        case 'Unavailable/Leave':
-          name.typeIcon = '🏄'
-          break
-        case 'Install':
-          name.typeIcon = '🔨'
-          break
-        case 'Service & Install':
-          name.typeIcon = '👷🔨'
-          break
-        case 'Measure & Install':
-          name.typeIcon = '📏🔨'
-          break
-        case 'Measure':
-          name.typeIcon = '📏'
-          break
-        case 'Service Call':
-          name.typeIcon = '👷'
-          break
-        case 'Drop Off':
-        case 'Pick Up':
-          name.typeIcon = '🚚'
-          break
-        default:
-          break
-      }
-
-      name.formName = `${name.confirmationIcon}${name.typeIcon}${name.type} | ${name.nameToDisplay}`.trim()
-      name.calendarName = `${name.formName}${name.addressDisplay}`.trim()
-      name.statusTypeInstallers = `${name.confirmationIcon}${name.completionIcon} | ${name.typeIcon}${name.type} (${name.installers})`
-
-      return name
-    })
-    .then(response => postToConsole(response, 'formatCallOutName ran'))
-}
-
-function getInstallerColourIcons(callOut) {
-  return Promise.try(() => {
-      let installerCount = callOut.field_927_raw === undefined ? 0 : callOut.field_927_raw.length
-      let isInstallerUpdated = JSON.stringify(callOut.field_1034) !== JSON.stringify(callOut.field_927)
-
-      if (installerCount > 1) {
-        return getRecordsByID('installers', getConnectionIDs(callOut.field_927_raw))
-          .then(installers => {
-            return installers.reduce(function(colouredHeads, installer) {
-              colouredHeads += '<span style="background-color:' + installer.field_1486 + '">👤</span>'
-              return colouredHeads
-            }, [])
-          })
-      } else {
-        return ''
-      }
-    })
-    .then(response => postToConsole(response, 'getInstallerColourIcons ran'))
-}
-
-function getCallOutName(callOut) {
-  return Promise.try(() => {
-      return Promise.all([formatCallOutName(callOut), getInstallerColourIcons(callOut)])
-    })
-    .spread(function(name, installerIcons) {
-      name.calendarName = installerIcons + name.calendarName
-      return name
-    })
-    .then(response => postToConsole(response, 'getCallOutName ran'))
 }
 
 // Gather key callout data with human readable names
