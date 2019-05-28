@@ -115,8 +115,7 @@ async function processCallOutChanges(record) {
 
     }
     return
-  }
-  catch (err) {
+  } catch (err) {
     logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, false)
   }
 }
@@ -196,14 +195,14 @@ async function getCallOutName(callOut) {
   let jobsCountDisplay = jobsCount > 1 ? '(+' + (jobsCount - 1) + ' others)' : ''
   let firstJob = jobsCount > 0 ? callOut.field_928_raw['0'].identifier : ''
   let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
-  let jobDisplay = firstJob.length < 1 ? '' : `${firstJobNoNumbers} ${jobsCountDisplay}`
+  let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
   let completionIcon = callOut.field_1005 === 'Complete' ? completeIcon : scheduledIcon
   let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street : ''
   let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
   let address = street + ' ' + city
   let addressDisplay = address.length < 2 ? '' : '| ' + address
   let installers = getConnectionIdentifiers(callOut.field_927_raw).join(', ')
-  let development = callOut.field_1482.length > 0 ? callOut.field_1482_raw['0'].identifier : ''
+  let development = callOut.field_1482.length > 0 ? ' | ' + callOut.field_1482_raw['0'].identifier : ''
   let nameToDisplay = jobsCount > 0 ? jobDisplay : development
   let typeIcon = ''
   let multiInstallerIndicator = ''
@@ -215,7 +214,7 @@ async function getCallOutName(callOut) {
   }, '')
 
   // Build indicator of multiple installers if this is required
-  if (callOut.field_927_raw === undefined ? 0 : callOut.field_927_raw.length) {
+  if (callOut.field_927_raw !== undefined && callOut.field_927_raw.length > 1) {
     let installerIDs = getConnectionIDs(callOut.field_927_raw)
     let installerFilter = createFilterFromArrayOfIDs(installerIDs)
     let installers = await searchRecordsPromise('object_71', installerFilter)
@@ -226,7 +225,7 @@ async function getCallOutName(callOut) {
   }
 
   // Build Display Names
-  name.field_1488 = `${confirmationIcon}${typeIcon}${type} | ${nameToDisplay}`.trim() // Form display name
+  name.field_1488 = `${confirmationIcon}${typeIcon}${type}${nameToDisplay}`.trim() // Form display name
   name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}`.trim() // Calendar display name
   name.field_1490 = `${confirmationIcon}${completionIcon} | ${typeIcon}${type} (${installers})` // Scheduled status and installers display
 
@@ -349,6 +348,32 @@ $(document).on('knack-record-create.view_1437', function(event, view, record) {
 $(document).on('knack-record-create.view_2126', function(event, view, record) {
   processCallOutChanges(record);
 });
+
+// Add call out - via My Calendar
+// https://lovelight.knack.com/tracker#my-calendar/
+// https://builder.knack.com/lovelight/tracker#pages/scene_947/views/view_1962
+$(document).on('knack-record-create.view_1962', function(event, view, record) {
+
+  Swal.fire({
+    title: "Updating callout...",
+    text: "Please wait",
+    showConfirmButton: false,
+    onBeforeOpen: () => {
+      Swal.showLoading()
+    },
+    onOpen: async () => {
+      // Regardless of defaults, ensure the booking is tentative
+      record = await updateRecordPromise('object_78', record.id, {
+        'field_955': 'Yes',
+        'field_1005': 'Tentative'
+      })
+      await processCallOutChanges(record);
+      // Redirect to main edit screen
+      window.location.replace('https://lovelight.knack.com/tracker#my-calendar/edit-call-out/' + record.id)
+      Swal.close()
+    }
+  })
+})
 
 //******************* RECORD UPDATED ****************************************
 
