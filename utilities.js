@@ -210,7 +210,7 @@ function getParamNames(func) {
 // Handles all logging from other functions
 // Currently posts anything that gets raised here to Slack
 function updateLog(entry) {
-  let url = 'https://hooks.zapier.com/hooks/catch/2107870/jdigp6/'
+  let url = 'https://hooks.zapier.com/hooks/catch/2107870/vdgohy/'
   fetch(url, {
     method: 'POST',
     body: JSON.stringify({
