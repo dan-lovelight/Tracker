@@ -78,6 +78,24 @@ function isFieldJustAdded(object,fieldPairArray){
 
 // ---------------------- DATA MANAGEMENT ------------
 
+//Return array of callOut IDs for any connection field
+function getConnectionIDs(connectionArray) {
+  if (connectionArray !== undefined) {
+    return connectionArray.map(connection => connection.id)
+  } else {
+    return []
+  }
+}
+
+//Return array of callOut identifiers for any connection field
+function getConnectionIdentifiers(connectionArray) {
+  if (connectionArray !== undefined) {
+    return connectionArray.map(connection => connection.identifier)
+  } else {
+    return []
+  }
+}
+
 // takes an object name (eg 'object_1') and a data object
 // POSTs the data to create the record and returns the record
 async function getRecordPromise(object, id) {
@@ -166,6 +184,37 @@ function isItAnArray (array) {
   } else {
     return true
   }
+}
+
+// -------------------- UI MANIPULATION  ---------------------
+
+function hideEmptyTables(scene) {
+  //Iterate throught each view in the page
+  scene.views.map(function(view) {
+    // If the view has row data (ie it's a table) AND that data is 0...
+    if (view.type === 'table' && Knack.models[view.key].data.length === 0) {
+      $('#' + view.key).remove()
+    }
+  })
+}
+
+// Function that adds checkboxes
+var addCheckboxes = function(view) {
+  // Add the checkbox to to the header to select/unselect all
+  $('#' + view.key + '.kn-table thead tr').prepend('<th><input type="checkbox"></th>');
+  $('#' + view.key + '.kn-table thead input').change(function() {
+    $('.' + view.key + '.kn-table tbody tr input').each(function() {
+      $(this).attr('checked', $('#' + view.key + '.kn-table thead input').attr('checked') != undefined);
+    });
+  });
+  // Add a checkbox to each row in the table body
+  $('#' + view.key + '.kn-table tbody tr').not('.kn-table-group').each(function() {
+    $(this).prepend('<td><input type="checkbox"></td>');
+  });
+  // Group headings need the extra cell to format correctly
+  $('#' + view.key + '.kn-table tbody tr.kn-table-group').each(function() {
+    $(this).prepend('<td></td>');
+  });
 }
 
 // -------------------- ERROR HANDLING ---------------------

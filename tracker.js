@@ -1,23 +1,23 @@
 const trackerObjects = [{
-  name: 'jobs',
-  object: 'object_3'
-}, {
-  name: 'callouts',
-  object: 'object_78'
-}, {
-  name: 'installers',
-  object: 'object_71'
-}, {
-  name: 'invoices',
-  object: 'object_19'
-},{
-  name: 'orders',
-  object: 'object_5'
-},
-{
-  name: 'opportunities',
-  object: 'object_17'
-}
+    name: 'jobs',
+    object: 'object_3'
+  }, {
+    name: 'callouts',
+    object: 'object_78'
+  }, {
+    name: 'installers',
+    object: 'object_71'
+  }, {
+    name: 'invoices',
+    object: 'object_19'
+  }, {
+    name: 'orders',
+    object: 'object_5'
+  },
+  {
+    name: 'opportunities',
+    object: 'object_17'
+  }
 ]
 
 $(document).on('knack-view-render.any', function(event, scene) {
@@ -43,7 +43,7 @@ $(document).on('knack-scene-render.any', function(event, scene) {
 
   let userRoles = Knack.getUserRoles()
 
-  if(Knack.getUserAttributes()!='No user found' && !(userRoles.length == 1 && userRoles[0] == 'object_71')){ // not logged in or an installer
+  if (Knack.getUserAttributes() != 'No user found' && !(userRoles.length == 1 && userRoles[0] == 'object_71')) { // not logged in or an installer
 
     //Portal
     var myElem = document.getElementById('portal');
@@ -76,60 +76,19 @@ $(document).on('knack-scene-render.any', function(event, scene) {
 //******************* HIDE EMPTY TABLES *************************************
 //***************************************************************************
 
-//My Opportunities dashboard
-$(document).on('knack-scene-render.scene_246', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//My Jobs dashboard
-$(document).on('knack-scene-render.scene_247', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//My Orders dashboard
-$(document).on('knack-scene-render.scene_248', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//My Invoices dashboard
-$(document).on('knack-scene-render.scene_249', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//My To Quote dashboard
-$(document).on('knack-scene-render.scene_417', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//My Jobs
-$(document).on('knack-scene-render.scene_1578', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//My Opportunities
-$(document).on('knack-scene-render.scene_707', function(event, scene) {
-  if (Knack.models["view_1583"].data.length == 0) {
-    $('#view_1583').remove();
-  }
-  if (Knack.models["view_1640"].data.length == 0) {
-    $('#view_1640').remove();
-  }
-  if (Knack.models["view_1641"].data.length == 0) {
-    $('#view_1641').remove();
-  }
-});
-
-//My Invoices
-$(document).on('knack-scene-render.scene_720', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//Remakes
-$(document).on('knack-scene-render.scene_956', function(event, scene) {
-  hideEmptyTables(scene)
-});
-//Track Remakes
-$(document).on('knack-scene-render.scene_959', function(event, scene) {
+const hideEmptyTablePages = [
+  'knack-scene-render.scene_703', //My Jobs https://lovelight.knack.com/tracker#my-jobs/
+  'knack-scene-render.scene_720', //My Invoices https://lovelight.knack.com/tracker#my-invoices/
+  'knack-scene-render.scene_417', //My To Quote dashboard ??
+  'knack-scene-render.scene_707', // My Opportunities https://lovelight.knack.com/tracker#my-opportunities/
+  'knack-scene-render.scene_1578', // My Jobs ??
+  'knack-scene-render.scene_778', // My Jobs https://lovelight.knack.com/tracker#my-scheduling-jobs/my-jobs2/
+  'knack-scene-render.scene_956', // My Remakes https://lovelight.knack.com/tracker#my-remakes/
+  'knack-scene-render.scene_959', // Track Remakes https://lovelight.knack.com/tracker#my-remakes/track-remake/{}/
+  'knack-scene-render.scene_52', // View Job Details
+]
+//******************** VIEW JOB DETAILS ********************************
+$(document).on(hideEmptyTablePages.join(' '), function(event, scene) {
   hideEmptyTables(scene)
 });
 
@@ -179,7 +138,7 @@ $(document).on('knack-view-render.view_1287', function(event, view) {
           return response.json();
         }).then(function(json) {
           return json.id; //just need something to indicate it worked, don't care what
-        })).catch(errorHandler)
+        })).catch(logError(hopeItDoesntBreak, arguments, err, Knack.getUserAttributes(), window.location.href, true)) // This needs work
       }
       return Promise.all(promiseArray);
     }
@@ -217,74 +176,31 @@ $(document).on('knack-view-render.view_1287', function(event, view) {
 });
 
 //***************************************************************************
-//******************* ALL FORMS THAT UPDATE OPPORTUNITIES********************
+//******************* UPDATE OPPORTUNITIES ********************
 //***************************************************************************
 
-//******************* RECORD CREATED ****************************************
+const opportunityUpdatedEvents = [
+  'knack-record-create.view_934', //https://builder.knack.com/lovelight/tracker#pages/scene_413/views/view_934
+  'knack-record-create.view_1542', //https://builder.knack.com/lovelight/tracker#pages/scene_691/views/view_1542, //https://lovelight.knack.com/tracker#opportunities/new-quote-request/
+  'knack-form-submit.view_1069', //https://builder.knack.com/lovelight/tracker#pages/scene_475/views/view_1069
+  'knack-form-submit.view_87', //https://builder.knack.com/lovelight/tracker#pages/scene_49/views/view_87
+  'knack-form-submit.view_949', //https://builder.knack.com/lovelight/tracker#pages/scene_414/views/view_949
+  'knack-form-submit.view_950', //https://builder.knack.com/lovelight/tracker#pages/scene_415/views/view_950
+  'knack-form-submit.view_1023', //https://builder.knack.com/lovelight/tracker#pages/scene_455/views/view_1023
+  'knack-form-submit.view_1024', //https://builder.knack.com/lovelight/tracker#pages/scene_456/views/view_1024
+  'knack-form-submit.view_1661', //https://builder.knack.com/lovelight/tracker#pages/scene_456/views/view_1661
+]
 
-//Add Opportunity
-//https://builder.knack.com/lovelight/tracker#pages/scene_413/views/view_934
-$(document).on('knack-record-create.view_934', function(event, view, record) {
-  console.log(record);
+$(document).on(opportunityUpdatedEvents.join(' '), function(event, view, record) {
   processOpportunityChanges(record);
 });
 
 //https://builder.knack.com/lovelight/tracker#pages/scene_691/views/view_1542
 //https://lovelight.knack.com/tracker#opportunities/new-quote-request/
 $(document).on('knack-record-create.view_1542', function(event, view, record) {
-  console.log(record);
-  //Create ticket in ZD for new quote request
-  sendHookToZapier('lq798w', record, 'new quote request')
-  processOpportunityChanges(record);
+  triggerZap('lq798w', record, 'new quote request')
 });
 
-//******************* FORM SUBMITTED ****************************************
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_475/views/view_1069
-$(document).on('knack-form-submit.view_1069', function(event, view, record) {
-  console.log(record);
-  processOpportunityChanges(record);
-});
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_49/views/view_87
-$(document).on('knack-form-submit.view_87', function(event, view, record) {
-  console.log(record);
-  processOpportunityChanges(record);
-});
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_414/views/view_949
-$(document).on('knack-form-submit.view_949', function(event, view, record) {
-  console.log(record);
-  processOpportunityChanges(record);
-});
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_415/views/view_950
-$(document).on('knack-form-submit.view_950', function(event, view, record) {
-  console.log(record);
-  processOpportunityChanges(record);
-});
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_455/views/view_1023
-$(document).on('knack-form-submit.view_1023', function(event, view, record) {
-  console.log(record);
-  processOpportunityChanges(record);
-});
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_456/views/view_1024
-$(document).on('knack-form-submit.view_1024', function(event, view, record) {
-  console.log(record);
-  processOpportunityChanges(record);
-});
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_456/views/view_1661
-$(document).on('knack-form-submit.view_1661', function(event, view, record) {
-  console.log(record);
-  processOpportunityChanges(record);
-});
-
-//***************************************************************************
-//******************* WHEN AN OPPORTUNITY IS UPDATED ************************
-//***************************************************************************
 function processOpportunityChanges(record) {
 
   //Set variables
@@ -324,7 +240,7 @@ function processOpportunityChanges(record) {
     //Has this opportunity just been quoted?
     if (status == 'Open' && statusPrevious !== 'Lost' && statusPrevious !== 'Won' && value >= quotedNotificationValue && typeof quotedBy !== 'undefined') {
       //Send to Zapier for Slack update
-      sendHookToZapier('l5tgdk', zapierData, 'Quote!');
+      triggerZap('l5tgdk', zapierData, 'Quote!');
     }
 
     if (status == 'Won') {
@@ -343,295 +259,32 @@ function processOpportunityChanges(record) {
         //console.log("value is >1000, credit to "+ zapierData.salesPersonCredit);
 
         //Send to Zapier for Slack update
-        sendHookToZapier('l5tx9j', zapierData, 'Sale!');
+        triggerZap('l5tx9j', zapierData, 'Sale!');
 
       } //end value>1000
 
       //Notify QLD channel about all wins
       if (state == 'QLD' && value < saleNotificationValue) {
         zapierData.salesPersonCredit = salesPerson;
-        sendHookToZapier('e337ri', zapierData, 'QLD Sale!');
+        triggerZap('e337ri', zapierData, 'QLD Sale!');
       }
 
       //Does this opportunity have a company?
       if (typeof company !== 'undefined') {
 
         //console.log("there is a company");
-        sendHookToZapier('l5hoyo', zapierData, 'Opportunity has a company');
+        triggerZap('l5hoyo', zapierData, 'Opportunity has a company');
 
       } //end company
     } //end won
 
     //The status has changed. Set previous status to current status to reset the flag
-    updateRecordByID('opportunities', record.id, updateOpp)
+    updateRecordPromise('object_17', record.id, updateOpp)
 
   } //end status changed
 }
 
-//***************************************************************************
-//******************* ALL EVENTS THAT UPDATE JOBS ***************************
-//***************************************************************************
 
-//******************* RECORD CREATED ****************************************
-
-// https://lovelight.knack.com/tracker#dashboard/jobs2/add-job/
-// https://builder.knack.com/lovelight/tracker#pages/scene_18/views/view_33
-$(document).on('knack-record-create.view_33', function(event, view, record) {
-  console.log(record);
-  addJobToJobRec(record)
-});
-
-// https://lovelight.knack.com/tracker#jobs/view-job-details
-// https://builder.knack.com/lovelight/tracker#pages/scene_244/views/view_609
-$(document).on('knack-record-create.view_609', function(event, view, record) {
-  console.log(record);
-  addJobToJobRec(record)
-});
-
-// https://lovelight.knack.com/tracker#custom-opportunities/view-opportunity-details/xxx/add-job-to-opportunity2
-// https://builder.knack.com/lovelight/tracker#pages/scene_776/views/view_1671
-$(document).on('knack-record-create.view_1671', function(event, view, record) {
-  console.log(record);
-  addJobToJobRec(record)
-});
-
-// https://lovelight.knack.com/tracker#custom-opportunities/view-opportunity-details/xxx/add-job-to-opportunity
-// https://builder.knack.com/lovelight/tracker#pages/scene_776/views/view_1670
-$(document).on('knack-record-create.view_1670', function(event, view, record) {
-  console.log(record);
-  addJobToJobRec(record)
-});
-
-
-//******************* FORM SUBMITTED ****************************************
-
-//All My Jobs
-//https://lovelight.knack.com/tracker#dashboard/jobs2/
-//https://builder.knack.com/lovelight/tracker#pages/scene_247/views/view_277
-$(document).on('knack-form-submit.view_277', function(event, view, record) {
-  console.log(record);
-});
-
-//******************* INLINE EDITS ******************************************
-
-//My Issue Jobs
-//https://lovelight.knack.com/tracker#dashboard/jobs2/
-//https://builder.knack.com/lovelight/tracker#pages/scene_247/views/view_402
-$(document).on('knack-cell-update.view_402', function(event, view, record) {
-  console.log(record);
-});
-
-//All My Jobs
-//https://lovelight.knack.com/tracker#dashboard/jobs2/
-//https://builder.knack.com/lovelight/tracker#pages/scene_247/views/view_277
-$(document).on('knack-cell-update.view_277', function(event, view, record) {
-  console.log(record);
-});
-
-//******************** CREATE JOB IN JOBREC ********************************
-
-function addJobToJobRec (job) {
-	let url = 'https://api.jobrecapp.com/v1/jobs/'
-    let data = {
-      'name': job.field_296,
-      'source': 'Tracker',
-      'sourceId': job.id,
-      'ownerName': job.field_1276_raw[0].identifier,
-      'ownerEmail': job.field_715,
-      'url': 'https://lovelight.knack.com/tracker#jobs/view-job-details/' + job.id,
-      'value': job.field_130_raw.replace(/,/g, ''),
-      'client': job.field_1332
-    }
-
-    let init = {
-        method: 'POST',
-        headers: myJobRecHeaders,
-        body: JSON.stringify(data)
-      }
-
-  return fetch(url, init)
-}
-
-//******************** VIEW JOB DETAILS ********************************
-$(document).on('knack-scene-render.scene_52', function(event, scene) {
-	hideEmptyTables(scene)
-})
-
-//***************************************************************************
-//******************* ALL EVENTS THAT UPDATE ORDERS *************************
-//***************************************************************************
-
-//******************* RECORD CREATED ****************************************
-
-//Add estimate
-$(document).on('knack-record-create.view_1139', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Add order
-$(document).on('knack-record-create.view_96', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Record Stock Usage
-$(document).on('knack-record-create.view_1019', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Create Related Order
-$(document).on('knack-record-create.view_1000', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//******************* FORM SUBMITTED ****************************************
-
-//Edit Estimate
-$(document).on('knack-form-submit.view_1140', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Edit Order
-$(document).on('knack-form-submit.view_223', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Change Order Status
-$(document).on('knack-form-submit.view_997', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Update Storage Bay
-$(document).on('knack-form-submit.view_1333', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Update Carton Number
-$(document).on('knack-form-submit.view_1334', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Warehouse Change Order Status
-$(document).on('knack-form-submit.view_1353', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//******************* INLINE EDITS ******************************************
-
-//Job details table
-$(document).on('knack-cell-update.view_97', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Search Orders
-$(document).on('knack-cell-update.view_1087', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Related orders table in order details
-$(document).on('knack-cell-update.view_998', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Stocktake table
-$(document).on('knack-cell-update.view_1287', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Deliver manifest table
-$(document).on('knack-cell-update.view_1332', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//Recently received table
-$(document).on('knack-cell-update.view_1335', function(event, view, record) {
-  processOrderChanges(record);
-});
-
-//******************* REMAKE PAGES ***************************************
-
-
-
-//******************* ORDER FUNCTIONS ***************************************
-
-function processOrderChanges(record) {
-
-  console.log(record);
-
-  //Set general variables to use in code below and make it more readable
-  var status = record.field_442_raw["0"].identifier;
-  var previousStatus = record.field_443.length > 0 ? record.field_443_raw["0"].identifier : undefined;
-  var isStatusChanged = record.field_263;
-  var isReceivedByBayEntry = status.includes("Ordered") && record.field_90.length > 0 ? true : false;
-  var isReceived = isReceivedByBayEntry || (isStatusChanged && status.includes("Warehouse")) ? true : false;
-  var today = moment().format("DD/MM/YYYY")
-  var updateOrder = {}; //If we have to update the opportuinty, we'll need this:
-  var data = {}; //For sending through to Zapier
-  var bays = [];
-  var bayNames = "";
-
-  //Get bays incase they are needed
-  if (typeof record.field_90_raw !== 'undefined') {
-    for (var i = 0; i < record.field_90_raw.length; i++) {
-      bays.push(record.field_90_raw[i].id);
-      bayNames += record.field_90_raw[i].identifier;
-      if (record.field_90_raw[i].id != record.field_90_raw[record.field_90_raw.length - 1].id) {
-        bayNames += ', '
-      }
-    }
-  }
-
-  //Take action if status is changed
-  if (isStatusChanged) {
-
-    //We'll need to update these fields
-    updateOrder.field_443 = record.field_442_raw["0"].id; //set's the previous status field to the current status, removing the 'has changed' flag
-    updateOrder.field_264 = today; //status changed date
-    updateOrder.field_1395 = 'processOrderChanges() function via Knack JS';
-
-    //Has it just been recieved?
-    if (isReceived) {
-      //Set date received
-      updateOrder.field_22 = today; //set to order received date to today
-      updateOrder.field_247 = 'No'; //flag so that standard email gets sent (need to remove later)
-
-      //Was it received implicitly by entering a bay?
-      if (isReceivedByBayEntry) {
-        //Change status to 'In Warehouse'
-        updateOrder.field_442 = '59086d0d86d2272d7a9805db'
-        updateOrder.field_443 = '59086d0d86d2272d7a9805db'
-      }
-
-      //Notify sales & ops that order has been received.
-      data.orderID = record.id;
-      data.jobID = record.field_10_raw["0"].id;
-      data.bays = bayNames;
-      data.supplier = record.field_1446_raw["0"].identifier;
-      data.quantity = record.field_17;
-      data.product = record.field_11_raw["0"].identifier;
-      data.deliveryLocation = record.field_111;
-      data.notes = record.field_18;
-      data.status = status;
-
-      console.log(status);
-      console.log(data);
-
-      sendHookToZapier('eak2n4', data, 'order received notification sent');
-
-    }
-  }
-
-  //Was this record stocktake today?
-  if (record.field_1001.length > 0) {
-    if (record.field_1001_raw.date_formatted == today) {
-      //Set the stocktake bay
-      updateOrder.field_1000 = bays;
-    }
-  }
-
-  //Update the record
-  updateRecordByID('orders', record.id, updateOrder)
-
-}
 
 //***************************************************************************
 //******************* INVOICE FORMS *****************************************
@@ -700,7 +353,7 @@ function processNewInvoiceRecord(record) {
       console.log(data);
 
       //write details back to the invoice
-      updateRecordByID('invoices', record.id, data)
+      updateRecordPromise('object_19', record.id, data)
 
     })
 
@@ -969,7 +622,7 @@ function issueInvoice(record) {
       data.state = jobState;
       data.salesPerson = salesPersonEmail;
 
-      return sendHookToZapier('cmjwd2', data, 'Create Invoice');
+      return triggerZap('cmjwd2', data, 'Create Invoice');
 
     })
     .then(function() {
@@ -1028,58 +681,65 @@ $(document).on('knack-records-render.view_1347', function(event, view, records) 
 //***************************************************************************
 $(document).on('knack-scene-render.scene_642', function(event, scene) {
 
-    $('#view_2072, #view_2071').detach().prependTo('#view_2062 .control') // Move no issues button into menu
-    $('#view_1442').css({"clear":"both","margin-top":"2em"}) // Details view below buttons
-    $('#view_2071, #view_2072').css({"float":"left","margin-right":"0.6em","margin-bottom":"5px"}) // Format button in menu
+  $('#view_2072, #view_2071').detach().prependTo('#view_2062 .control') // Move no issues button into menu
+  $('#view_1442').css({
+    "clear": "both",
+    "margin-top": "2em"
+  }) // Details view below buttons
+  $('#view_2071, #view_2072').css({
+    "float": "left",
+    "margin-right": "0.6em",
+    "margin-bottom": "5px"
+  }) // Format button in menu
 
 });
 
 $(document).on('knack-scene-render.scene_509', function(event, scene) {
 
-//  const target = document.getElementById('view_2057');
-//  const options = {
-//    attributes: true,
-//    attributeOldValue: true,
-//  };
-//  const observer = new MutationObserver(callback);
+  //  const target = document.getElementById('view_2057');
+  //  const options = {
+  //    attributes: true,
+  //    attributeOldValue: true,
+  //  };
+  //  const observer = new MutationObserver(callback);
 
-//  function callback (mutations) {
+  //  function callback (mutations) {
 
-//   mutations.forEach((mutation) => {
-//		console.log(mutation)
-//    })
-//  }
+  //   mutations.forEach((mutation) => {
+  //		console.log(mutation)
+  //    })
+  //  }
 
-//  observer.observe(target, options);
-debugger
+  //  observer.observe(target, options);
+  debugger
   waitForAddedNode({
     id: 'view_2057',
     parent: document.querySelector('.container'),
     recursive: false,
     done: function(el) {
-        console.log(el);
+      console.log(el);
     }
-});
+  });
 
 });
 
 function waitForAddedNode(params) {
-    new MutationObserver(function(mutations) {
-        var el = document.getElementById(params.id);
-        if (el) {
-            this.disconnect();
-            params.done(el);
-        }
-    }).observe(params.parent || document, {
-        subtree: !!params.recursive,
-        childList: true,
-    });
+  new MutationObserver(function(mutations) {
+    var el = document.getElementById(params.id);
+    if (el) {
+      this.disconnect();
+      params.done(el);
+    }
+  }).observe(params.parent || document, {
+    subtree: !!params.recursive,
+    childList: true,
+  });
 }
 
 // Installer Report within call out
 $(document).on('knack-view-render.view_2074', function(event, view) {
-  $('#view_2074-field_1542').on('change',function() {
-  	let outcome = $('#view_2074-field_1542').val()
+  $('#view_2074-field_1542').on('change', function() {
+    let outcome = $('#view_2074-field_1542').val()
     if (outcome.includes("Issues")) {
       document.getElementById('field_1545').value = "Call out completed without issues"
     } else {
@@ -1090,8 +750,8 @@ $(document).on('knack-view-render.view_2074', function(event, view) {
 
 // Installer Report from reporting page
 $(document).on('knack-view-render.view_2077', function(event, view) {
-  $('#view_2077-field_1542').on('change',function() {
-  	let outcome = $('#view_2077-field_1542').val()
+  $('#view_2077-field_1542').on('change', function() {
+    let outcome = $('#view_2077-field_1542').val()
     if (outcome.includes("Issues")) {
       document.getElementById('field_1545').value = "Call out completed without issues"
     } else {

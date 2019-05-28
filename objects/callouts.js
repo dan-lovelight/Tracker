@@ -1,24 +1,41 @@
-//***************************************************************************
-//******************* WHEN CREATE/EDIT CALL OUT FORMS ARE RENDERED **********
-//***************************************************************************
+const callOutChangeEvents = [
+  'knack-form-submit.view_1294', // Edit Callout, #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
+  'knack-form-submit.view_1426', // Review Callout, #call-outs/review-call-out-details2/{id}/, #pages/scene_638/views/view_1426
+  'knack-form-submit.view_1541', // Cancel Callout, #jobs/view-job-details/{id}/cancel-call-out/{id}/, #pages/scene_690
+  'knack-form-submit.view_1967', // ReSync Callout, #pages/scene_950/views/view_1967
+  'knack-record-delete.view_1215', // Callout Deleted,
+  'knack-record-create.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
+  'knack-record-create.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
+]
 
-// https://lovelight.knack.com/tracker#jobs/view-job-details/{id}/add-a-call-out/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_641/views/view_1437
-$(document).on('knack-view-render.view_1437', function(event, view, data) {
-  pimpTimePicker('view_1437-field_924')
+const hideTablesSchedulingScenes = [
+  'knack-scene-render.scene_947', // My CallOuts Calendar view for schedulers
+  'knack-scene-render.scene_1023', // Developments page
+  'knack-scene-render.scene_981', // VIC Calendar
+  'knack-scene-render.scene_982', // NSW Calendar
+  'knack-scene-render.scene_983', // QLD Calendar
+]
+
+const createCallOutForms = [
+  'knack-view-render.view_1437', // #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
+  'knack-view-render.view_1294', // #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
+  'knack-view-render.view_2126', // #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
+]
+
+// CallOut changed
+$(document).on(callOutChangeEvents.join(' '), function(event, view, record) {
+  processCallOutChanges(record);
+});
+
+// Hide empty tables
+$(document).on(hideTablesSchedulingScenes.join(' '), function(event, scene) {
+  hideEmptyTables(scene)
+});
+
+// Create & Edit forms rendered
+$(document).on(createCallOutForms.join(' '), function(event, view, data) {
+  pimpTimePicker(view.key + '-field_924')
 })
-
-// https://lovelight.knack.com/tracker#jobs/view-job-details/{id}/edit-call-out/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_576/views/view_1294
-$(document).on('knack-view-render.view_1294', function(event, view, data) {
-  pimpTimePicker('view_1294-field_924')
-});
-
-// https://lovelight.knack.com/tracker#developments/view-development-details/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_1024/views/view_2126
-$(document).on('knack-view-render.view_2126', function(event, view, data) {
-  pimpTimePicker('view_2126-field_924')
-});
 
 // ***************************************************************************
 // ******************* WHEN A CALL OUT IS UPDATED ****************************
@@ -320,7 +337,7 @@ async function processGoogleEvent(eventAction, callOut) {
 
   } catch (err) {
     // Update is no longer in progress, reset the flag
-    await updateRecordByID('object_78', callOut.id, {
+    await updateRecordPromise('object_78', callOut.id, {
       'field_1101': 'No'
     })
     console.log('error managing event changes:' + eventAction)
@@ -328,26 +345,6 @@ async function processGoogleEvent(eventAction, callOut) {
 
   }
 }
-
-//***************************************************************************
-//******************* ALL FORMS THAT UPDATE CALL OUTS ***********************
-//***************************************************************************
-
-//******************* RECORD CREATED ****************************************
-
-// Add call out - job
-// https://lovelight.knack.com/tracker#jobs/view-job-details/{id}/add-a-call-out/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_641/views/view_1437
-$(document).on('knack-record-create.view_1437', function(event, view, record) {
-  processCallOutChanges(record);
-});
-
-// Add call out - development
-// https://lovelight.knack.com/tracker#developments/view-development-details/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_1024/views/view_2126
-$(document).on('knack-record-create.view_2126', function(event, view, record) {
-  processCallOutChanges(record);
-});
 
 // Add call out - via My Calendar
 // https://lovelight.knack.com/tracker#my-calendar/
@@ -374,67 +371,3 @@ $(document).on('knack-record-create.view_1962', function(event, view, record) {
     }
   })
 })
-
-//******************* RECORD UPDATED ****************************************
-
-// Edit Callout
-// https://lovelight.knack.com/tracker#jobs/view-job-details/{id}/edit-call-out/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_576/views/view_1294
-$(document).on('knack-form-submit.view_1294', function(event, view, record) {
-  processCallOutChanges(record);
-});
-
-// Review Callout
-// https://lovelight.knack.com/tracker#call-outs/review-call-out-details2/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_638/views/view_1426
-$(document).on('knack-form-submit.view_1426', function(event, view, record) {
-  processCallOutChanges(record);
-});
-
-// Cancel Callout
-// https://lovelight.knack.com/tracker#jobs/view-job-details/{id}/cancel-call-out/{id}/
-// https://builder.knack.com/lovelight/tracker#pages/scene_690
-$(document).on('knack-form-submit.view_1541', function(event, view, record) {
-  processCallOutChanges(record);
-});
-
-
-//ReSync Callout
-https: //builder.knack.com/lovelight/tracker#pages/scene_950/views/view_1967
-  $(document).on('knack-form-submit.view_1967', function(event, view, record) {
-    processCallOutChanges(record);
-  });
-
-//******************* RECORD DELETED ****************************************
-
-$(document).on('knack-record-delete.view_1215', function(event, view, record) {
-  processCallOutChanges(record);
-});
-
-//******************* SCHEDULING SCENES LOADED *****************************
-
-//My CallOuts Calendar view for schedulers
-$(document).on('knack-scene-render.scene_947', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//Developments page
-$(document).on('knack-scene-render.scene_1023', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-
-//VIC Calendar
-$(document).on('knack-scene-render.scene_981', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//NSW Calendar
-$(document).on('knack-scene-render.scene_982', function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-//QLD Calendar
-$(document).on('knack-scene-render.scene_983', function(event, scene) {
-  hideEmptyTables(scene)
-});
