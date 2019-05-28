@@ -55,12 +55,12 @@ function copyFieldsToNewObject(object, arrayOfFieldPairs) {
 
 function isAnyDateFieldType(fieldValue) {
   let dateRegex = /^[0-9]{2}\/[0-9]{2}\/[0-9]{4}.*/
-  return fieldValue.match(dateRegex)
+  return fieldValue.toString().match(dateRegex)
 }
 
 function isToFromDateFieldType(fieldValue) {
   let dateRegex = /^[0-9]{2}\/[0-9]{2}\/[0-9]{4}.*(to).*/
-  return fieldValue.match(dateRegex)
+  return fieldValue.toString().match(dateRegex)
 }
 
 function isObjectUpdated(object,arrayOfFieldPairs) {

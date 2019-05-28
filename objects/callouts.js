@@ -71,7 +71,7 @@ async function processCallOutChanges(record) {
     // Determine what changes have been made to the record
     let isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
     let isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
-    let isAttendeeDataUpdated = record.field_1476.indexOf('Yes') ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
+    let isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
     let isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
     let isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
 
@@ -266,7 +266,7 @@ function getPrettyCallOut(callOut) {
     'status': callOut.field_1005,
     'calendarID': callOut.field_1082,
     'installers': callOut.field_927.length > 0 ? getConnectionIdentifiers(callOut.field_927_raw).join(', ') : undefined,
-    'attendees': callOut.field_1476.indexOf('Yes') ? [callOut.field_1503, callOut.field_1081, callOut.field_1475].join() : [callOut.field_1503],
+    'attendees': callOut.field_1476.indexOf('Yes') > -1 ? [callOut.field_1503, callOut.field_1081, callOut.field_1475].join() : [callOut.field_1503],
     'productToInstall': callOut.field_954.length > 0 ? getConnectionIdentifiers(callOut.field_954_raw).join(', ') : undefined,
     'instructions': callOut.field_929,
     'displayName': callOut.field_1488
