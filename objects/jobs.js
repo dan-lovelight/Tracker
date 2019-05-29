@@ -83,7 +83,7 @@ async function processJobChanges(record) {
 
   let isStatusUpdated = isObjectUpdated(record, trackStatusChange)
   let measureOrInstallDetails = stateTransitionDetails.filter((transition) => transition[0] === record.field_245_raw[0].id)[0]
-  let isPortalUpdateRequired = measureOrInstallDetails.length > 0 && (record.field_59.indexOf('Apartments') > -1 || record.field_59.indexOf('Projects') > 0)
+  let isPortalUpdateRequired = measureOrInstallDetails !== undefined && (record.field_59.indexOf('Apartments') > -1 || record.field_59.indexOf('Projects') > -1)
 
   if (isStatusUpdated) {
     let data = copyFieldsToNewObject(record, trackStatusChange)
@@ -92,17 +92,25 @@ async function processJobChanges(record) {
 
     if (isPortalUpdateRequired) {
       let latestCallOuts = await searchRecordsPromise('object_78', linkedCallOutFilter(record.id, measureOrInstallDetails[2]))
-      let data = {
-        'jobId': record.id,
-        'changeStateTo': measureOrInstallDetails[1],
-        'measure_booked_date': measureOrInstallDetails[2] === 'Measure' && latestCallOuts.length > 0 ? latestCallOuts[0].field_939 : '', //This is group by date, don't need time,
-        'date_of_install': measureOrInstallDetails[2] === 'Install' && latestCallOuts.length > 0 ? latestCallOuts[0].field_939 : '',
-      }
-      triggerZap('vdv8sq', data, 'Portal state changed')
+      let jobId = record.id
+      let changeStateTo = measureOrInstallDetails[1]
+      let measure_booked_date = measureOrInstallDetails[2] === 'Measure' && latestCallOuts.length > 0 ? latestCallOuts[0].field_939 : '' //This is group by date, don't need time,
+      let date_of_install = measureOrInstallDetails[2] === 'Install' && latestCallOuts.length > 0 ? latestCallOuts[0].field_939 : ''
+      changeStatusInPortal(jobId, changeStateTo, measure_booked_date, date_of_install)
     }
   }
 }
 
+// Send required data to Zapier to update portal
+function changeStatusInPortal(jobId, targetStatus, measureDate, installDate) {
+  let data = {
+    'jobId': jobId,
+    'changeStateTo': targetStatus,
+    'measure_booked_date': measureDate,
+    'date_of_install': installDate
+  }
+  triggerZap('vdv8sq', data, 'Portal state changed')
+}
 
 function addJobToJobRec(job) {
   let url = 'https://api.jobrecapp.com/v1/jobs/'

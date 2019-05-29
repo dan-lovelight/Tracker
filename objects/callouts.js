@@ -25,6 +25,7 @@ const createCallOutForms = [
 // CallOut changed
 $(document).on(callOutChangeEvents.join(' '), function(event, view, record) {
   processCallOutChanges(record);
+  updateConnectedJobsInPortal(record)
 });
 
 // Hide empty tables
@@ -343,6 +344,36 @@ async function processGoogleEvent(eventAction, callOut) {
     console.log('error managing event changes:' + eventAction)
     logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, true)
 
+  }
+}
+
+// Update commercial jobs connected callouts if callout is Install or Measure
+function updateConnectedJobsInPortal(record) {
+
+  const portalToTrackerMap = [
+    //portal status name, callout type name,
+    ['measure_booked', 'Measure'],
+    ['install_booked', 'Install']
+  ]
+
+  let isConnectedToJob = record.field_928_raw.length > 0
+  let isConfirmed = record.field_1005 !== 'Tentative'
+  let isCommercial = record.field_1495.indexOf('Commercial') > -1
+
+  // Exit early if there is no job or the callout is tentative or it's not a commercial job
+  if ( !(isConnectedToJob && isConfirmed && isCommercial) ) {
+    return
+  }
+
+  let callOutType = record.field_925
+  let changeDetails = portalToTrackerMap.filter((type) => type[1] === callOutType)[0]
+  // Proceed if the callout type is measure or an install
+  if (changeDetails !== undefined) {
+    record.field_928_raw.forEach(job => {
+      let measureDate = changeDetails[1] = 'Measure' ? record.field_939 : ''
+      let installDate = changeDetails[1] = 'Install' ? record.field_939 : ''
+      changeStatusInPortal(job.id, changeDetails[0], measureDate, installDate)
+    })
   }
 }
 
