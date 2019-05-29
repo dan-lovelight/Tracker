@@ -541,7 +541,7 @@ function issueInvoice(record) {
     minimumFractionDigits: 2
   })
 
-  var getJob = getRecord('job', jobID)
+  var getJob = getRecordPromise('object_3', jobID)
     .then(function(res) {
       return res.json();
     })
@@ -595,7 +595,7 @@ function issueInvoice(record) {
 
   var getSales = getJob.then(function() {
 
-      return getRecord('salesperson', jobSalesID);
+      return getRecordPromise('object_82', jobSalesID);
     })
     .then(function(res) {
       return res.json();
