@@ -120,6 +120,7 @@ function changeStatusInPortal(jobId, targetStatus, measureDate, installDate) {
     type: 'success',
     title: '<span style="font-size:16px;">Portal status updated</span>',
     showConfirmButton: false,
+    showCloseButton: true,
     timer: 2000,
     backdrop: false,
     width: 300,

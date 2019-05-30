@@ -22,80 +22,80 @@ $(document).on(orderEvents.join(' '), function(event, view, record) {
   processOrderChanges(record);
 });
 
-function processOrderChanges(record) {
+async function processOrderChanges(record) {
 
-  //Set general variables to use in code below and make it more readable
-  var status = record.field_442_raw["0"].identifier;
-  var previousStatus = record.field_443.length > 0 ? record.field_443_raw["0"].identifier : undefined;
-  var isStatusChanged = record.field_263;
-  var isReceivedByBayEntry = status.includes("Ordered") && record.field_90.length > 0 ? true : false;
-  var isReceived = isReceivedByBayEntry || (isStatusChanged && status.includes("Warehouse")) ? true : false;
-  var today = moment().format("DD/MM/YYYY")
-  var updateOrder = {}; //If we have to update the opportuinty, we'll need this:
-  var data = {}; //For sending through to Zapier
-  var bays = [];
-  var bayNames = "";
+  let trackStatusChange = [
+    ['field_442', 'field_443']
+  ]
 
-  //Get bays incase they are needed
-  if (typeof record.field_90_raw !== 'undefined') {
-    for (var i = 0; i < record.field_90_raw.length; i++) {
-      bays.push(record.field_90_raw[i].id);
-      bayNames += record.field_90_raw[i].identifier;
-      if (record.field_90_raw[i].id != record.field_90_raw[record.field_90_raw.length - 1].id) {
-        bayNames += ', '
-      }
-    }
+  let status = record.field_442_raw["0"].identifier
+
+  // Sometimes an order's bay is entered without the status being updated
+  // This looks for these instances and updates the status to 'In Warehouse'
+  // Placing this before the status change check triggers downstream updates
+  if (status.includes("Ordered") && record.field_90.length > 0) record.field_442 = ['59086d0d86d2272d7a9805db']
+
+  let today = moment().format("DD/MM/YYYY")
+  let now = moment().format("DD/MM/YYYY hh:mma")
+  let isStatusUpdated = isObjectUpdated(record, trackStatusChange)
+  let isJustReceived = isStatusUpdated && status.indexOf('Warehouse') > -1
+  let isStockTakeToday = record.field_1001.length > 0 && record.field_1001_raw.date_formatted === today
+
+  // Gather data for the updated order
+  let updatedOrder = {}
+
+  if (isStatusUpdated) {
+    updatedOrder = copyFieldsToNewObject(record, trackStatusChange) // Reset change tracking fields
+    updatedOrder.field_264 = now // Status update date
   }
 
-  //Take action if status is changed
-  if (isStatusChanged) {
-
-    //We'll need to update these fields
-    updateOrder.field_443 = record.field_442_raw["0"].id; //set's the previous status field to the current status, removing the 'has changed' flag
-    updateOrder.field_264 = today; //status changed date
-    updateOrder.field_1395 = 'processOrderChanges() function via Knack JS';
-
-    //Has it just been recieved?
-    if (isReceived) {
-      //Set date received
-      updateOrder.field_22 = today; //set to order received date to today
-      updateOrder.field_247 = 'No'; //flag so that standard email gets sent (need to remove later)
-
-      //Was it received implicitly by entering a bay?
-      if (isReceivedByBayEntry) {
-        //Change status to 'In Warehouse'
-        updateOrder.field_442 = '59086d0d86d2272d7a9805db'
-        updateOrder.field_443 = '59086d0d86d2272d7a9805db'
-      }
-
-      //Notify sales & ops that order has been received.
-      data.orderID = record.id;
-      data.jobID = record.field_10_raw["0"].id;
-      data.bays = bayNames;
-      data.supplier = record.field_1446_raw["0"].identifier;
-      data.quantity = record.field_17;
-      data.product = record.field_11_raw["0"].identifier;
-      data.deliveryLocation = record.field_111;
-      data.notes = record.field_18;
-      data.status = status;
-
-      console.log(status);
-      console.log(data);
-
-      triggerZap('eak2n4', data, 'order received notification sent');
-
-    }
+  //Has it just been recieved?
+  if (isJustReceived) {
+    updatedOrder.field_22 = today; //set to order received date to today
+    sendOrderReceivedNotifications(record)
+    if (record.field_591 === 'Apartments') changeStatusInPortal(record.field_10_raw[0].id, 'order_received', '', '')
   }
 
   //Was this record stocktake today?
-  if (record.field_1001.length > 0) {
-    if (record.field_1001_raw.date_formatted == today) {
-      //Set the stocktake bay
-      updateOrder.field_1000 = bays;
-    }
+  if (isStockTakeToday) {
+    updatedOrder.field_1000 = record.field_1000_raw // Set the stocktake bay to the current bay
   }
 
   //Update the record
-  updateRecordPromise('object_5', record.id, updateOrder)
+  updateRecordPromise('object_5', record.id, updatedOrder)
 
+}
+
+async function sendOrderReceivedNotifications(record) {
+
+  let zapData = {}
+
+  zapData.orderID = record.id;
+  zapData.jobID = record.field_10_raw["0"].id;
+  zapData.bays = record.field_90.length>0 ? getConnectionIdentifiers(record.field_90) : ''
+  zapData.supplier = record.field_1446_raw["0"].identifier;
+  zapData.quantity = record.field_17;
+  zapData.product = record.field_11_raw["0"].identifier;
+  zapData.deliveryLocation = record.field_111;
+  zapData.notes = record.field_18;
+  zapData.status = status;
+
+  let job = await getRecordPromise('object_3', record.field_10_raw[0].id)
+  zapData.jobStatus = job.field_245_raw[0].identifier
+  zapData.jobName = job.field_296
+
+  // Get salesperson details
+  if(job.field_1276.length>0){
+    let salesperson = await getRecordPromise('object_82', job.field_1276_raw[0].id)
+    zapData.salesEmail = salesperson.field_957_raw.email
+  }
+
+  // Get salesperson details
+  if(job.field_1277.length>0){
+    let opsperson = await getRecordPromise('object_68', job.field_1277_raw[0].id)
+    zapData.opsEmail = opsperson.field_814_raw.email
+  }
+
+  // Send email to salesperson
+  triggerZap('eak2n4', zapData, 'order received notification sent');
 }
