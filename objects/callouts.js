@@ -1,11 +1,17 @@
-const callOutChangeEvents = [
+const callOutCreateEvents = [
+  'knack-record-create.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
+  'knack-record-create.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
+]
+
+const callOutUpdateEvents = [
   'knack-form-submit.view_1294', // Edit Callout, #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
   'knack-form-submit.view_1426', // Review Callout, #call-outs/review-call-out-details2/{id}/, #pages/scene_638/views/view_1426
   'knack-form-submit.view_1541', // Cancel Callout, #jobs/view-job-details/{id}/cancel-call-out/{id}/, #pages/scene_690
   'knack-form-submit.view_1967', // ReSync Callout, #pages/scene_950/views/view_1967
+]
+
+const callOutDeleteEvents = [
   'knack-record-delete.view_1215', // Callout Deleted,
-  'knack-record-create.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
-  'knack-record-create.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
 ]
 
 const hideTablesSchedulingScenes = [
@@ -22,11 +28,28 @@ const createCallOutForms = [
   'knack-view-render.view_2126', // #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
 ]
 
-// CallOut changed
-$(document).on(callOutChangeEvents.join(' '), function(event, view, record) {
-  processCallOutChanges(record);
+// ----------------
+// Record change actions
+
+// CallOut created
+$(document).on(callOutCreateEvents.join(' '), function(event, view, record) {
+  processCallOutChanges(record, 'create');
   updateConnectedJobsInPortal(record)
 });
+
+// CallOut editted
+$(document).on(callOutUpdateEvents.join(' '), function(event, view, record) {
+  processCallOutChanges(record, 'update');
+  updateConnectedJobsInPortal(record)
+});
+
+// CallOut changed
+$(document).on(callOutDeleteEvents.join(' '), function(event, view, record) {
+  processCallOutChanges(record, 'delete');
+});
+
+// Record change actions
+// ----------------
 
 // Hide empty tables
 $(document).on(hideTablesSchedulingScenes.join(' '), function(event, scene) {
@@ -66,21 +89,27 @@ const trackChangeJobFields = [
 
 const trackChangeFields = trackChangeCoreFields.concat(trackChangeSalesOpsFields, trackChangeJobFields)
 
-async function processCallOutChanges(record) {
+// Change type can be 'create', 'update' or 'delete'
+async function processCallOutChanges(record, changeType) {
   try {
 
-    // Determine what changes have been made to the record
-    let isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
-    let isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
-    let isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
-    let isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
-    let isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
-
-    let isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
-    let isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet // always false if isDataUpdateRequired is false
-
+    // Set the default value of the updated record
     let updatedRecord = record
+    let isDataUpdateRequired = false
+    let isCalendarUpdateRequired = true
 
+    if (changeType !== 'delete') {
+      // Determine what changes have been made to the record
+      let isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
+      let isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
+      let isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
+      let isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
+      let isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
+
+      isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
+      isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet // always false if isDataUpdateRequired is false
+    }
+    
     // Update the callout data if required
     if (!isDataUpdateRequired) {
       console.log('No update required')
@@ -361,7 +390,7 @@ function updateConnectedJobsInPortal(record) {
   let isCommercial = record.field_1495.indexOf('Commercial') > -1
 
   // Exit early if there is no job or the callout is tentative or it's not a commercial job
-  if ( !(isConnectedToJob && isConfirmed && isCommercial) ) {
+  if (!(isConnectedToJob && isConfirmed && isCommercial)) {
     return
   }
 
