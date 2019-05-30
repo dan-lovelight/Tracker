@@ -233,7 +233,7 @@ async function logError(callerFunction, args, err, user, url, throwAgain) {
   logMessage += `> *user*: ${user.name} (${user.email})\n`
   logMessage += `> *url*: ${url} \n`
   for (var i = 0; i < callerArgs.length; ++i) {
-    if (typeof callerArgsNames[i] === 'object' && callerArgsNames[i] !== null){ // Is the variable an object?
+    if (typeof callerArgsNames[i][0] === '{' && callerArgsNames[i] !== null){ // Is the variable an object?
       // Put message in code bock if it's an object
       logMessage += `*${callerArgsNames[i]}*: ` + '```' + JSON.stringify(callerArgs[i]) + '```' + '\n'
     } else {
