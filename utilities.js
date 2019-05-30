@@ -128,7 +128,7 @@ async function updateRecordPromise(object, id, data) {
     let json = await response.json()
     return json
   } catch (err) {
-  logError(updateViewPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+  logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
 
@@ -150,7 +150,7 @@ async function searchRecordsPromise(object, filter) {
     let records = await json.records
     return records
   } catch (err) {
-    logError(filterViewPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    logError(searchRecordsPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
 

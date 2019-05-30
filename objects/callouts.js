@@ -93,23 +93,28 @@ const trackChangeFields = trackChangeCoreFields.concat(trackChangeSalesOpsFields
 async function processCallOutChanges(record, changeType) {
   try {
 
-    // Set the default value of the updated record
+    // Set the default values
     let updatedRecord = record
-    let isDataUpdateRequired = false
-    let isCalendarUpdateRequired = true
+    let isDataUpdateRequired = false // Don't try to update callout record unless we're sure one exists
+    let isCalendarUpdateRequired = true // Always check if calendar needs updating unless explicity stopped
+    let isCoreDataUpdated = false
+    let isSalesOpsUpdated = false
+    let isAttendeeDataUpdated = false
+    let isJobUpdated = false
+    let isCalendarFlagSet = false
 
     if (changeType !== 'delete') {
       // Determine what changes have been made to the record
-      let isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
-      let isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
-      let isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
-      let isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
-      let isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
+      isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
+      isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
+      isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
+      isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
+      isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
 
       isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
       isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet // always false if isDataUpdateRequired is false
     }
-    
+
     // Update the callout data if required
     if (!isDataUpdateRequired) {
       console.log('No update required')
@@ -200,7 +205,7 @@ async function getJobDataForCallOut(callOut) {
   // Get the job details
   let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
 
-  // Add site contact to fiels to copy if required
+  // Add site contact to fields to copy if required
   if (callOut.field_1024 === 'Yes') {
     fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
   }
@@ -209,8 +214,9 @@ async function getJobDataForCallOut(callOut) {
     fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
   }
 
-  // Preprocess the job business unit
-  (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? job.field_59 = ['Commercial']: [job.field_59]
+  // Preprocess the job data
+  job.field_59 = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
+  if(job.field_12.length === 0) job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
