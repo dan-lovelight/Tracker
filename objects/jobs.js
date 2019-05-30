@@ -83,12 +83,17 @@ async function processJobChanges(record) {
 
   let isStatusUpdated = isObjectUpdated(record, trackStatusChange)
   let measureOrInstallDetails = stateTransitionDetails.filter((transition) => transition[0] === record.field_245_raw[0].id)[0]
-  let isPortalUpdateRequired = measureOrInstallDetails !== undefined && (record.field_59.indexOf('Apartments') > -1 || record.field_59.indexOf('Projects') > -1)
+  // Is the status measure or install booked? Is it a commercial job? Is there a development ?
+  let isPortalUpdateRequired = measureOrInstallDetails !== undefined && (record.field_59.indexOf('Apartments') > -1 || record.field_59.indexOf('Projects') > -1) && record.field_186.length > 0
 
   if (isStatusUpdated) {
+    // Get data to update previous status tracking fields
     let data = copyFieldsToNewObject(record, trackStatusChange)
-    data.field_260 = moment().format("DD/MM/YYYY hh:mma") // Status change date
+    // Status change date
+    data.field_260 = moment().format("DD/MM/YYYY hh:mma")
+    // Update the job
     updateRecordPromise('object_3', record.id, data)
+    // TBD - insert a record into history
 
     if (isPortalUpdateRequired) {
       let latestCallOuts = await searchRecordsPromise('object_78', linkedCallOutFilter(record.id, measureOrInstallDetails[2]))
@@ -110,6 +115,17 @@ function changeStatusInPortal(jobId, targetStatus, measureDate, installDate) {
     'date_of_install': installDate
   }
   triggerZap('vdv8sq', data, 'Portal state changed')
+  Swal.fire({
+    position: 'top-end',
+    type: 'success',
+    title: '<span style="font-size:16px;">Portal status updated</span>',
+    showConfirmButton: false,
+    timer: 2000,
+    backdrop: false,
+    width: 300,
+    padding: 10,
+    background: '#e5ffe5'
+  })
 }
 
 function addJobToJobRec(job) {
