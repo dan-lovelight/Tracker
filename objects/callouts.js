@@ -229,7 +229,7 @@ async function getJobDataForCallOut(callOut) {
   }
 
   // Preprocess the job data
-  job.field_59 = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
+  job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
   if (job.field_12.length === 0) job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
@@ -351,7 +351,7 @@ async function getInstallerEmailsString(callout) {
 
   let installerIDs = getConnectionIDs(callout.field_927_raw)
   let installerFilter = createFilterFromArrayOfIDs(installerIDs)
-  let installers = await searchRecordsPromise('object_71', installerFilter)
+  let installers = await searchRecordsPromise('object_71', installerFilter) // Why does this return an empty array?
 
   return installers.reduce((emails, installer) => {
     emails.push(installer.field_870_raw.email)
@@ -427,9 +427,10 @@ function updateConnectedJobsInPortal(record) {
   let isConnectedToJob = record.field_928_raw.length > 0
   let isConfirmed = record.field_1005 !== 'Tentative'
   let isCommercial = record.field_1495.indexOf('Commercial') > -1
+  let isCancelled = record.field_1005 === 'Cancelled'
 
   // Exit early if there is no job or the callout is tentative or it's not a commercial job
-  if (!(isConnectedToJob && isConfirmed && isCommercial)) {
+  if (!(isConnectedToJob && isConfirmed && isCommercial) || isCancelled) {
     return
   }
 
