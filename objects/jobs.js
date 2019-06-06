@@ -84,7 +84,7 @@ async function processJobChanges(record) {
   let isStatusUpdated = isObjectUpdated(record, trackStatusChange)
   let measureOrInstallDetails = stateTransitionDetails.filter((transition) => transition[0] === record.field_245_raw[0].id)[0]
   // Is the status measure or install booked? Is it a commercial job? Is there a development ?
-  let isPortalUpdateRequired = measureOrInstallDetails !== undefined && (record.field_59.indexOf('Apartments') > -1 || record.field_59.indexOf('Projects') > -1) && record.field_186.length > 0
+  let isPortalUpdateRequired = measureOrInstallDetails !== undefined && record.field_59.indexOf('Apartments') > -1 && record.field_186.length > 0
 
   if (isStatusUpdated) {
     // Get data to update previous status tracking fields

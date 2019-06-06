@@ -103,6 +103,11 @@ async function processCallOutChanges(record, changeType) {
     let isJobUpdated = false
     let isCalendarFlagSet = false
 
+    // Variables that tell us what we need to do this this callout
+    let isConfirmed = record.field_955 === 'No' // If the callout is not 'Tentative' then it is isConfirmed
+    let isInCalendar = record.field_1082.length > 1 // If the callout has a matching calendar item the id will be in this field
+    let isCancelled = record.field_1005 === 'Cancelled'
+
     if (changeType !== 'delete') {
       // Determine what changes have been made to the record
       isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
@@ -112,7 +117,7 @@ async function processCallOutChanges(record, changeType) {
       isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
 
       isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
-      isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet // always false if isDataUpdateRequired is false
+      isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet || isCancelled // always false if isDataUpdateRequired is false
     }
 
     // Update the callout data if required
@@ -152,10 +157,19 @@ async function processCallOutChanges(record, changeType) {
         return
       }
 
-      // Variables that tell us what we need to do this this callout
-      let isConfirmed = record.field_955 === 'No' // If the callout is not 'Tentative' then it is isConfirmed
-      let isInCalendar = record.field_1082.length > 1 // If the callout has a matching calendar item the id will be in this field
-      let isCancelled = record.field_1005 === 'Cancelled'
+      // Handle installers who are allowed to see tentative bookings
+      if (!isConfirmed) {
+        let permittedInstallers = await getInstallersWhoSeeTentativeBookings(updatedRecord)
+        if (permittedInstallers.length>0) {
+          // We're sending this event anyway, but only to the installer permitted to see it
+          updatedRecord.field_927_raw = permittedInstallers
+          updatedRecord.field_1503 = '',
+          updatedRecord.field_1081 = '',
+          updatedRecord.field_1475 = ''
+
+          isConfirmed = true
+        }
+      }
 
       let isNewEventRequired = isConfirmed && !isInCalendar && !isCancelled
       let isEventUpdateRequired = isConfirmed && isInCalendar && !isCancelled
@@ -216,7 +230,7 @@ async function getJobDataForCallOut(callOut) {
 
   // Preprocess the job data
   job.field_59 = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
-  if(job.field_12.length === 0) job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
+  if (job.field_12.length === 0) job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
@@ -307,6 +321,25 @@ function getPrettyCallOut(callOut) {
     'instructions': callOut.field_929,
     'displayName': callOut.field_1488
   }
+}
+
+// Returns a string of emails for the installers associated with a call out
+async function getInstallersWhoSeeTentativeBookings(callout) {
+
+  if (callout.field_927.length === 0) {
+    throw new Error("Can't get installer emails without installer IDs")
+  }
+
+  let installerIDs = getConnectionIDs(callout.field_927_raw)
+  let installerFilter = createFilterFromArrayOfIDs(installerIDs)
+  let installers = await searchRecordsPromise('object_71', installerFilter)
+
+  return installers.reduce((ids, installer) => {
+    if (installer.field_1565 === 'Yes') {
+      ids.push({'id':installer.id,'identifier':installer.field_869})
+    }
+    return ids
+  },[])
 }
 
 // Returns a string of emails for the installers associated with a call out
