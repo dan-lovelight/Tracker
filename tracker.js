@@ -70,6 +70,25 @@ $(document).on('knack-scene-render.any', function(event, scene) {
     $("li > a > span:contains('Templates')").parent().css('background-color', '#217346');
 
   }
+
+  //Change the way address input fields dispaly
+  $('.kn-input-address .control > label').remove()
+  $('.kn-input-address .input[name="street"]').each((index, input) => {
+    $(input)[0].placeholder = 'Street'
+  })
+  $('.kn-input-address .input[name="street2"]').each((index, input) => {
+    $(input)[0].placeholder = 'Street'
+  })
+  $('.kn-input-address .input[name="city"]').each((index, input) => {
+    $(input)[0].placeholder = 'Suburb'
+  })
+  $('.kn-input-address .input[name="state"]').each((index, input) => {
+    $(input)[0].placeholder = 'State'
+  })
+  $('.kn-input-address .input[name="zip"]').each((index, input) => {
+    $(input)[0].placeholder = 'Postcode'
+  })
+
 });
 
 //***************************************************************************
