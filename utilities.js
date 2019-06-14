@@ -96,6 +96,24 @@ function getConnectionIdentifiers(connectionArray) {
   }
 }
 
+// Updates record and returns the updated record
+async function createRecordPromise(object, data) {
+  const url = 'https://api.knackhq.com/v1/objects/' + object + '/records/'
+  const init = {
+    method: 'POST',
+    headers: myKnackHeaders,
+    body: JSON.stringify(data)
+  }
+  try {
+    let response = await fetch(url, init)
+    if (!response.ok) throw Error(response.statusText)
+    let json = await response.json()
+    return json
+  } catch (err) {
+  logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+  }
+}
+
 // takes an object name (eg 'object_1') and a data object
 // POSTs the data to create the record and returns the record
 async function getRecordPromise(object, id) {

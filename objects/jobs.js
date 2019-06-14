@@ -34,6 +34,7 @@ const jobUpdatedEvents = [
 
 // Job record created
 $(document).on(jobCreatedEvents.join(' '), function(event, view, record) {
+  processNewJob(record)
   addJobToJobRec(record)
   processJobChanges(record)
 });
@@ -149,4 +150,41 @@ function addJobToJobRec(job) {
   }
 
   return fetch(url, init)
+}
+
+async function processNewJob(record) {
+
+  try {
+    let filesToMoveToDocs = [{
+      'field': 'field_1589',
+      'description': '5d034328305b08000e687c54' // CAT
+    }, {
+      'field': 'field_1590',
+      'description': '59065ebe64bb5e36417a406c' // Final Quote
+    }]
+
+    let promises = filesToMoveToDocs.map(sourceField => {
+      // Do nothing if there is no file
+      if (record[sourceField.field + '_raw'] === undefined) {
+        return
+      }
+
+      // Gather the file data
+      let fileId = record[sourceField.field + '_raw'].id
+      let data = {
+        'field_207': [record.id],
+        'field_190': fileId,
+        'field_301': [sourceField.description]
+      }
+
+      // Create the file
+      return createRecordPromise('object_22', data)
+    })
+
+    // Wait for the new docs to be created
+    return newDocs = await Promise.all(promises)
+  } catch (err) {
+    logError(processNewJob, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+  }
+
 }
