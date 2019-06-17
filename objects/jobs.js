@@ -44,6 +44,36 @@ $(document).on(jobUpdatedEvents.join(' '), function(event, view, record) {
   processJobChanges(record)
 });
 
+//******************** PRE_FILL JOB CREATION FORMS FROM OPP DATA ***********
+
+const newJobFromOppForms = [
+  'knack-view-render.view_1670',
+  'knack-view-render.view_1671',
+]
+
+// Job about to be created...
+$(document).on(newJobFromOppForms.join(' '), function(event, view, data) {
+  prefillJobsForm(view)
+});
+
+async function prefillJobsForm(view) {
+  let opportunity = await getRecordPromise(view.scene.object, view.scene.scene_id)
+  // Set the division
+  $('#view_1671-field_59')[0].value = opportunity.field_118
+  $('#view_1671-field_59').focus().blur() // remove focus to have page rules applied
+  // Set job reference
+  $('#field_5')[0].value = opportunity.field_116
+  // Set the company contact
+  if (opportunity.field_1460_raw.length>0) $('#view_1671-field_1459').html(`<option value='${opportunity.field_1460_raw[0].id}'>${opportunity.field_1460_raw[0].identifier}</option>`).trigger('liszt:updated')
+  // Set the client & site contacts
+  if (opportunity.field_119_raw.length>0) {
+    $('#view_1671-field_80').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
+    $('#view_1671-field_132').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
+  }
+  // Set job value
+  $('#field_130')[0].value = opportunity.field_128_raw
+}
+
 //******************** CREATE JOB IN JOBREC ********************************
 
 async function processJobChanges(record) {
