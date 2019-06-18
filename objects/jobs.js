@@ -51,27 +51,56 @@ const newJobFromOppForms = [
   'knack-view-render.view_1671',
 ]
 
+const newJobFromScratchForms = [
+  'knack-view-render.view_33',
+]
+
 // Job about to be created...
 $(document).on(newJobFromOppForms.join(' '), function(event, view, data) {
-  prefillJobsForm(view)
+  prefillJobsForm(view.key).then(updateJobRefPlaceholderText)
+});
+
+// Job about to be created...
+$(document).on(newJobFromScratchForms.join(' '), function(event, view, data) {
+  updateJobRefPlaceholderText(view.key)
 });
 
 async function prefillJobsForm(view) {
   let opportunity = await getRecordPromise(view.scene.object, view.scene.scene_id)
   // Set the division
-  $('#view_1671-field_59')[0].value = opportunity.field_118
-  $('#view_1671-field_59').focus().blur() // remove focus to have page rules applied
+  $('#'+view+'-field_59')[0].value = opportunity.field_118
+  $('#'+view+'-field_59').focus().blur() // remove focus to have page rules applied
   // Set job reference
   $('#field_5')[0].value = opportunity.field_116
   // Set the company contact
-  if (opportunity.field_1460_raw.length>0) $('#view_1671-field_1459').html(`<option value='${opportunity.field_1460_raw[0].id}'>${opportunity.field_1460_raw[0].identifier}</option>`).trigger('liszt:updated')
+  if (opportunity.field_1460_raw.length>0) $('#'+view+'-field_1459').html(`<option value='${opportunity.field_1460_raw[0].id}'>${opportunity.field_1460_raw[0].identifier}</option>`).trigger('liszt:updated')
   // Set the client & site contacts
   if (opportunity.field_119_raw.length>0) {
-    $('#view_1671-field_80').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
-    $('#view_1671-field_132').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
+    $('#'+view+'-field_80').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
+    $('#'+view+'-field_432').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
   }
   // Set job value
   $('#field_130')[0].value = opportunity.field_128_raw
+  return view
+}
+
+function updateJobRefPlaceholderText(view){
+  // Apply on form load
+  updatePlaceholder()
+  // Apply when division is changed
+  $('#'+view+'-field_59').on('change', function() {
+    updatePlaceholder()
+  })
+
+  function updatePlaceholder(){
+    let division = $('#'+view+'-field_59')[0].value
+    if(division === 'Custom') {$('#field_5')[0].placeholder = "Last Name and House Number eg 'LEWIS13'"}
+    else if(division === 'Apartments') {$('#field_5')[0].placeholder = "Apartment Number eg 'G02'"}
+    else if(division === 'Projects') {$('#field_5')[0].placeholder = "Project Name"}
+    else {
+      {$('#field_5')[0].placeholder = "Job Reference"}
+    }
+  }
 }
 
 //******************** CREATE JOB IN JOBREC ********************************
