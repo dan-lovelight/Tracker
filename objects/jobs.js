@@ -62,7 +62,7 @@ $(document).on(newJobFromOppForms.join(' '), function(event, view, data) {
 
 // Job about to be created...
 $(document).on(newJobFromScratchForms.join(' '), function(event, view, data) {
-  updateJobRefPlaceholderText(view.key)
+  updateJobRefPlaceholderText(view)
 });
 
 async function prefillJobsForm(view) {
@@ -89,12 +89,12 @@ function updateJobRefPlaceholderText(view){
   // Apply on form load
   updatePlaceholder()
   // Apply when division is changed
-  $('#'+view+'-field_59').on('change', function() {
+  $('#'+view.key+'-field_59').on('change', function() {
     updatePlaceholder()
   })
 
   function updatePlaceholder(){
-    let division = $('#'+view+'-field_59')[0].value
+    let division = $('#'+view.key+'-field_59')[0].value
     if(division === 'Custom') {$('#field_5')[0].placeholder = "Last Name and House Number eg 'LEWIS13'"}
     else if(division === 'Apartments') {$('#field_5')[0].placeholder = "Apartment Number eg 'G02'"}
     else if(division === 'Projects') {$('#field_5')[0].placeholder = "Project Name"}
