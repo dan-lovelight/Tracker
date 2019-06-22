@@ -1,6 +1,7 @@
 const callOutCreateEvents = [
   'knack-record-create.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
   'knack-record-create.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
+  'knack-record-create.view_2199', // Add service call - job, #jobs/view-job-details2/{}/summary/{}/, #pages/scene_1054/views/view_2199
 ]
 
 const callOutUpdateEvents = [
