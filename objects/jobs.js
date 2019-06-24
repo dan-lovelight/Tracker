@@ -57,13 +57,9 @@ const newJobFromScratchForms = [
 
 // Job about to be created...
 $(document).on(newJobFromOppForms.join(' '), function(event, view, data) {
-<<<<<<< HEAD
   Knack.showSpinner()
   prefillJobsForm(view.key).then(updateJobRefPlaceholderText)
   Knack.hideSpinner()
-=======
-  prefillJobsForm(view).then(updateJobRefPlaceholderText)
->>>>>>> 76b4fe3006996cdba631c3866634cb77c348b6c0
 });
 
 // Job about to be created...
