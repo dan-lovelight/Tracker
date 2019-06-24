@@ -72,7 +72,7 @@ async function sendOrderReceivedNotifications(record) {
 
   zapData.orderID = record.id;
   zapData.jobID = record.field_10_raw["0"].id;
-  zapData.bays = record.field_90.length>0 ? getConnectionIdentifiers(record.field_90) : ''
+  zapData.bays = record.field_90.length>0 ? getConnectionIdentifiers(record.field_90_raw) : ''
   zapData.supplier = record.field_1446_raw["0"].identifier;
   zapData.quantity = record.field_17;
   zapData.product = record.field_11_raw["0"].identifier;
