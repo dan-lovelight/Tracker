@@ -57,29 +57,34 @@ const newJobFromScratchForms = [
 
 // Job about to be created...
 $(document).on(newJobFromOppForms.join(' '), function(event, view, data) {
+<<<<<<< HEAD
   Knack.showSpinner()
   prefillJobsForm(view.key).then(updateJobRefPlaceholderText)
   Knack.hideSpinner()
+=======
+  prefillJobsForm(view).then(updateJobRefPlaceholderText)
+>>>>>>> 76b4fe3006996cdba631c3866634cb77c348b6c0
 });
 
 // Job about to be created...
 $(document).on(newJobFromScratchForms.join(' '), function(event, view, data) {
-  updateJobRefPlaceholderText(view.key)
+  updateJobRefPlaceholderText(view)
 });
 
 async function prefillJobsForm(view) {
   let opportunity = await getRecordPromise(view.scene.object, view.scene.scene_id)
   // Set the division
-  $('#'+view+'-field_59')[0].value = opportunity.field_118
-  $('#'+view+'-field_59').focus().blur() // remove focus to have page rules applied
+
+  $('#'+view.key+'-field_59')[0].value = opportunity.field_118
+  $('#'+view.key+'-field_59').focus().blur() // remove focus to have page rules applied
   // Set job reference
   $('#field_5')[0].value = opportunity.field_116
   // Set the company contact
-  if (opportunity.field_1460_raw.length>0) $('#'+view+'-field_1459').html(`<option value='${opportunity.field_1460_raw[0].id}'>${opportunity.field_1460_raw[0].identifier}</option>`).trigger('liszt:updated')
+  if (opportunity.field_1460_raw.length>0) $('#'+view.key+'-field_1459').html(`<option value='${opportunity.field_1460_raw[0].id}'>${opportunity.field_1460_raw[0].identifier}</option>`).trigger('liszt:updated')
   // Set the client & site contacts
   if (opportunity.field_119_raw.length>0) {
-    $('#'+view+'-field_80').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
-    $('#'+view+'-field_432').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
+    $('#'+view.key+'-field_80').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
+    $('#'+view.key+'-field_432').html(`<option value='${opportunity.field_119_raw[0].id}'>${opportunity.field_119_raw[0].identifier}</option>`).trigger('liszt:updated')
   }
   // Set job value
   $('#field_130')[0].value = opportunity.field_128_raw
@@ -90,12 +95,12 @@ function updateJobRefPlaceholderText(view){
   // Apply on form load
   updatePlaceholder()
   // Apply when division is changed
-  $('#'+view+'-field_59').on('change', function() {
+  $('#'+view.key+'-field_59').on('change', function() {
     updatePlaceholder()
   })
 
   function updatePlaceholder(){
-    let division = $('#'+view+'-field_59')[0].value
+    let division = $('#'+view.key+'-field_59')[0].value
     if(division === 'Custom') {$('#field_5')[0].placeholder = "Last Name and House Number eg 'LEWIS13'"}
     else if(division === 'Apartments') {$('#field_5')[0].placeholder = "Apartment Number eg 'G02'"}
     else if(division === 'Projects') {$('#field_5')[0].placeholder = "Project Name"}
