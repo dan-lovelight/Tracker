@@ -29,6 +29,71 @@ const createCallOutForms = [
   'knack-view-render.view_2126', // #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
 ]
 
+
+// ----------------
+
+const createEditDeleteCallOutViews = [
+  // Create
+  'knack-view-render.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
+  'knack-view-render.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
+  'knack-view-render.view_2199', // Add service call - job, #jobs/view-job-details2/{}/summary/{}/, #pages/scene_1054/views/view_2199
+  // Update
+  'knack-view-render.view_1294', // Edit Callout, #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
+  'knack-view-render.view_1426', // Review Callout, #call-outs/review-call-out-details2/{id}/, #pages/scene_638/views/view_1426
+  'knack-view-render.view_1541', // Cancel Callout, #jobs/view-job-details/{id}/cancel-call-out/{id}/, #pages/scene_690
+  'knack-view-render.view_1967', // ReSync Callout, #pages/scene_950/views/view_1967
+  // Delete
+  'knack-view-render.view_1215', // Callout Deleted,
+]
+
+const objects = {
+  'callouts' : 'object_78'
+}
+
+$(document).on('knack-view-render.any', function(event, view, record) {
+  trackChanges(objects.callouts, record, view, callOutHandler)
+})
+
+function callOutHandler(changesArray){
+  console.log(changesArray)
+}
+
+function trackChanges(object, originalRecord, view, callback) {
+
+  if(view.source === undefined){
+    return // Menu views have no source object.
+  } else if (view.source.object !== object) {
+    return // Exit if it's not a view we want to track
+  }
+
+  console.log('tracking view ', view.key)
+  // Listen for CREATED records
+  $(document).on(`knack-record-create.${view.key}`, function(event, view, record) {
+    // For create events need to return that everything has changed
+    callback([record,originalRecord])
+  });
+
+  // Listen for FORM UPDATED records
+  $(document).on(`knack-record-update.${view.key}`, function(event, view, record) {
+    // This is easiest, both records are objects, just need to compare. But original only has subset - whats on the form.
+    callback([record,originalRecord])
+  });
+
+  // Listen for CELL UPDATED records
+  $(document).on(`knack-cell-update.${view.key}`, function(event, view, record) {
+    callback([record,originalRecord])
+    // For create events need to return that everything has changed
+    // This is the only event where the original is in an array and needs to be found
+    // Also need to update the originalRecord with the record value after an inline change
+  });
+
+  // Listen for DELETED records
+  $(document).on(`knack-record-delete.${view.key}`, function(event, view, record) {
+    callback([record,originalRecord])
+    // Here we don't really care about the original record, it hasn't changed and we're deleting it
+  });
+}
+
 // ----------------
 // Record change actions
 
@@ -161,12 +226,12 @@ async function processCallOutChanges(record, changeType) {
       // Handle installers who are allowed to see tentative bookings
       if (!isConfirmed) {
         let permittedInstallers = await getInstallersWhoSeeTentativeBookings(updatedRecord)
-        if (permittedInstallers.length>0) {
+        if (permittedInstallers.length > 0) {
           // We're sending this event anyway, but only to the installer permitted to see it
           updatedRecord.field_927_raw = permittedInstallers
           updatedRecord.field_1503 = '',
-          updatedRecord.field_1081 = '',
-          updatedRecord.field_1475 = ''
+            updatedRecord.field_1081 = '',
+            updatedRecord.field_1475 = ''
 
           isConfirmed = true
         }
@@ -337,10 +402,13 @@ async function getInstallersWhoSeeTentativeBookings(callout) {
 
   return installers.reduce((ids, installer) => {
     if (installer.field_1565 === 'Yes') {
-      ids.push({'id':installer.id,'identifier':installer.field_869})
+      ids.push({
+        'id': installer.id,
+        'identifier': installer.field_869
+      })
     }
     return ids
-  },[])
+  }, [])
 }
 
 // Returns a string of emails for the installers associated with a call out
