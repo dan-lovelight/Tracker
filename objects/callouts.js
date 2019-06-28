@@ -124,7 +124,6 @@ function addJobDetailsToCallOut(view) {
     zip.value = job.field_12_raw.zip
     Knack.hideSpinner()
   }
-
 }
 
 // ***************************************************************************
