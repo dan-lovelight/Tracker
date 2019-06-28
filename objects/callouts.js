@@ -267,14 +267,14 @@ async function getJobDataForCallOut(callOut) {
     ['field_59', 'field_1495'], // Busines Unit
   ]
 
-  let addressFieldsToCopy = [
-    ['field_12', 'field_981'], // Address
-    ['field_12', 'field_1478'], // Previous address (to remove has changed flag)
-  ]
-
-  let siteContactFieldsToCopy = [
-    ['field_432', 'field_1025'] // Site contact
-  ]
+  // let addressFieldsToCopy = [
+  //   ['field_12', 'field_981'], // Address
+  //   ['field_12', 'field_1478'], // Previous address (to remove has changed flag)
+  // ]
+  //
+  // let siteContactFieldsToCopy = [
+  //   ['field_432', 'field_1025'] // Site contact
+  // ]
 
   // Return early if the job is not updated
   if (!isObjectUpdated(callOut, trackJobChangeFields)) {
@@ -284,14 +284,14 @@ async function getJobDataForCallOut(callOut) {
   // Get the job details
   let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
 
-  // Add site contact to fields to copy if required
-  if (callOut.field_1024 === 'Yes') {
-    fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
-  }
-  // Add address to fields to copy (and to previous address to remove flag) if required
-  if (callOut.field_982 === 'Yes') {
-    fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
-  }
+  // // Add site contact to fields to copy if required
+  // if (callOut.field_1024 === 'Yes') {
+  //   fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
+  // }
+  // // Add address to fields to copy (and to previous address to remove flag) if required
+  // if (callOut.field_982 === 'Yes') {
+  //   fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
+  // }
 
   // Preprocess the job data
   job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
