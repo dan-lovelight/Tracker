@@ -125,7 +125,71 @@ $(document).on(hideTablesSchedulingScenes.join(' '), function(event, scene) {
 // Create & Edit forms rendered
 $(document).on(createCallOutForms.join(' '), function(event, view, data) {
   pimpTimePicker(view.key + '-field_924')
+  addJobDetailsToCallOut(view)
 })
+
+// ***************************************************************************
+// ******************* WHEN A CALL EDIT FORM IS RENDERED *********************
+// ***************************************************************************
+
+// Some details for a callout are taken directly from the associated job
+// These can be set by record rule, but that doesn't give the user a chance to review them
+// This function popualtes the callout record with job details when a form is loaded
+function addJobDetailsToCallOut(view) {
+
+  // Gather existing callout fields
+  let selectedJob = document.getElementById(view.key + '-field_928')
+  let siteContact = $('#' + view.key + '-field_1025') // Need the jquery wrapper for later manipuation
+  let street = document.getElementById('street')
+  let street2 = document.getElementById('street2')
+  let city = document.getElementById('city')
+  let state = document.getElementById('state')
+  let zip = document.getElementById('zip')
+
+  // Populate job details for new callouts created from a target job
+  // This is only relevant when a user first navigates the a job, then adds a callout from that context
+  if (view.scene.object === 'object_3') {
+    populateSiteContactAndAddress(view.scene.scene_id)
+  }
+
+  if (selectedJob) {
+
+    // Populate site and address details if these are blank but there is a job
+    if (selectedJob.value.length > 0 && (siteContact[0].value + street.value + street2.value + city.value + state.value + zip.value).length === 0) {
+      populateSiteContactAndAddress(selectedJob.value)
+    }
+
+    // Store original value
+    let originalSelection = selectedJob.value
+
+    // Add a listner for changes in job selection
+    $('#' + view.key + '-field_928').on('change', async function() {
+      let newSelection = selectedJob.value
+      let qtySelections = selectedJob.selectedOptions.length
+      if (originalSelection.length === 0 && newSelection.length !== 0 && qtySelections === 1) {
+        populateSiteContactAndAddress(newSelection)
+      }
+      originalSelection = newSelection
+    })
+  }
+
+  async function populateSiteContactAndAddress(jobId) {
+    Knack.showSpinner()
+    // Get the job deatils
+    let job = await getRecordPromise('object_3', jobId)
+    //Populate Site Contact
+    if (job.field_432_raw.length > 0) {
+      siteContact.html(`<option value='${job.field_432_raw[0].id}'>${job.field_432_raw[0].identifier}</option>`).trigger('liszt:updated')
+    }
+    //Populate Address
+    street.value = job.field_12_raw.street
+    street2.value = job.field_12_raw.street2 === undefined ? "" : job.field_12_raw.street2 // Only and issue for stree2, only sometimes... ?
+    city.value = job.field_12_raw.city
+    state.value = job.field_12_raw.state
+    zip.value = job.field_12_raw.zip
+    Knack.hideSpinner()
+  }
+}
 
 // ***************************************************************************
 // ******************* WHEN A CALL OUT IS UPDATED ****************************
@@ -268,14 +332,14 @@ async function getJobDataForCallOut(callOut) {
     ['field_59', 'field_1495'], // Busines Unit
   ]
 
-  let addressFieldsToCopy = [
-    ['field_12', 'field_981'], // Address
-    ['field_12', 'field_1478'], // Previous address (to remove has changed flag)
-  ]
-
-  let siteContactFieldsToCopy = [
-    ['field_432', 'field_1025'] // Site contact
-  ]
+  // let addressFieldsToCopy = [
+  //   ['field_12', 'field_981'], // Address
+  //   ['field_12', 'field_1478'], // Previous address (to remove has changed flag)
+  // ]
+  //
+  // let siteContactFieldsToCopy = [
+  //   ['field_432', 'field_1025'] // Site contact
+  // ]
 
   // Return early if the job is not updated
   if (!isObjectUpdated(callOut, trackJobChangeFields)) {
@@ -285,14 +349,14 @@ async function getJobDataForCallOut(callOut) {
   // Get the job details
   let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
 
-  // Add site contact to fields to copy if required
-  if (callOut.field_1024 === 'Yes') {
-    fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
-  }
-  // Add address to fields to copy (and to previous address to remove flag) if required
-  if (callOut.field_982 === 'Yes') {
-    fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
-  }
+  // // Add site contact to fields to copy if required
+  // if (callOut.field_1024 === 'Yes') {
+  //   fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
+  // }
+  // // Add address to fields to copy (and to previous address to remove flag) if required
+  // if (callOut.field_982 === 'Yes') {
+  //   fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
+  // }
 
   // Preprocess the job data
   job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
