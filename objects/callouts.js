@@ -60,28 +60,36 @@ function callOutHandler(changesArray){
 
 function trackChanges(object, originalRecord, view, callback) {
 
+  // Check if this is a view we care about
   if(view.source === undefined){
     return // Menu views have no source object.
   } else if (view.source.object !== object) {
     return // Exit if it's not a view we want to track
   }
 
-  console.log('tracking view ', view.key)
   // Listen for CREATED records
   $(document).on(`knack-record-create.${view.key}`, function(event, view, record) {
     // For create events need to return that everything has changed
-    callback([record,originalRecord])
+    record = createChangeRecord(null,record)
+    record.event = event.type
+    callback(record)
   });
 
   // Listen for FORM UPDATED records
-  $(document).on(`knack-record-update.${view.key}`, function(event, view, record) {
-    // This is easiest, both records are objects, just need to compare. But original only has subset - whats on the form.
-    callback([record,originalRecord])
+  $(document).on(`knack-record-update.${view.key}`, async function(event, view, record) {
+    // Because the record could be updated via record rules that would not otherwise be caught, need to get the whole record
+    originalRecord = await getRecordPromise(object,record.id)
+    record = createChangeRecord(originalRecord,record)
+    record.event = event.type
+    callback(record)
   });
 
   // Listen for CELL UPDATED records
   $(document).on(`knack-cell-update.${view.key}`, function(event, view, record) {
-    callback([record,originalRecord])
+    originalRecord = originalRecord.filter(tableRecord => tableRecord === record.id)
+    record = createChangeRecord(originalRecord,record)
+    record.event = event.type
+    callback(record)
     // For create events need to return that everything has changed
     // This is the only event where the original is in an array and needs to be found
     // Also need to update the originalRecord with the record value after an inline change
@@ -89,9 +97,25 @@ function trackChanges(object, originalRecord, view, callback) {
 
   // Listen for DELETED records
   $(document).on(`knack-record-delete.${view.key}`, function(event, view, record) {
-    callback([record,originalRecord])
+    record = createChangeRecord(null,record)
+    record.event = event.type
+    callback(record)
     // Here we don't really care about the original record, it hasn't changed and we're deleting it
   });
+
+  function createChangeRecord(beforeRecord,afterRecord){
+    let changeRecord = afterRecord
+    changeRecord.isChanged = false
+    // Create a full set of previous records on the changeRecord
+    // Loop through the afterRecord and for each key, assign the changeRecord.previous value to the beforeRecord value
+    Object.keys(afterRecord).forEach(key=>{
+      changeRecord.previous[key] = beforeRecord ? beforeRecord[key] : '' // Set the previous value, unless there''s no beforeRecord, in which case set to empty string
+      changeRecord.isFieldUpdated[key] = changeRecord[key] === changeRecord.previous[key] ? false : true
+      if(!changeRecord.isChanged && changeRecord.isFieldUpdated[key]) changeRecord.isChanged = true
+    })
+    return changeRecord
+  }
+
 }
 
 // ----------------
