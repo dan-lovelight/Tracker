@@ -329,7 +329,7 @@ async function getCallOutName(callOut) {
   let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
   let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
   let completionIcon = callOut.field_1005 === 'Complete' ? completeIcon : scheduledIcon
-  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street : ''
+  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street + '' + callOut.field_981_raw.street2 : ''
   let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
   let address = street + ' ' + city
   let addressDisplay = address.length < 2 ? '' : '| ' + address
