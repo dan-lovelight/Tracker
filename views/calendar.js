@@ -143,3 +143,52 @@ $(document).on('knack-view-render.view_2041', function(event, scene) {
 $(document).on('knack-view-render.view_2045', function(event, scene) {
     pimpSchedulingCalendar(scene.key,'view_2047')
 })
+
+
+$(document).on('knack-scene-render.scene_947', function(event, scene) {
+
+  waitForAddedNode({
+    id: '',
+    class: 'fc-event',
+    parent: document.querySelector('#view_1962'),
+    recursive: true,
+    done: function(el) {
+        console.log(el);
+        console.log(el.length)
+        for(let i =0; i<el.length; i++) {
+          el[i].textContent = "holy shit batman"
+          console.log(el[i])
+        }
+    }
+});
+
+  function waitForAddedNode(params) {
+      new MutationObserver(function(mutations) {
+          var el = document.getElementsByClassName(params.class);
+          if (el) {
+              this.disconnect();
+              params.done(el);
+          }
+      }).observe(params.parent || document, {
+          subtree: !!params.recursive,
+          childList: true,
+      });
+  }
+
+  var observer = new MutationObserver(function() {
+    let event = document.getElementsByClassName('fc-event')
+    if (event.length>0) {
+      console.log('events have appeared.');
+      for(let i =0; i<event.length; i++) {
+        //event[i].textContent = "holy shit batman"
+      }
+    }
+  });
+  observer.observe(document, {
+    childList: true,
+    subtree: true,
+    attributes: false,
+    characterData: false,
+  });
+
+})
