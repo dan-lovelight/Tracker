@@ -13,6 +13,9 @@ function pimpTimePicker(fieldId) {
     'maxTime': '8:00pm',
     'showDuration': true
   });
+  // Remove repeat and all day options
+  $('#kn-input-' + fieldId.split('-')[1] + ' > div:nth-child(3)').remove()
+
   // Update the start time of to-time for accurate duration when start time changes
   $('input#' + fieldId + '-time').on('focusout', function() {
     console.log('focusOut from time')
