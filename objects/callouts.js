@@ -47,75 +47,96 @@ const createEditDeleteCallOutViews = [
 ]
 
 const objects = {
-  'callouts' : 'object_78'
+  'callouts': 'object_78'
 }
 
-$(document).on('knack-view-render.any', function(event, view, record) {
-  trackChanges(objects.callouts, record, view, callOutHandler)
+$(document).on('knack-view-render.any', function(event, view, data) {
+  trackChanges(objects.callouts, data, view, callOutHandler)
 })
 
-function callOutHandler(changesArray){
+function callOutHandler(changesArray) {
   console.log(changesArray)
 }
 
-function trackChanges(object, originalRecord, view, callback) {
+async function trackChanges(targetObject, originalViewData, view, callback) {
 
-  // Check if this is a view we care about
-  if(view.source === undefined){
-    return // Menu views have no source object.
-  } else if (view.source.object !== object) {
-    return // Exit if it's not a view we want to track
+    // Array of events that can modify a record and need to be tracked
+    let trackedEvents = [
+      `knack-record-create.${view.key}`,
+      `knack-record-update.${view.key}`,
+      `knack-cell-update.${view.key}`,
+      `knack-record-delete.${view.key}`
+    ]
+
+  let originalRecord = JSON.parse(JSON.stringify(originalViewData))
+
+  // Exit if the view has no source (it's a menu)
+  if (view.source === undefined) {
+    return
+  }
+  // Exit if it's a 'pseudo' celleditor view
+  if (view.key.indexOf('_celleditor') > 0) {
+    return
+  }
+  // Exit if it's not a view we want to track
+  if (view.source.object !== targetObject) {
+    return
+  }
+  // Update forms don't load all fields, need to get full data to catch changes via record rules
+  if (view.action === 'update') {
+    originalRecord = await getRecordPromise(view.source.object,originalRecord.id)
   }
 
-  // Listen for CREATED records
-  $(document).on(`knack-record-create.${view.key}`, function(event, view, record) {
-    // For create events need to return that everything has changed
-    record = createChangeRecord(null,record)
-    record.event = event.type
+  // For brand new records there is no original, but knack passes the default values of an empty form
+   if (view.action === 'insert') {
+    originalRecord = null
+  } else {
+
+  }
+
+
+  // Listen for events
+  $(document).on(trackedEvents.join(' '), function(event, view, updatedRecord) {
+
+    if(isItAnArray(originalRecord)) {
+      originalRecord = originalRecord.filter(tableRecord => tableRecord.id === updatedRecord.id)[0]
+    }
+
+    record = createChangeRecord(originalRecord, updatedRecord)
+    record.event = view.action // insert, update
     callback(record)
   });
 
-  // Listen for FORM UPDATED records
-  $(document).on(`knack-record-update.${view.key}`, async function(event, view, record) {
-    // Because the record could be updated via record rules that would not otherwise be caught, need to get the whole record
-    originalRecord = await getRecordPromise(object,record.id)
-    record = createChangeRecord(originalRecord,record)
-    record.event = event.type
-    callback(record)
-  });
+  function createChangeRecord(orginalRecord, updatedRecord) {
+    // Copy updated data to a new record
+    let record = JSON.parse(JSON.stringify(updatedRecord))
 
-  // Listen for CELL UPDATED records
-  $(document).on(`knack-cell-update.${view.key}`, function(event, view, record) {
-    originalRecord = originalRecord.filter(tableRecord => tableRecord === record.id)
-    record = createChangeRecord(originalRecord,record)
-    record.event = event.type
-    callback(record)
-    // For create events need to return that everything has changed
-    // This is the only event where the original is in an array and needs to be found
-    // Also need to update the originalRecord with the record value after an inline change
-  });
-
-  // Listen for DELETED records
-  $(document).on(`knack-record-delete.${view.key}`, function(event, view, record) {
-    record = createChangeRecord(null,record)
-    record.event = event.type
-    callback(record)
-    // Here we don't really care about the original record, it hasn't changed and we're deleting it
-  });
-
-  function createChangeRecord(beforeRecord,afterRecord){
-    let changeRecord = afterRecord
-    changeRecord.isChanged = false
-    // Create a full set of previous records on the changeRecord
-    // Loop through the afterRecord and for each key, assign the changeRecord.previous value to the beforeRecord value
-    Object.keys(afterRecord).forEach(key=>{
-      changeRecord.previous[key] = beforeRecord ? beforeRecord[key] : '' // Set the previous value, unless there''s no beforeRecord, in which case set to empty string
-      changeRecord.isFieldUpdated[key] = changeRecord[key] === changeRecord.previous[key] ? false : true
-      if(!changeRecord.isChanged && changeRecord.isFieldUpdated[key]) changeRecord.isChanged = true
+    record.updatedFields = []
+    record.previous = {}
+    // Create a full set of previous records on the record
+    // Loop through the updatedRecord and for each key, assign the record.previous value to the orginalRecord value
+    console.log('just before forEach', updatedRecord)
+    Object.keys(updatedRecord).forEach(key => {
+      // If there is a previous record, populate the previous property with value
+      if (originalRecord) {
+        if (originalRecord[key] !== undefined) {
+          record.previous[key] = orginalRecord[key]
+        } else {
+          record.previous[key] = ''
+        }
+      } else {
+        record.previous[key] = ''
+      }
+      // If the field has changed, add the field name to change tracking array
+      if (record[key] !== record.previous[key] && key.indexOf('raw')<0) {
+        record.updatedFields.push(key)
+      }
     })
-    return changeRecord
-  }
+    // Flag if anything has changed
+    record.isChanged = record.updatedFields.length > 0 ? true : false
 
+    return record
+  }
 }
 
 // ----------------
