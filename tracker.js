@@ -1,26 +1,17 @@
-const trackerObjects = [{
-    name: 'jobs',
-    object: 'object_3'
-  }, {
-    name: 'callouts',
-    object: 'object_78'
-  }, {
-    name: 'installers',
-    object: 'object_71'
-  }, {
-    name: 'invoices',
-    object: 'object_19'
-  }, {
-    name: 'orders',
-    object: 'object_5'
-  },
-  {
-    name: 'opportunities',
-    object: 'object_17'
-  }
-]
+const objects = {
+  'callouts': 'object_78',
+  'jobs':'object_3',
+  'installers':'object_71',
+  'invoices':'object_19',
+  'orders':'object_19',
+  'opportunities':'object_17'
+}
 
-$(document).on('knack-view-render.any', function(event, scene) {
+
+$(document).on('knack-view-render.any', function(event, view, data) {
+  // Pass all create, update and delete events to callOUtHandler
+  trackChanges(objects.callouts, data, view, callOutCreateUpdateDelete)
+
   var $submitButtonArray = $(".kn-submit input[type=submit]");
   $submitButtonArray.each(function(index) {
     var $submitButton = $(this);
@@ -30,7 +21,7 @@ $(document).on('knack-view-render.any', function(event, scene) {
   });
 });
 
-$(document).on('knack-page-render.any', function(event, page) {
+$(document).on('knack-scene-render.any', function(event, scene) {
   $(".kn-back-link a").html("<i class='fa fa-chevron-circle-left'></i> Previous");
 });
 

@@ -1,3 +1,113 @@
+async function trackChanges(targetObject, originalViewData, view, callback) {
+
+
+
+  // Array of events that can modify a record and need to be tracked
+  let trackedEvents = [
+    `knack-record-create.${view.key}`,
+    `knack-record-update.${view.key}`,
+    `knack-cell-update.${view.key}`,
+    `knack-record-delete.${view.key}`
+  ]
+
+  // To track changes we need to have a snapshot of the original record
+  let originalRecord = {}
+
+  // Exit if the view has no source (it's a menu)
+  if (view.source === undefined) return
+  // Exit if it's a 'pseudo' celleditor view
+  if (view.key.indexOf('_celleditor') > 0) return
+  // Exit if it's not displaying the object we want to track
+  if (view.source.object !== targetObject) return
+  // Exit if a table, no inline editing, no action links, no delete link
+  // if( a && ( b || c )) return
+  // if action update 'Original Data' to be full details of all records in the table
+  // if( actionlink ){
+  // let recordIDs = orignaViewData.map(record => record.id)
+  // let filter = createFilterFromArrayOfIDs(recordIDs)
+  // originalViewData = await searchRecordPromise(targetObject,filter)
+  //
+  // Add a listener to the action link
+  // $('kn-action-link').on('click',function(){
+  //  window.actionLinkTracker = {}
+  // actionLinkTracker[view.key] = true
+  // })
+  //}
+  // Update forms don't load all fields, need to get full data to catch changes via record rules
+  if (view.action === 'update') originalRecord = await getRecordPromise(view.source.object, originalViewData.id)
+  // For brand new records there is no original, but knack passes the default values of an empty form
+  if (view.action === 'insert') originalRecord = null
+
+  // Global variable to keep track of views that already have listeners so they are only added once
+  window.viewLoadTracker = {}
+  // Add event listeners if not already listenting
+  if(!viewLoadTracker[view.key]) {
+    $(document).on(trackedEvents.join(' '), handler)
+    viewLoadTracker[view.key] = true // Flag that this view has already had a lister attached to it - inline edits and forms can be loaded multiple times
+  }
+
+  // If there's no action link event, i'll need to identify these in the view
+  // And add my own listener for if they are clicked
+  // If it is clicked, can I navigate up the DOM tree and find the record ID?
+  // If so, can I then get the record and pass this info to my standard handler?
+  // Does the handler get added globally or for each element?
+
+  // Function that fires after one of the tracked events. Can't be anonymous as need to remove it after firing
+  function handler(event, view, updatedRecord) {
+    // Original data via inline edits is an array, not a record object, needs special treatment
+    if (isItAnArray(originalViewData)) {
+      // If the source view is a table (inline edit) need to identify the actual previous record
+      originalRecord = originalViewData.filter(tableRecord => tableRecord.id === updatedRecord.id)[0]
+      // The updated record includes all fields, need to strip the one not also in the original or will show false changes
+      Object.keys(updatedRecord).forEach(key => {
+        if (originalRecord[key] === undefined) {
+          delete updatedRecord[key]
+        }
+      })
+      // In order to capture futher changes via inline edit, need to update the original view data
+      let targetRecordIndex = originalViewData.findIndex(record => record.id === updatedRecord.id)
+      originalViewData[targetRecordIndex] = updatedRecord
+    } else {
+      // Other views can also be reloaded multiple times
+      originalViewData = updatedRecord
+    }
+
+    record = createChangeRecord(originalRecord, updatedRecord)
+    record.event = view.action // insert, update
+    callback(record)
+  }
+
+  function createChangeRecord(orginalRecord, updatedRecord) {
+    // Copy updated data to a new record
+    let record = JSON.parse(JSON.stringify(updatedRecord))
+
+    record.updatedFields = []
+    record.previous = {}
+    // Create a full set of previous records on the record
+    // Loop through the updatedRecord and for each key, assign the record.previous value to the orginalRecord value
+    Object.keys(updatedRecord).forEach(key => {
+      // If there is a previous record, populate the previous property with value
+      if (originalRecord) {
+        if (originalRecord[key] !== undefined) {
+          record.previous[key] = orginalRecord[key]
+        } else {
+          record.previous[key] = ''
+        }
+      } else {
+        record.previous[key] = ''
+      }
+      // If the field has changed, add the field name to change tracking array
+      if (record[key] !== record.previous[key] && key.indexOf('raw') < 0) {
+        record.updatedFields.push(key)
+      }
+    })
+    // Flag if anything has changed
+    record.isChanged = record.updatedFields.length > 0 ? true : false
+
+    return record
+  }
+}
+
 // Limit the selectable time range to 6am to 8pm & show duration in to-time
 // Takes a string for the target field id eg 'view_123-field_123'
 function pimpTimePicker(fieldId) {
@@ -63,7 +173,7 @@ function isToFromDateFieldType(fieldValue) {
   return fieldValue.toString().match(dateRegex)
 }
 
-function isObjectUpdated(object,arrayOfFieldPairs) {
+function isObjectUpdated(object, arrayOfFieldPairs) {
   return arrayOfFieldPairs.some((fieldPair) => {
     return JSON.stringify(object[fieldPair[0]]) !== JSON.stringify(object[fieldPair[1]])
   })
@@ -72,7 +182,7 @@ function isObjectUpdated(object,arrayOfFieldPairs) {
 // Compares two fields, a 'live' field and a 'previous' value field
 // If live field is not blank, and the previous field is, assumed that just updated
 // fieldPair is array: [liveField, previousField]
-function isFieldJustAdded(object,fieldPairArray){
+function isFieldJustAdded(object, fieldPairArray) {
   return object[fieldPairArray[0]].length > 0 && object[fieldPairArray[1]].length === 0
 }
 
@@ -110,7 +220,7 @@ async function createRecordPromise(object, data) {
     let json = await response.json()
     return json
   } catch (err) {
-  logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
 
@@ -146,7 +256,7 @@ async function updateRecordPromise(object, id, data) {
     let json = await response.json()
     return json
   } catch (err) {
-  logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
 
@@ -174,7 +284,7 @@ async function searchRecordsPromise(object, filter) {
 
 // Builds a filter for Knack to be used for fetching multiple records
 // Filter is for each ID in the array
-function createFilterFromArrayOfIDs (arrRecordIDs) {
+function createFilterFromArrayOfIDs(arrRecordIDs) {
   if (!isItAnArray(arrRecordIDs)) {
     throw new Error('you must pass an array to getKnackRecordsUsingIDs')
   }
@@ -196,7 +306,7 @@ function createFilterFromArrayOfIDs (arrRecordIDs) {
 
 // Function checks if the passed variable is an array
 // Feturns true or false
-function isItAnArray (array) {
+function isItAnArray(array) {
   if (array.length === 0 || !Array.isArray(array)) {
     return false
   } else {
@@ -237,29 +347,44 @@ var addCheckboxes = function(view) {
 
 //https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors
 // Version 4.0
-const pSBC=(p,c0,c1,l)=>{
-    let r,g,b,P,f,t,h,i=parseInt,m=Math.round,a=typeof(c1)=="string";
-    if(typeof(p)!="number"||p<-1||p>1||typeof(c0)!="string"||(c0[0]!='r'&&c0[0]!='#')||(c1&&!a))return null;
-    if(!this.pSBCr)this.pSBCr=(d)=>{
-        let n=d.length,x={};
-        if(n>9){
-            [r,g,b,a]=d=d.split(","),n=d.length;
-            if(n<3||n>4)return null;
-            x.r=i(r[3]=="a"?r.slice(5):r.slice(4)),x.g=i(g),x.b=i(b),x.a=a?parseFloat(a):-1
-        }else{
-            if(n==8||n==6||n<4)return null;
-            if(n<6)d="#"+d[1]+d[1]+d[2]+d[2]+d[3]+d[3]+(n>4?d[4]+d[4]:"");
-            d=i(d.slice(1),16);
-            if(n==9||n==5)x.r=d>>24&255,x.g=d>>16&255,x.b=d>>8&255,x.a=m((d&255)/0.255)/1000;
-            else x.r=d>>16,x.g=d>>8&255,x.b=d&255,x.a=-1
-        }return x};
-    h=c0.length>9,h=a?c1.length>9?true:c1=="c"?!h:false:h,f=pSBCr(c0),P=p<0,t=c1&&c1!="c"?pSBCr(c1):P?{r:0,g:0,b:0,a:-1}:{r:255,g:255,b:255,a:-1},p=P?p*-1:p,P=1-p;
-    if(!f||!t)return null;
-    if(l)r=m(P*f.r+p*t.r),g=m(P*f.g+p*t.g),b=m(P*f.b+p*t.b);
-    else r=m((P*f.r**2+p*t.r**2)**0.5),g=m((P*f.g**2+p*t.g**2)**0.5),b=m((P*f.b**2+p*t.b**2)**0.5);
-    a=f.a,t=t.a,f=a>=0||t>=0,a=f?a<0?t:t<0?a:a*P+t*p:0;
-    if(h)return"rgb"+(f?"a(":"(")+r+","+g+","+b+(f?","+m(a*1000)/1000:"")+")";
-    else return"#"+(4294967296+r*16777216+g*65536+b*256+(f?m(a*255):0)).toString(16).slice(1,f?undefined:-2)
+const pSBC = (p, c0, c1, l) => {
+  let r, g, b, P, f, t, h, i = parseInt,
+    m = Math.round,
+    a = typeof(c1) == "string";
+  if (typeof(p) != "number" || p < -1 || p > 1 || typeof(c0) != "string" || (c0[0] != 'r' && c0[0] != '#') || (c1 && !a)) return null;
+  if (!this.pSBCr) this.pSBCr = (d) => {
+    let n = d.length,
+      x = {};
+    if (n > 9) {
+      [r, g, b, a] = d = d.split(","), n = d.length;
+      if (n < 3 || n > 4) return null;
+      x.r = i(r[3] == "a" ? r.slice(5) : r.slice(4)), x.g = i(g), x.b = i(b), x.a = a ? parseFloat(a) : -1
+    } else {
+      if (n == 8 || n == 6 || n < 4) return null;
+      if (n < 6) d = "#" + d[1] + d[1] + d[2] + d[2] + d[3] + d[3] + (n > 4 ? d[4] + d[4] : "");
+      d = i(d.slice(1), 16);
+      if (n == 9 || n == 5) x.r = d >> 24 & 255, x.g = d >> 16 & 255, x.b = d >> 8 & 255, x.a = m((d & 255) / 0.255) / 1000;
+      else x.r = d >> 16, x.g = d >> 8 & 255, x.b = d & 255, x.a = -1
+    }
+    return x
+  };
+  h = c0.length > 9, h = a ? c1.length > 9 ? true : c1 == "c" ? !h : false : h, f = pSBCr(c0), P = p < 0, t = c1 && c1 != "c" ? pSBCr(c1) : P ? {
+    r: 0,
+    g: 0,
+    b: 0,
+    a: -1
+  } : {
+    r: 255,
+    g: 255,
+    b: 255,
+    a: -1
+  }, p = P ? p * -1 : p, P = 1 - p;
+  if (!f || !t) return null;
+  if (l) r = m(P * f.r + p * t.r), g = m(P * f.g + p * t.g), b = m(P * f.b + p * t.b);
+  else r = m((P * f.r ** 2 + p * t.r ** 2) ** 0.5), g = m((P * f.g ** 2 + p * t.g ** 2) ** 0.5), b = m((P * f.b ** 2 + p * t.b ** 2) ** 0.5);
+  a = f.a, t = t.a, f = a >= 0 || t >= 0, a = f ? a < 0 ? t : t < 0 ? a : a * P + t * p : 0;
+  if (h) return "rgb" + (f ? "a(" : "(") + r + "," + g + "," + b + (f ? "," + m(a * 1000) / 1000 : "") + ")";
+  else return "#" + (4294967296 + r * 16777216 + g * 65536 + b * 256 + (f ? m(a * 255) : 0)).toString(16).slice(1, f ? undefined : -2)
 }
 
 // -------------------- ERROR HANDLING ---------------------
@@ -278,11 +403,11 @@ async function logError(callerFunction, args, err, user, url, throwAgain) {
   logMessage += `> *user*: ${user.name} (${user.email})\n`
   logMessage += `> *url*: ${url} \n`
   for (var i = 0; i < callerArgs.length; ++i) {
-    if (typeof callerArgsNames[i][0] === '{' && callerArgsNames[i] !== null){ // Is the variable an object?
+    if (typeof callerArgsNames[i][0] === '{' && callerArgsNames[i] !== null) { // Is the variable an object?
       // Put message in code bock if it's an object
       logMessage += `*${callerArgsNames[i]}*: ` + '```' + JSON.stringify(callerArgs[i]) + '```' + '\n'
     } else {
-      logMessage += `> *${callerArgsNames[i]}*: ` + JSON.stringify(callerArgs[i]).slice(0,500) + '\n'
+      logMessage += `> *${callerArgsNames[i]}*: ` + JSON.stringify(callerArgs[i]).slice(0, 500) + '\n'
     }
   }
   logMessage += '```' + err.stack + '```'
