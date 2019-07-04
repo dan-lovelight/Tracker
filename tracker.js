@@ -335,68 +335,68 @@ $(document).on('knack-scene-render.scene_642', function(event, scene) {
 
 });
 
-$(document).on('knack-scene-render.scene_509', function(event, scene) {
-
-  //  const target = document.getElementById('view_2057');
-  //  const options = {
-  //    attributes: true,
-  //    attributeOldValue: true,
-  //  };
-  //  const observer = new MutationObserver(callback);
-
-  //  function callback (mutations) {
-
-  //   mutations.forEach((mutation) => {
-  //		console.log(mutation)
-  //    })
-  //  }
-
-  //  observer.observe(target, options);
-  debugger
-  waitForAddedNode({
-    id: 'view_2057',
-    parent: document.querySelector('.container'),
-    recursive: false,
-    done: function(el) {
-      console.log(el);
-    }
-  });
-
-});
-
-function waitForAddedNode(params) {
-  new MutationObserver(function(mutations) {
-    var el = document.getElementById(params.id);
-    if (el) {
-      this.disconnect();
-      params.done(el);
-    }
-  }).observe(params.parent || document, {
-    subtree: !!params.recursive,
-    childList: true,
-  });
-}
-
-// Installer Report within call out
-$(document).on('knack-view-render.view_2074', function(event, view) {
-  $('#view_2074-field_1542').on('change', function() {
-    let outcome = $('#view_2074-field_1542').val()
-    if (outcome.includes("Issues")) {
-      document.getElementById('field_1545').value = "Call out completed without issues"
-    } else {
-      document.getElementById('field_1545').value = ""
-    }
-  })
-})
-
-// Installer Report from reporting page
-$(document).on('knack-view-render.view_2077', function(event, view) {
-  $('#view_2077-field_1542').on('change', function() {
-    let outcome = $('#view_2077-field_1542').val()
-    if (outcome.includes("Issues")) {
-      document.getElementById('field_1545').value = "Call out completed without issues"
-    } else {
-      document.getElementById('field_1545').value = ""
-    }
-  })
-})
+// $(document).on('knack-scene-render.scene_509', function(event, scene) {
+//
+//   //  const target = document.getElementById('view_2057');
+//   //  const options = {
+//   //    attributes: true,
+//   //    attributeOldValue: true,
+//   //  };
+//   //  const observer = new MutationObserver(callback);
+//
+//   //  function callback (mutations) {
+//
+//   //   mutations.forEach((mutation) => {
+//   //		console.log(mutation)
+//   //    })
+//   //  }
+//
+//   //  observer.observe(target, options);
+//
+//   waitForAddedNode({
+//     id: 'view_2057',
+//     parent: document.querySelector('.container'),
+//     recursive: false,
+//     done: function(el) {
+//       console.log(el);
+//     }
+//   });
+//
+// });
+//
+// function waitForAddedNode(params) {
+//   new MutationObserver(function(mutations) {
+//     var el = document.getElementById(params.id);
+//     if (el) {
+//       this.disconnect();
+//       params.done(el);
+//     }
+//   }).observe(params.parent || document, {
+//     subtree: !!params.recursive,
+//     childList: true,
+//   });
+// }
+//
+// // Installer Report within call out
+// $(document).on('knack-view-render.view_2074', function(event, view) {
+//   $('#view_2074-field_1542').on('change', function() {
+//     let outcome = $('#view_2074-field_1542').val()
+//     if (outcome.includes("Issues")) {
+//       document.getElementById('field_1545').value = "Call out completed without issues"
+//     } else {
+//       document.getElementById('field_1545').value = ""
+//     }
+//   })
+// })
+//
+// // Installer Report from reporting page
+// $(document).on('knack-view-render.view_2077', function(event, view) {
+//   $('#view_2077-field_1542').on('change', function() {
+//     let outcome = $('#view_2077-field_1542').val()
+//     if (outcome.includes("Issues")) {
+//       document.getElementById('field_1545').value = "Call out completed without issues"
+//     } else {
+//       document.getElementById('field_1545').value = ""
+//     }
+//   })
+// })
