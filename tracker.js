@@ -43,7 +43,8 @@ $(document).on('knack-scene-render.any', function(event, scene) {
 
   let userRoles = Knack.getUserRoles()
 
-  if (Knack.getUserAttributes() != 'No user found' && !(userRoles.length == 1 && userRoles[0] == 'object_71')) { // not logged in or an installer
+  // Logged in users who are staff...
+  if (Knack.getUserRoles('object_11')) {
 
     //Portal
     var myElem = document.getElementById('portal');
@@ -106,7 +107,7 @@ const hideEmptyTablePages = [
   'knack-scene-render.scene_959', // Track Remakes https://lovelight.knack.com/tracker#my-remakes/track-remake/{}/
   'knack-scene-render.scene_52', // View Job Details
 ]
-//******************** VIEW JOB DETAILS ********************************
+
 $(document).on(hideEmptyTablePages.join(' '), function(event, scene) {
   hideEmptyTables(scene)
 });
@@ -302,38 +303,6 @@ function processOpportunityChanges(record) {
 
   } //end status changed
 }
-
-//***************************************************************************
-//******************* REMOVE HEADER ON SCHEDULING CALENDAR ******************
-//***************************************************************************
-
-// view 1347 update to hide calendar header.
-$(document).on('knack-records-render.view_1347', function(event, view, records) {
-
-  //function removeHeader() {
-  //  $('div.fc-event-head').hide();
-  // }
-
-  //setTimeout(removeHeader, 1000);
-});
-
-//***************************************************************************
-//******************* INSTALLERS ******************
-//***************************************************************************
-$(document).on('knack-scene-render.scene_642', function(event, scene) {
-
-  $('#view_2072, #view_2071').detach().prependTo('#view_2062 .control') // Move no issues button into menu
-  $('#view_1442').css({
-    "clear": "both",
-    "margin-top": "2em"
-  }) // Details view below buttons
-  $('#view_2071, #view_2072').css({
-    "float": "left",
-    "margin-right": "0.6em",
-    "margin-bottom": "5px"
-  }) // Format button in menu
-
-});
 
 // $(document).on('knack-scene-render.scene_509', function(event, scene) {
 //
