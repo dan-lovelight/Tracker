@@ -1,6 +1,18 @@
+// Views can be rendered multiple times on a single page. Inline edits is one trigger that causes this.
+// So that we don't add listeners to views multiple times, we to keep track of which views already have listeners
+window.viewLoadTracker = {}
+
 async function trackChanges(targetObject, originalViewData, view, callback) {
+  console.log(view.key)
+  // Exit if it's not a view we care about
+  if (!isViewCapableOfUpdatingTargetObject(targetObject, view)) return
 
-
+  // To track changes we need to have a snapshot of the original record
+  let originalRecord = {}
+  // Update forms don't load all fields, need to get full data to catch changes via record rules
+  if (view.action === 'update') originalRecord = await getRecordPromise(view.source.object, originalViewData.id)
+  // For brand new records there is no original, but knack passes the default values of an empty form
+  if (view.action === 'insert') originalRecord = null
 
   // Array of events that can modify a record and need to be tracked
   let trackedEvents = [
@@ -10,63 +22,72 @@ async function trackChanges(targetObject, originalViewData, view, callback) {
     `knack-record-delete.${view.key}`
   ]
 
-  // To track changes we need to have a snapshot of the original record
-  let originalRecord = {}
-
-  // Exit if the view has no source (it's a menu)
-  if (view.source === undefined) return
-  // Exit if it's a 'pseudo' celleditor view
-  if (view.key.indexOf('_celleditor') > 0) return
-  // Exit if it's not displaying the object we want to track
-  if (view.source.object !== targetObject) return
-  // Exit if a table, no inline editing, no action links, no delete link
-  // if( a && ( b || c )) return
-  // if action update 'Original Data' to be full details of all records in the table
-  // if( actionlink ){
-  // let recordIDs = orignaViewData.map(record => record.id)
-  // let filter = createFilterFromArrayOfIDs(recordIDs)
-  // originalViewData = await searchRecordPromise(targetObject,filter)
-  //
-  // Add a listener to the action link
-  // $('kn-action-link').on('click',function(){
-  //  window.actionLinkTracker = {}
-  // actionLinkTracker[view.key] = true
-  // })
-  //}
-  // Update forms don't load all fields, need to get full data to catch changes via record rules
-  if (view.action === 'update') originalRecord = await getRecordPromise(view.source.object, originalViewData.id)
-  // For brand new records there is no original, but knack passes the default values of an empty form
-  if (view.action === 'insert') originalRecord = null
-
-  // Global variable to keep track of views that already have listeners so they are only added once
-  window.viewLoadTracker = {}
   // Add event listeners if not already listenting
-  if(!viewLoadTracker[view.key]) {
+  if (!viewLoadTracker[view.key]) {
     $(document).on(trackedEvents.join(' '), handler)
     viewLoadTracker[view.key] = true // Flag that this view has already had a lister attached to it - inline edits and forms can be loaded multiple times
   }
 
-  // If there's no action link event, i'll need to identify these in the view
-  // And add my own listener for if they are clicked
-  // If it is clicked, can I navigate up the DOM tree and find the record ID?
-  // If so, can I then get the record and pass this info to my standard handler?
-  // Does the handler get added globally or for each element?
+  // Add our own click listener if there are action links
+  if ($('#' + view.key + ' .kn-action-link').length > 0) {
+    insertFunctionBeforeAndAfterClick('#' + view.key + ' .kn-action-link', beforeClick, afterActionClick)
+  }
 
-  // Function that fires after one of the tracked events. Can't be anonymous as need to remove it after firing
+  // Add our own click listener if there are delete links
+  let $deleteLinks = $('#' + view.key + ' .kn-link-delete')
+  if ($deleteLinks.length > 0) {
+    // Get the full record before the record is deleted
+    let recordId = $deleteLinks.closest('tr').attr('id')
+    $deleteLinks.click(async function(){
+      originalRecord = await getRecordPromise(view.source.object, recordId)
+    })
+  }
+
+  async function beforeClick(recordId) {
+    originalRecord = await getRecordPromise(view.source.object, recordId)
+    originalViewData = originalRecord // This avoids the following code seeing an array and pulling out the incomplete record
+  }
+
+  async function afterActionClick(recordId) {
+    updatedRecord = await getRecordPromise(view.source.object, recordId)
+    view.action = 'update'
+    handler(null, view, updatedRecord)
+  }
+
+  // Function that fires after one of the tracked events.
   function handler(event, view, updatedRecord) {
-    // Original data via inline edits is an array, not a record object, needs special treatment
-    if (isItAnArray(originalViewData)) {
-      // If the source view is a table (inline edit) need to identify the actual previous record
+
+    // The originalViewData object is an array if the trigger event is an inline edit
+    let isInlineEdit = isItAnArray(originalViewData)
+    let isDelete = event.type === 'knack-record-delete'
+
+    if (isDelete) {
+      view.action = 'delete'
+      updatedRecord = originalRecord
+    } else if (isInlineEdit) {
+      // Inline edits happen in tables.
+      // The originalRecord is one of the elements of the originalViewData array
+      // Need to extract this record
       originalRecord = originalViewData.filter(tableRecord => tableRecord.id === updatedRecord.id)[0]
-      // The updated record includes all fields, need to strip the one not also in the original or will show false changes
+
+      // The originalRecord only holds the data that was displayed in the table
+      // However, the updated record returned after the edit is the full object
+      // There are no record rules to worry about here - can populate the original from the updated
+      // This is necessary to avoid getting false change indicators when comparing the two records
       Object.keys(updatedRecord).forEach(key => {
         if (originalRecord[key] === undefined) {
-          delete updatedRecord[key]
+          originalRecord[key] = updatedRecord[key]
         }
       })
-      // In order to capture futher changes via inline edit, need to update the original view data
+
+      // Views can be edited multiple times without being reloaded
+      // In order to capture subsequent changes, need to update the originalViewData
+      // For inline edits, this requires updating the target object in the array
       let targetRecordIndex = originalViewData.findIndex(record => record.id === updatedRecord.id)
       originalViewData[targetRecordIndex] = updatedRecord
+
+      // Inline edit views don't have an an action. So we'll set one
+      view.action = 'update'
     } else {
       // Other views can also be reloaded multiple times
       originalViewData = updatedRecord
@@ -106,6 +127,52 @@ async function trackChanges(targetObject, originalViewData, view, callback) {
 
     return record
   }
+}
+
+function insertFunctionBeforeAndAfterClick(selector, beforeFunc, afterFunc) {
+  // Get the target element
+  let $targetElement = $(selector)
+  let recordId = $targetElement.closest('tr').attr('id')
+  // Get the listner currently attached to the element
+  // Think we need to pause here and wait for the page to fully load
+  let clickListener = $._data($targetElement[0]).events.click[0];
+  // Detatch the click event
+  $targetElement.off('click')
+  // Replace the click event with our own
+  $targetElement.click(async function(event) {
+    // Execute before function
+    beforeFunc(recordId)
+    // Trigger the original click event
+    clickListener.handler(event)
+    // Unfortunately the action link handler does not return a promise
+    // Instead, wait for the spinner to disappear before triggering the after function
+    const after = setInterval(function() {
+      let spinner = document.getElementById('kn-loading-spinner')
+      let displayStyle = window.getComputedStyle(spinner, null)['display']
+      if (displayStyle === 'none') {
+        // Execute after function
+        afterFunc(recordId)
+        clearInterval(after)
+      }
+    })
+  })
+}
+
+function isViewCapableOfUpdatingTargetObject(targetObject, view) {
+  // Is it a view without a source?
+  if (view.source === undefined) return false
+  // Is it a 'pseudo' celleditor view?
+  if (view.key.indexOf('_celleditor') > 0) return false
+  // Is it displaying the targetObject?
+  if (view.source.object !== targetObject) return false
+  // Exit if a table, no inline editing, no action links, no delete link
+  if (view.type === 'table') {
+    let isInlineEdit = view.options.cell_editor
+    let isActionLink = $('#' + view.key + ' .kn-action-link').length > 0
+    let isDeleteLink = $('#' + view.key + ' .kn-deleted-link').length > 0
+    if (!(isInlineEdit || isActionLink || isDeleteLink)) return false
+  }
+  return true
 }
 
 // Limit the selectable time range to 6am to 8pm & show duration in to-time
