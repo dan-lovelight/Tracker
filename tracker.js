@@ -7,10 +7,19 @@ const objects = {
   'opportunities':'object_17'
 }
 
-
 $(document).on('knack-view-render.any', function(event, view, data) {
-  // Pass all create, update and delete events to callOUtHandler
-  trackChanges(objects.callouts, data, view, callOutCreateUpdateDelete)
+
+   let callouts = new KnackObject('object_78')
+   callouts.onCreate(view, handler)
+   callouts.onUpdate(view, data, handler)
+   callouts.onDelete(view, handler)
+
+   function handler(view, record, previousRecord = {},changedArray = []){
+     console.log('view', view)
+     console.log('record', record)
+     console.log('previousRecord', previousRecord)
+     console.log('changedArray', changedArray)
+   }
 
   var $submitButtonArray = $(".kn-submit input[type=submit]");
   $submitButtonArray.each(function(index) {
