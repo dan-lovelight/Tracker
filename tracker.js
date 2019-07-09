@@ -1,26 +1,22 @@
 const objects = {
   'callouts': 'object_78',
-  'jobs':'object_3',
-  'installers':'object_71',
-  'invoices':'object_19',
-  'orders':'object_19',
-  'opportunities':'object_17'
+  'jobs': 'object_3',
+  'installers': 'object_71',
+  'invoices': 'object_19',
+  'orders': 'object_19',
+  'opportunities': 'object_17'
 }
 
 $(document).on('knack-view-render.any', function(event, view, data) {
 
-   let callouts = new KnackObject('object_78')
-   callouts.onCreate(view, handler)
-   callouts.onUpdate(view, handler)
-   callouts.onDelete(view, handler)
+  let callouts = new KnackObject('object_78')
+  callouts.onCreate(view, function(view, record, user) {
+    let data = {
+      'field_1581': user.name
+    }
+    callouts.update(record.id, data)
+  })
 
-   function handler(view, record, user, previousRecord, changes){
-     console.log('view', view)
-     console.log('record', record)
-     console.log('user', user)
-     console.log('previousRecord', previousRecord)
-     console.log('changedArray', changes)
-   }
 
   var $submitButtonArray = $(".kn-submit input[type=submit]");
   $submitButtonArray.each(function(index) {

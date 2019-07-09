@@ -1,3 +1,18 @@
+// Knack object has two sets of methods:
+//
+// 1) For manipulating records
+// .create(data)
+// .get(id)
+// .update(id, data)
+// .find(filters, [sortField], [sortOrder], [recordPerPage])
+//
+// 2) For capturing changes
+// .onCreate(view, callback)
+// .onUpdate(view, callback)
+// .onDelete(view, callback)
+// All three of these functions return 5 arguements to the callback:
+// callback(view, record, user, previousRecord, changes)
+
 class KnackObject {
   constructor(objectKey) {
     this.key = objectKey
