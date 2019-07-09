@@ -2,6 +2,7 @@ const callOutCreateEvents = [
   'knack-record-create.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
   'knack-record-create.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
   'knack-record-create.view_2199', // Add service call - job, #jobs/view-job-details2/{}/summary/{}/, #pages/scene_1054/views/view_2199
+  'knack-record-create.view_2207', // Book time off - installers, #upcoming/add-leaveunavailable/, #pages/scene_1057/views/view_2207
 ]
 
 const callOutUpdateEvents = [
@@ -27,6 +28,7 @@ const createCallOutForms = [
   'knack-view-render.view_1437', // #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
   'knack-view-render.view_1294', // #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
   'knack-view-render.view_2126', // #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
+  'knack-view-render.view_2207', // #upcoming/add-leaveunavailable/, #pages/scene_1057/views/view_2207
 ]
 
 
@@ -347,7 +349,7 @@ async function getCallOutName(callOut) {
   let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
   let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
   let completionIcon = callOut.field_1005 === 'Complete' ? completeIcon : scheduledIcon
-  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street : ''
+  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street + '' + callOut.field_981_raw.street2 : ''
   let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
   let address = street + ' ' + city
   let addressDisplay = address.length < 2 ? '' : '| ' + address
@@ -510,7 +512,7 @@ function updateConnectedJobsInPortal(record) {
     ['install_booked', 'Install']
   ]
 
-  let isConnectedToJob = record.field_928_raw.length > 0
+  let isConnectedToJob = record.field_928.length > 0
   let isConfirmed = record.field_1005 !== 'Tentative'
   let isCommercial = record.field_1495.indexOf('Commercial') > -1
   let isCancelled = record.field_1005 === 'Cancelled'
