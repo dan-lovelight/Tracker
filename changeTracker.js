@@ -94,32 +94,32 @@ class KnackObject {
     if (view.source.object !== this.key) return
     let recordBefore = {}
 
-    // Get table data if necessary (this is updated when the table is sorted which is important)
-    if (view.type === 'table' && view.options.cell_editor) {
-      // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
-        window.dataBefore = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
-    }
-
-    // Only add global listeners once
-    if (!window.listeners[this.key].update.has(view.key)) {
-
       // Handle update forms
       if (view.type === 'form' && view.action === 'update') {
+        recordBefore = await this.get(view.scene.scene_id)
+        // Only add global listeners once
+        if (!window.listeners[this.key].update.has(view.key)) {
         window.listeners[this.key].update.add(view.key)
-        recordBefore = await this.get(view.source.object, dataBefore.id)
         $(document).on(`knack-record-update.${view.key}`, recordUpdateHandler)
         return // No action links on forms, exit here
+      }
       }
 
       // Handle tables that allow inline edits
       if (view.type === 'table' && view.options.cell_editor) {
+        // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
+        window.dataBefore = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
+        // Only add global listeners once
+        if (!window.listeners[this.key].update.has(view.key)) {
         window.listeners[this.key].update.add(view.key)
         $(document).on(`knack-cell-update.${view.key}`, cellUpdateHandler)
       }
-    }
+      }
 
     function recordUpdateHandler(event, view, record){
       compareAndReturn(record, recordBefore)
+      // Reset the baseline
+      recordBefore = record
     }
 
     function cellUpdateHandler(event, view, record){
@@ -197,17 +197,7 @@ class KnackObject {
     let self = this
     if (view.source === undefined) return
     if (view.source.object !== this.key) return
-
     let record
-
-    // Only add global listeners once
-    if (!window.listeners[this.key].delete.has(view.key)) {
-      window.listeners[this.key].delete.add(view.key)
-      $(document).on(`knack-record-delete.${view.key}`, function() {
-        waitForRecord()
-        console.log('just after wait', record)
-      })
-    }
 
     // Add our own click listener if there are delete links
     let $deleteLinks = $('#' + view.key + ' .kn-link-delete')
@@ -228,23 +218,33 @@ class KnackObject {
     }
 
     function interceptDeleteLinks() {
+
       $deleteLinks.click(async function(event) {
-        console.log('delete click')
         let recordId = view.type === 'table' ? $(event.currentTarget).closest('tr').attr('id') : $deleteLinks[0].baseURI.split('/').slice(-2).reverse().pop()
         record = false
+
+        // Only add global listeners once
+        if (!window.listeners[self.key].delete.has(view.key)) {
+          window.listeners[self.key].delete.add(view.key)
+          $(document).on(`knack-record-delete.${view.key}`, function() {
+            waitForRecord()
+          })
+        }
         record = await self.get(recordId)
-        console.log('just after fetch', record)
       })
+
+      function waitForRecord() {
+        if (record) {
+          callback(view, record, self.user, {}, [])
+        } else {
+          console.log('had to wait')
+          setTimeout(waitForRecord, 250);
+        }
+      }
+
     }
 
-    function waitForRecord() {
-      if (record) {
-        callback(view, record, self.user, {}, [])
-      } else {
-        console.log('had to wait')
-        setTimeout(waitForRecord, 250);
-      }
-    }
+
 
   }
 
