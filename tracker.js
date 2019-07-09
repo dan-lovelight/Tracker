@@ -11,14 +11,15 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 
    let callouts = new KnackObject('object_78')
    callouts.onCreate(view, handler)
-   callouts.onUpdate(view, data, handler)
+   callouts.onUpdate(view, handler)
    callouts.onDelete(view, handler)
 
-   function handler(view, record, previousRecord = {},changedArray = []){
+   function handler(view, record, user, previousRecord, changes){
      console.log('view', view)
      console.log('record', record)
+     console.log('user', user)
      console.log('previousRecord', previousRecord)
-     console.log('changedArray', changedArray)
+     console.log('changedArray', changes)
    }
 
   var $submitButtonArray = $(".kn-submit input[type=submit]");

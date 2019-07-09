@@ -73,6 +73,7 @@ class KnackObject {
 
   onCreate(view, callback) {
 
+    let self = this
     if (view.source === undefined) return
     if (window.listeners[this.key].create.has(view.key)) return
     if (view.action !== 'insert') return
@@ -81,53 +82,59 @@ class KnackObject {
 
     // Listen for new records
     $(document).on(`knack-record-create.${view.key}`, function(event, view, record) {
-      callback(view, record, this.user)
+      callback(view, record, self.user, {}, [])
     })
 
   }
 
-  async onUpdate(view, dataBefore, callback) {
+  async onUpdate(view, callback) {
 
     let self = this
     if (view.source === undefined) return
     if (view.source.object !== this.key) return
+    let recordBefore = {}
+
+    // Get table data if necessary (this is updated when the table is sorted which is important)
+    if (view.type === 'table' && view.options.cell_editor) {
+      // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
+        window.dataBefore = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
+    }
 
     // Only add global listeners once
     if (!window.listeners[this.key].update.has(view.key)) {
 
       // Handle update forms
       if (view.type === 'form' && view.action === 'update') {
-
         window.listeners[this.key].update.add(view.key)
-        let recordBefore = await this.get(view.source.object, dataBefore.id)
-        $(document).on(`knack-record-update.${view.key}`, function(event, view, record) {
-          compareAndReturn(record, recordBefore)
-        })
+        recordBefore = await this.get(view.source.object, dataBefore.id)
+        $(document).on(`knack-record-update.${view.key}`, recordUpdateHandler)
         return // No action links on forms, exit here
-
       }
 
       // Handle tables that allow inline edits
       if (view.type === 'table' && view.options.cell_editor) {
-
         window.listeners[this.key].update.add(view.key)
-        $(document).on(`knack-cell-update.${view.key}`, function(event, view, record) {
-
-          // Identify the original record
-          let recordBefore = dataBefore.filter(recordInTable => recordInTable.id === record.id)[0]
-
-          // Build a complete previous record
-          Object.keys(record).forEach(key => {
-            if (recordBefore[key] === undefined) recordBefore[key] = record[key]
-          })
-
-          // Update the original data so our next change has an accurate baseline
-          let recordIndex = dataBefore.findIndex(recordInTable => recordInTable.id === record.id)
-          dataBefore[recordIndex] = record
-
-          compareAndReturn(record, recordBefore)
-        })
+        $(document).on(`knack-cell-update.${view.key}`, cellUpdateHandler)
       }
+    }
+
+    function recordUpdateHandler(event, view, record){
+      compareAndReturn(record, recordBefore)
+    }
+
+    function cellUpdateHandler(event, view, record){
+      // Identify the original record
+      recordBefore = dataBefore.filter(recordInTable => recordInTable.id === record.id)[0]
+
+      // Build a complete previous record
+      Object.keys(record).forEach(key => {
+        if (recordBefore[key] === undefined) recordBefore[key] = record[key]
+      })
+
+      // Just in case the view doesn't re-render, need to update our baseline data
+      window.dataBefore = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
+
+      compareAndReturn(record, recordBefore)
     }
 
     // Handle views with action links (tables & view details)
@@ -175,14 +182,12 @@ class KnackObject {
 
     function compareAndReturn(record, recordBefore) {
       let changes = []
-
       // Compare before and after
       Object.keys(record).forEach(key => {
         if (recordBefore[key] !== record[key] && key.indexOf('raw') < 0) changes.push(key)
       })
-
       // Pass to callback if there are changes
-      if (changes.length > 0) callback(view, record, recordBefore, changes, this.user)
+      if (changes.length > 0) callback(view, record, self.user, recordBefore, changes)
     }
 
   }
@@ -193,11 +198,21 @@ class KnackObject {
     if (view.source === undefined) return
     if (view.source.object !== this.key) return
 
-    // Add our own click listener if there are delete links
     let record
+
+    // Only add global listeners once
+    if (!window.listeners[this.key].delete.has(view.key)) {
+      window.listeners[this.key].delete.add(view.key)
+      $(document).on(`knack-record-delete.${view.key}`, function() {
+        waitForRecord()
+        console.log('just after wait', record)
+      })
+    }
+
+    // Add our own click listener if there are delete links
     let $deleteLinks = $('#' + view.key + ' .kn-link-delete')
     if ($deleteLinks.length > 0) {
-      if(view.type === 'table') {
+      if (view.type === 'table') {
         interceptDeleteLinks()
       } else {
         waitForDeleteEvents()
@@ -214,25 +229,23 @@ class KnackObject {
 
     function interceptDeleteLinks() {
       $deleteLinks.click(async function(event) {
+        console.log('delete click')
         let recordId = view.type === 'table' ? $(event.currentTarget).closest('tr').attr('id') : $deleteLinks[0].baseURI.split('/').slice(-2).reverse().pop()
+        record = false
         record = await self.get(recordId)
+        console.log('just after fetch', record)
       })
     }
 
-    // Only add global listeners once
-    if (!window.listeners[this.key].delete.has(view.key)) {
-      window.listeners[this.key].delete.add(view.key)
-      $(document).on(`knack-record-delete.${view.key}`, function(event, view, deletedRecord) {
-        waitForRecord()
-        function waitForRecord(){
-          if (typeof record !== "undefined") {
-          callback(view, record, this.user)
-        } else {
-          console.log('had to wait')
-          setTimeout(waitForRecord, 250);
-        }}
-      })
+    function waitForRecord() {
+      if (record) {
+        callback(view, record, self.user, {}, [])
+      } else {
+        console.log('had to wait')
+        setTimeout(waitForRecord, 250);
+      }
     }
+
   }
 
   _assert(cond, message) {
