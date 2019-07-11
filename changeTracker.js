@@ -7,43 +7,69 @@
 // .find(filters, [sortField], [sortOrder], [recordPerPage])
 //
 // 2) For capturing changes
-// .onCreate(view, callback)
-// .onUpdate(view, callback)
-// .onDelete(view, callback)
+// .onCreate(callback)
+// .onUpdate(callback)
+// .onDelete(callback)
 // All three of these functions return 5 arguements to the callback:
 // callback(view, record, user, previousRecord, changes)
 
 class KnackObject {
-  constructor(objectKey) {
+  constructor(objectKey, view) {
     this.key = objectKey
-    this.knackURL = 'https://api.knackhq.com/v1/'
-    this.headers = myKnackHeaders
-    this.user = Knack.getUserAttributes()
+    this.view = view
 
-    if (!window.listeners) {
-      window.listeners = {
-        [this.key]: {
-          create: new Set(),
-          update: new Set(),
-          delete: new Set(),
-        }
+    let objectDetails = Knack.objects.models.filter(object => object.id === objectKey)[0]
+    this.name = objectDetails.attributes.name
+    this.fields = {}
+    objectDetails.attributes.fields.forEach(field => {
+      this.fields[field.key] = {
+        'name': field.name,
+        'type': field.type,
+        'required': field.required,
       }
+    })
+  }
+
+  set key(newKey) {
+    this._key = newKey
+  }
+  get key() {
+    return this._key
+  }
+  set view(newView) {
+    this._view = newView
+    this._isValidView = false
+    if (!newView) {
+      return // no view provided
+    } else if (!newView.source) {
+      return // view is a menu
+    } else if (!newView.source.object === this.key) {
+      return // view is not for the target object
+    } else {
+      this._isValidView = true
     }
+  }
+  get view() {
+    return this._view
   }
 
   async create(data = {}) {
+
+    this._assert(this.headers, this.errorMsgs.noHeaders)
+
     let url = this.knackURL + 'objects/' + this.key + '/records/'
     let init = {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(data)
     }
-
     return await this._goFetch(url, init)
-
   }
 
   async get(id) {
+
+    this._assert(this.headers, this.errorMsgs.noHeaders)
+
     let url = this.knackURL + 'objects/' + this.key + '/records/' + id
     let init = {
       method: 'GET',
@@ -55,6 +81,8 @@ class KnackObject {
   }
 
   async update(id, data = {}) {
+
+    this._assert(this.headers, this.errorMsgs.noHeaders)
 
     let url = this.knackURL + 'objects/' + this.key + '/records/' + id
     let init = {
@@ -68,6 +96,8 @@ class KnackObject {
   }
 
   async find(filters = [], sortField = '', sortOrder = '', recordPerPage = 'all') {
+
+    this._assert(this.headers, this.errorMsgs.noHeaders)
 
     let filtersEnc = encodeURI(JSON.stringify(filters))
     let sortOrderEnc = encodeURI(JSON.stringify(sortOrder))
@@ -86,58 +116,57 @@ class KnackObject {
 
   }
 
-  onCreate(view, callback) {
+  onCreate(callback) {
+
+    this._assert(this.headers, this.errorMsgs.noHeaders)
+    this._assert(this._isValidView, this.errorMsgs.noView)
 
     let self = this
-    if (view.source === undefined) return
-    if (window.listeners[this.key].create.has(view.key)) return
-    if (view.action !== 'insert') return
-    if (view.source.object !== this.key) return
-    window.listeners[this.key].create.add(view.key)
+    if (this.view.action !== 'insert') return
+    if (this._isListenerAlreadyApplied('create', callback)) return
 
     // Listen for new records
-    $(document).on(`knack-record-create.${view.key}`, function(event, view, record) {
+    $(document).on(`knack-record-create.${this.view.key}`, function(event, view, record) {
       callback(view, record, self.user, {}, [])
     })
 
   }
 
-  async onUpdate(view, callback) {
+  async onUpdate(callback) {
+
+    this._assert(this.headers, this.errorMsgs.noHeaders)
+    this._assert(this._isValidView, this.errorMsgs.noView)
 
     let self = this
-    if (view.source === undefined) return
-    if (view.source.object !== this.key) return
     let recordBefore = {}
 
-      // Handle update forms
-      if (view.type === 'form' && view.action === 'update') {
-        recordBefore = await this.get(view.scene.scene_id)
-        // Only add global listeners once
-        if (!window.listeners[this.key].update.has(view.key)) {
-        window.listeners[this.key].update.add(view.key)
-        $(document).on(`knack-record-update.${view.key}`, recordUpdateHandler)
+    // Handle update forms
+    if (this.view.type === 'form' && this.view.action === 'update') {
+      recordBefore = await this.get(this.view.scene.scene_id)
+      // Only add global listeners once
+      if (!this._isListenerAlreadyApplied('update', callback)) {
+        $(document).on(`knack-record-update.${this.view.key}`, recordUpdateHandler)
         return // No action links on forms, exit here
       }
-      }
+    }
 
-      // Handle tables that allow inline edits
-      if (view.type === 'table' && view.options.cell_editor) {
-        // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
-        window.dataBefore = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
-        // Only add global listeners once
-        if (!window.listeners[this.key].update.has(view.key)) {
-        window.listeners[this.key].update.add(view.key)
-        $(document).on(`knack-cell-update.${view.key}`, cellUpdateHandler)
+    // Handle tables that allow inline edits
+    if (this.view.type === 'table' && this.view.options.cell_editor) {
+      // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
+      window.dataBefore = JSON.parse(JSON.stringify(Knack.views[this.view.key].model.data.models))
+      // Only add global listeners once
+      if (!this._isListenerAlreadyApplied('update', callback)) {
+        $(document).on(`knack-cell-update.${this.view.key}`, cellUpdateHandler)
       }
-      }
+    }
 
-    function recordUpdateHandler(event, view, record){
+    function recordUpdateHandler(event, view, record) {
       compareAndReturn(record, recordBefore)
       // Reset the baseline
       recordBefore = record
     }
 
-    function cellUpdateHandler(event, view, record){
+    function cellUpdateHandler(event, view, record) {
       // Identify the original record
       recordBefore = dataBefore.filter(recordInTable => recordInTable.id === record.id)[0]
 
@@ -153,11 +182,9 @@ class KnackObject {
     }
 
     // Handle views with action links (tables & view details)
-    let $actionLinks = $('#' + view.key + ' .kn-action-link')
+    let $actionLinks = $('#' + this.view.key + ' .kn-action-link')
     if ($actionLinks.length > 0) {
-      window.listeners[this.key].update.add(view.key)
-      // let wait = ms => new Promise((r, j) => setTimeout(r, ms))
-      // await wait(100) // Necessary for details forms
+      this._isListenerAlreadyApplied('update', callback)
       waitForActionLinkEvents()
     }
 
@@ -176,7 +203,7 @@ class KnackObject {
       $actionLinks.off('click')
       // Replace the click event with our own
       $actionLinks.click(async function(event) {
-        let recordId = view.type === 'table' ? $(event.currentTarget).closest('tr').attr('id') : $actionLinks[0].baseURI.split('/').slice(-2).reverse().pop()
+        let recordId = self.view.type === 'table' ? $(event.currentTarget).closest('tr').attr('id') : $actionLinks[0].baseURI.split('/').slice(-2).reverse().pop()
         // Execute before function
         let recordBefore = await self.get(recordId)
         // Trigger the original click event
@@ -202,24 +229,28 @@ class KnackObject {
         if (recordBefore[key] !== record[key] && key.indexOf('raw') < 0) changes.push(key)
       })
       // Pass to callback if there are changes
-      if (changes.length > 0) callback(view, record, self.user, recordBefore, changes)
+      if (changes.length > 0) callback(self.view, record, self.user, recordBefore, changes)
     }
 
   }
 
-  async onDelete(view, callback) {
+  async onDelete(callback) {
+
+    this._assert(this.headers, this.errorMsgs.noHeaders)
+    this._assert(this._isValidView, this.errorMsgs.noView)
 
     let self = this
-    if (view.source === undefined) return
-    if (view.source.object !== this.key) return
-    let record
+    let record = false
+    let recordId
+    let detailsView = false
 
     // Add our own click listener if there are delete links
-    let $deleteLinks = $('#' + view.key + ' .kn-link-delete')
+    let $deleteLinks = $('#' + this.view.key + ' .kn-link-delete')
     if ($deleteLinks.length > 0) {
-      if (view.type === 'table') {
+      if (this.view.type === 'table') {
         interceptDeleteLinks()
       } else {
+        detailsView = true
         waitForDeleteEvents()
       }
     }
@@ -232,40 +263,79 @@ class KnackObject {
       }
     }
 
-    function interceptDeleteLinks() {
+    async function interceptDeleteLinks() {
 
       $deleteLinks.click(async function(event) {
-        let recordId = view.type === 'table' ? $(event.currentTarget).closest('tr').attr('id') : $deleteLinks[0].baseURI.split('/').slice(-2).reverse().pop()
-        record = false
-
         // Only add global listeners once
-        if (!window.listeners[self.key].delete.has(view.key)) {
-          window.listeners[self.key].delete.add(view.key)
-          $(document).on(`knack-record-delete.${view.key}`, function() {
+        if (!self._isListenerAlreadyApplied('delete', callback)) {
+          $(document).on(`knack-record-delete.${self.view.key}`, function() {
             waitForRecord()
           })
+          if (!detailsView) {
+            recordId = $(event.currentTarget).closest('tr').attr('id')
+            record = await self.get(recordId)
+          }
         }
-        record = await self.get(recordId)
       })
+
+      // For details view, load the full record immediately - not reliable doing it on click
+      if (detailsView) {
+        recordId = $deleteLinks[0].baseURI.split('/').slice(-2).reverse().pop()
+        record = await self.get(recordId)
+      }
 
       function waitForRecord() {
         if (record) {
-          callback(view, record, self.user, {}, [])
+          callback(self.view, record, self.user, {}, [])
         } else {
           console.log('had to wait')
           setTimeout(waitForRecord, 250);
         }
       }
-
     }
+  }
 
-
-
+  static fields(fields) {
+    if (!fields) {
+      // No params, return all fields
+      return this.fields
+    } else if (typeof fields === 'string') {
+      // Single field string, return object details for this string
+      return this.fields.filter(field => field.keys === fields)[0]
+    } else if (typeof fields === 'array') {
+      // Array of fields, return array of all matching field objects
+      return this.fields.filter(field => fields.inclues(field))
+    } else {
+      return false
+    }
   }
 
   _assert(cond, message) {
     if (!cond) {
       throw new Error(message)
+    }
+  }
+
+  _isListenerAlreadyApplied(action, callback) {
+    // Create the listeners object if necessary
+    if (!KnackObject.prototype.listeners) {
+      KnackObject.prototype.listeners = {
+        [this.key]: {
+          'create': new Set(),
+          'update': new Set(),
+          'delete': new Set(),
+        }
+      }
+    }
+    // Create a unique id for the view/callback combo. Must be a better way...
+    let viewCallback = this.view.key + callback.toString()
+    // Is the view already being watched?
+    if (!KnackObject.prototype.listeners[this.key][action].has(viewCallback)) {
+      KnackObject.prototype.listeners[this.key][action].add(viewCallback)
+      return false
+      // Has this callback function already been applied?
+    } else {
+      return true
     }
   }
 
@@ -275,4 +345,12 @@ class KnackObject {
     let json = await response.json()
     return json
   }
+}
+
+KnackObject.prototype.headers = myKnackHeaders
+KnackObject.prototype.user = Knack.getUserAttributes()
+KnackObject.prototype.knackURL = 'https://api.knackhq.com/v1/'
+KnackObject.prototype.errorMsgs = {
+  'noHeaders': 'You must set KnackObject.headers in order to use KnackObject',
+  'noView': 'You must initialise with a view in order to use onChange methods'
 }
