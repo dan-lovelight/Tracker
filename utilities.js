@@ -343,7 +343,7 @@ async function triggerZap(endPoint, dataObject, logEntry) {
     method: 'POST',
     body: JSON.stringify(dataObject)
   }
-
+  updateLog(':heavy_check_mark: ' +logEntry + ` by ${Knack.getUserAttributes().name}`)
   try {
     await fetch(url, init)
   } catch (err) {
