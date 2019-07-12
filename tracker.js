@@ -71,7 +71,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
     }
 
     function deleteHandler(view, record) {
-      let msg = `*${user.name}* just delete a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}' (record has ${Object.keys(record).length} fields)`
+      let msg = `*${user.name}* just deleted a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}' (record has ${Object.keys(record).length} fields)`
       updateLog(msg)
     }
   } catch (err) {
