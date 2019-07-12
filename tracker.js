@@ -20,6 +20,8 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 
     let monitor
     let user = Knack.getUserAttributes()
+    let url = 'https://lovelight.knack.com/tracker#'
+
     if (view.source) {
       if (view.source.object) {
         monitor = new KnackObject(view.source.object, view)
@@ -29,9 +31,9 @@ $(document).on('knack-view-render.any', function(event, view, data) {
       }
     }
 
+
     function updateHandler(view, record, previousRecord, changes) {
       let chgString = ''
-      let url = 'https://lovelight.knack.com/tracker#'
       for (let i = 0; i < changes.length; i++) {
         let fieldKey = changes[i]
         let fieldKeyRaw = fieldKey + '_raw'
@@ -39,14 +41,14 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         let to = record[fieldKey]
         chgString += `> _${monitor.fields[fieldKey].name}_ `
         if (monitor.fields[fieldKey].type === 'connection') {
-          if (previousRecord[fieldKeyRaw].length>0) {
+          if (previousRecord[fieldKeyRaw].length > 0) {
             from = ''
             for (j = 0; j < previousRecord[fieldKeyRaw].length; j++) {
               from += previousRecord[fieldKeyRaw][j].identifier
               if (j !== (record[fieldKeyRaw].length - 1)) from += ','
             }
           }
-          if (record[fieldKeyRaw].length>0) {
+          if (record[fieldKeyRaw].length > 0) {
             to = ''
             for (k = 0; k < record[fieldKeyRaw].length; k++) {
               to += record[fieldKeyRaw][k].identifier
