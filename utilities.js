@@ -346,7 +346,6 @@ async function triggerZap(endPoint, dataObject, logEntry) {
 
   try {
     await fetch(url, init)
-    await updateLog(':heavy_check_mark: ' + logEntry)
   } catch (err) {
     logError(triggerZap, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
