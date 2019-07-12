@@ -20,6 +20,7 @@ class KnackObject {
 
     let objectDetails = Knack.objects.models.filter(object => object.id === objectKey)[0]
     this.name = objectDetails.attributes.name
+    this.nameSingular = objectDetails.attributes.inflections.singular
     this.fields = {}
     objectDetails.attributes.fields.forEach(field => {
       this.fields[field.key] = {
@@ -118,8 +119,9 @@ class KnackObject {
 
   onCreate(callback) {
 
+    if(!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
-    this._assert(this._isValidView, this.errorMsgs.noView)
+    this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
     if (this.view.action !== 'insert') return
@@ -127,15 +129,16 @@ class KnackObject {
 
     // Listen for new records
     $(document).on(`knack-record-create.${this.view.key}`, function(event, view, record) {
-      callback(view, record, self.user, {}, [])
+      callback(view, record,  {}, [])
     })
 
   }
 
   async onUpdate(callback) {
 
+    if(!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
-    this._assert(this._isValidView, this.errorMsgs.noView)
+    this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
     let recordBefore = {}
@@ -153,7 +156,7 @@ class KnackObject {
     // Handle tables that allow inline edits
     if (this.view.type === 'table' && this.view.options.cell_editor) {
       // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
-      window.dataBefore = JSON.parse(JSON.stringify(Knack.views[this.view.key].model.data.models))
+      KnackObject.prototype.dataBefore[this.view.key] = JSON.parse(JSON.stringify(Knack.views[this.view.key].model.data.models))
       // Only add global listeners once
       if (!this._isListenerAlreadyApplied('update', callback)) {
         $(document).on(`knack-cell-update.${this.view.key}`, cellUpdateHandler)
@@ -163,12 +166,12 @@ class KnackObject {
     function recordUpdateHandler(event, view, record) {
       compareAndReturn(record, recordBefore)
       // Reset the baseline
-      recordBefore = record
+      recordBefore = JSON.parse(JSON.stringify(record))
     }
 
     function cellUpdateHandler(event, view, record) {
       // Identify the original record
-      recordBefore = dataBefore.filter(recordInTable => recordInTable.id === record.id)[0]
+      recordBefore = KnackObject.prototype.dataBefore[view.key].filter(recordInTable => recordInTable.id === record.id)[0]
 
       // Build a complete previous record
       Object.keys(record).forEach(key => {
@@ -176,7 +179,7 @@ class KnackObject {
       })
 
       // Just in case the view doesn't re-render, need to update our baseline data
-      window.dataBefore = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
+      KnackObject.prototype.dataBefore[view.key] = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
 
       compareAndReturn(record, recordBefore)
     }
@@ -229,15 +232,16 @@ class KnackObject {
         if (recordBefore[key] !== record[key] && key.indexOf('raw') < 0) changes.push(key)
       })
       // Pass to callback if there are changes
-      if (changes.length > 0) callback(self.view, record, self.user, recordBefore, changes)
+      if (changes.length > 0) callback(self.view, record,  recordBefore, changes)
     }
 
   }
 
   async onDelete(callback) {
 
+    if(!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
-    this._assert(this._isValidView, this.errorMsgs.noView)
+    this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
     let record = false
@@ -286,7 +290,7 @@ class KnackObject {
 
       function waitForRecord() {
         if (record) {
-          callback(self.view, record, self.user, {}, [])
+          callback(self.view, record,  {}, [])
         } else {
           console.log('had to wait')
           setTimeout(waitForRecord, 250);
@@ -295,19 +299,16 @@ class KnackObject {
     }
   }
 
-  static fields(fields) {
-    if (!fields) {
-      // No params, return all fields
-      return this.fields
-    } else if (typeof fields === 'string') {
-      // Single field string, return object details for this string
-      return this.fields.filter(field => field.keys === fields)[0]
-    } else if (typeof fields === 'array') {
-      // Array of fields, return array of all matching field objects
-      return this.fields.filter(field => fields.inclues(field))
-    } else {
-      return false
-    }
+  static objects() {
+    let objectsModel = Knack.objects.models
+    objectsModel.forEach(object => {
+      let objects = []
+      objects.push({
+        'name': object.attributes.name,
+        'key': object.attributes.key,
+      })
+    })
+    return objects
   }
 
   _assert(cond, message) {
@@ -316,27 +317,33 @@ class KnackObject {
     }
   }
 
+  // for each callback function, important to only apply the listener once
+  // this checks via a record kept on the KnackObject prototype
   _isListenerAlreadyApplied(action, callback) {
-    // Create the listeners object if necessary
-    if (!KnackObject.prototype.listeners) {
-      KnackObject.prototype.listeners = {
-        [this.key]: {
-          'create': new Set(),
-          'update': new Set(),
-          'delete': new Set(),
-        }
-      }
-    }
     // Create a unique id for the view/callback combo. Must be a better way...
+    let alreadyApplied = true
     let viewCallback = this.view.key + callback.toString()
-    // Is the view already being watched?
-    if (!KnackObject.prototype.listeners[this.key][action].has(viewCallback)) {
-      KnackObject.prototype.listeners[this.key][action].add(viewCallback)
-      return false
-      // Has this callback function already been applied?
-    } else {
-      return true
+
+    if(!KnackObject.prototype.listeners){
+      KnackObject.prototype.listeners ={}
+      alreadyApplied = false
     }
+
+    if(!KnackObject.prototype.listeners[this.view.key]){
+      KnackObject.prototype.listeners[this.view.key] = {
+        'create': new Set(),
+        'update': new Set(),
+        'delete': new Set(),
+      }
+      alreadyApplied = false
+    }
+
+    if(!KnackObject.prototype.listeners[this.view.key][action].has(viewCallback)) {
+      KnackObject.prototype.listeners[this.view.key][action].add(viewCallback)
+      alreadyApplied = false
+    }
+
+    return alreadyApplied
   }
 
   async _goFetch(url, init) {
@@ -347,8 +354,8 @@ class KnackObject {
   }
 }
 
+KnackObject.prototype.dataBefore = {}
 KnackObject.prototype.headers = myKnackHeaders
-KnackObject.prototype.user = Knack.getUserAttributes()
 KnackObject.prototype.knackURL = 'https://api.knackhq.com/v1/'
 KnackObject.prototype.errorMsgs = {
   'noHeaders': 'You must set KnackObject.headers in order to use KnackObject',

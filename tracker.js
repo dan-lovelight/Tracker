@@ -9,7 +9,7 @@ const objects = {
 
 $(document).on('knack-view-render.any', function(event, view, data) {
 
-  let callouts = new KnackObject('object_78', view)
+try {  let callouts = new KnackObject('object_78', view)
   callouts.onCreate(function(view, record, user) {
     let data = {
       'field_1581': user.name
@@ -17,17 +17,47 @@ $(document).on('knack-view-render.any', function(event, view, data) {
     callouts.update(record.id, data)
   })
 
-  callouts.onCreate(handler)
-  callouts.onUpdate(handler)
-  callouts.onDelete(handler)
-
-  function handler(view, record, user, previousRecord, changes){
-    console.log('view', view)
-    console.log('record', record)
-    console.log('user', user)
-    console.log('previousRecord', previousRecord)
-    console.log('changes', changes)
+  let monitor
+  let user = Knack.getUserAttributes()
+  if (view.source) {
+    if (view.source.object) {
+      monitor = new KnackObject(view.source.object, view)
+      monitor.onUpdate(updateHandler)
+      monitor.onCreate(createHandler)
+      monitor.onDelete(deleteHandler)
+    }
   }
+
+  function updateHandler(view, record, previousRecord, changes) {
+    let chgString = ''
+    let url = 'https://lovelight.knack.com/tracker#'
+    for (let i = 0; i < changes.length; i++) {
+      let fieldKey = changes[i]
+      chgString += `> _${monitor.fields[fieldKey].name}_ `
+      chgString += `(from \`${previousRecord[fieldKey]}\` to \`${record[fieldKey]}\`)`
+      if (i !== (changes.length - 1)) chgString += '\n'
+    }
+    let msg = `*${user.name}* just updated a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}': \n ${chgString}`
+    updateLog(msg)
+  }
+
+  function createHandler(view, record) {
+    let msg = `*${user.name}* just created a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}' (record has ${Object.keys(record).length} fields)`
+    updateLog(msg)
+  }
+
+  function deleteHandler(view, record) {
+    let msg = `*${user.name}* just delete a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}' (record has ${Object.keys(record).length} fields)`
+    updateLog(msg)
+  }
+} catch(err){
+  updateLog(`KnackObject error: \`\`\`${error.stack}\`\`\``)
+}
+
+
+  // Create handlers for other event types
+  // Get sending to Zapier
+  // Monitor
 
   var $submitButtonArray = $(".kn-submit input[type=submit]");
   $submitButtonArray.each(function(index) {
