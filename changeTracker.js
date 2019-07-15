@@ -124,7 +124,7 @@ class KnackObject {
     this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
-    if (this.view.action !== 'insert') return
+    if (this.view.action && this.view.action !== 'insert') return
     if (this._isListenerAlreadyApplied('create', callback)) return
 
     // Listen for new records
@@ -141,11 +141,10 @@ class KnackObject {
     this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
-    let recordBefore = {}
 
     // Handle update forms
     if (this.view.type === 'form' && this.view.action === 'update') {
-      recordBefore = await this.get(this.view.scene.scene_id)
+      KnackObject.prototype.recordBefore[self.view.key] = await this.get(this.view.scene.scene_id)
       // Only add global listeners once
       if (!this._isListenerAlreadyApplied('update', callback)) {
         $(document).on(`knack-record-update.${this.view.key}`, recordUpdateHandler)
@@ -164,24 +163,24 @@ class KnackObject {
     }
 
     function recordUpdateHandler(event, view, record) {
-      compareAndReturn(record, recordBefore)
+      compareAndReturn(record, KnackObject.prototype.recordBefore[self.view.key])
       // Reset the baseline
-      recordBefore = JSON.parse(JSON.stringify(record))
+      KnackObject.prototype.recordBefore[self.view.key] = JSON.parse(JSON.stringify(record))
     }
 
     function cellUpdateHandler(event, view, record) {
       // Identify the original record
-      recordBefore = KnackObject.prototype.dataBefore[view.key].filter(recordInTable => recordInTable.id === record.id)[0]
+      KnackObject.prototype.recordBefore[self.view.key] = KnackObject.prototype.dataBefore[view.key].filter(recordInTable => recordInTable.id === record.id)[0]
 
       // Build a complete previous record
       Object.keys(record).forEach(key => {
-        if (recordBefore[key] === undefined) recordBefore[key] = record[key]
+        if (KnackObject.prototype.recordBefore[self.view.key][key] === undefined) KnackObject.prototype.recordBefore[self.view.key][key] = record[key]
       })
 
       // Just in case the view doesn't re-render, need to update our baseline data
       KnackObject.prototype.dataBefore[view.key] = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
 
-      compareAndReturn(record, recordBefore)
+      compareAndReturn(record, KnackObject.prototype.recordBefore[self.view.key])
     }
 
     // Handle views with action links (tables & view details)
@@ -355,6 +354,7 @@ class KnackObject {
 }
 
 KnackObject.prototype.dataBefore = {}
+KnackObject.prototype.recordBefore = {}
 KnackObject.prototype.headers = myKnackHeaders
 KnackObject.prototype.knackURL = 'https://api.knackhq.com/v1/'
 KnackObject.prototype.errorMsgs = {

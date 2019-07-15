@@ -31,57 +31,63 @@ $(document).on('knack-view-render.any', function(event, view, data) {
       }
     }
 
-
     function updateHandler(view, record, previousRecord, changes) {
-      let chgString = ''
-      for (let i = 0; i < changes.length; i++) {
-        let fieldKey = changes[i]
-        let fieldKeyRaw = fieldKey + '_raw'
-        let from = previousRecord[fieldKey]
-        let to = record[fieldKey]
-        chgString += `> _${monitor.fields[fieldKey].name}_ `
-        if (monitor.fields[fieldKey].type === 'connection') {
-          if (previousRecord[fieldKeyRaw].length > 0) {
-            from = ''
-            for (j = 0; j < previousRecord[fieldKeyRaw].length; j++) {
-              from += previousRecord[fieldKeyRaw][j].identifier
-              if (j !== (record[fieldKeyRaw].length - 1)) from += ','
+      try {
+        let chgString = ''
+        let slug = view.scene.slug || ''
+        let scene_id = view.scene.scene_id || ''
+        for (let i = 0; i < changes.length; i++) {
+          let fieldKey = changes[i]
+          let fieldKeyRaw = fieldKey + '_raw'
+          let from = previousRecord[fieldKey]
+          let to = record[fieldKey]
+          chgString += `> _${monitor.fields[fieldKey].name}_ `
+          if (monitor.fields[fieldKey].type === 'connection') {
+            if (previousRecord[fieldKeyRaw].length > 0) {
+              from = ''
+              for (j = 0; j < previousRecord[fieldKeyRaw].length; j++) {
+                from += previousRecord[fieldKeyRaw][j].identifier
+                if (j !== (record[fieldKeyRaw].length - 1)) from += ','
+              }
             }
-          }
-          if (record[fieldKeyRaw].length > 0) {
-            to = ''
-            for (k = 0; k < record[fieldKeyRaw].length; k++) {
-              to += record[fieldKeyRaw][k].identifier
-              if (k !== (record[fieldKeyRaw].length - 1)) to += ','
+            if (record[fieldKeyRaw].length > 0) {
+              to = ''
+              for (k = 0; k < record[fieldKeyRaw].length; k++) {
+                to += record[fieldKeyRaw][k].identifier
+                if (k !== (record[fieldKeyRaw].length - 1)) to += ','
+              }
             }
+            chgString += `(from \`${from}\` to \`${to}\`)`
+          } else {
+            chgString += `(from \`${previousRecord[fieldKey]}\` to \`${record[fieldKey]}\`)`
           }
-          chgString += `(from \`${from}\` to \`${to}\`)`
-        } else {
-          chgString += `(from \`${previousRecord[fieldKey]}\` to \`${record[fieldKey]}\`)`
+          if (i !== (changes.length - 1)) chgString += '\n'
         }
-        if (i !== (changes.length - 1)) chgString += '\n'
+        let msg = `*${user.name}* just updated a <${url}${slug}/${scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}': \n${chgString}`
+        updateLog(msg)
+      } catch (error) {
+        updateLog(`KnackObject error: \`\`\`${error.stack}\`\`\``)
       }
-      let msg = `*${user.name}* just updated a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}': \n${chgString}`
-      updateLog(msg)
     }
 
     function createHandler(view, record) {
-      let msg = `*${user.name}* just created a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}' (record has ${Object.keys(record).length} fields)`
+      let slug = view.scene ? view.scene.slug : ''
+      let scene_id = view.scene ? view.scene.scene_id : ''
+      let name = view.name ? view.name : view.key
+      let msg = `*${user.name}* just created a <${url}${slug}/${scene_id}|*${monitor.nameSingular}*> via ${view.key} '${name}' (record has ${Object.keys(record).length} fields)`
       updateLog(msg)
     }
 
     function deleteHandler(view, record) {
-      let msg = `*${user.name}* just deleted a <${url}${view.scene.slug}/${view.scene.scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}' (record has ${Object.keys(record).length} fields)`
+      let slug = view.scene.slug || ''
+      let scene_id = view.scene.scene_id || ''
+      let msg = `*${user.name}* just deleted a <${url}${slug}/${scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}' (record has ${Object.keys(record).length} fields)`
       updateLog(msg)
     }
-  } catch (err) {
+
+  } catch (error) {
     updateLog(`KnackObject error: \`\`\`${error.stack}\`\`\``)
   }
-
-
-  // Create handlers for other event types
-  // Get sending to Zapier
-  // Monitor
 
   var $submitButtonArray = $(".kn-submit input[type=submit]");
   $submitButtonArray.each(function(index) {
