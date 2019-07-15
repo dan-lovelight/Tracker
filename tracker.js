@@ -43,12 +43,16 @@ $(document).on('knack-view-render.any', function(event, view, data) {
           let to = record[fieldKey]
           chgString += `> _${monitor.fields[fieldKey].name}_ `
           if (monitor.fields[fieldKey].type === 'connection') {
-            if (previousRecord[fieldKeyRaw].length > 0) {
-              from = ''
-              for (j = 0; j < previousRecord[fieldKeyRaw].length; j++) {
-                from += previousRecord[fieldKeyRaw][j].identifier
-                if (j !== (record[fieldKeyRaw].length - 1)) from += ','
+            if (previousRecord[fieldKeyRaw]) {
+              if (previousRecord[fieldKeyRaw].length > 0) {
+                from = ''
+                for (j = 0; j < previousRecord[fieldKeyRaw].length; j++) {
+                  from += previousRecord[fieldKeyRaw][j].identifier
+                  if (j !== (record[fieldKeyRaw].length - 1)) from += ','
+                }
               }
+            } else {
+              updateLog(`previousRecord connection field ${fieldKeyRaw} doesn't exist - avoided error`)
             }
             if (record[fieldKeyRaw].length > 0) {
               to = ''
