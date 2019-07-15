@@ -66,7 +66,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         let msg = `*${user.name}* just updated a <${url}${slug}/${scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}': \n${chgString}`
         updateLog(msg)
       } catch (error) {
-        updateLog(`KnackObject error: \`\`\`${error.stack}\`\`\``)
+        updateLog(`KnackObject error: \`\`\`${error.message}\n${error.stack}\`\`\``)
       }
     }
 
@@ -86,7 +86,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
     }
 
   } catch (error) {
-    updateLog(`KnackObject error: \`\`\`${error.stack}\`\`\``)
+    updateLog(`KnackObject error: \`\`\`${error.message}\n${error.stack}\`\`\``)
   }
 
   var $submitButtonArray = $(".kn-submit input[type=submit]");

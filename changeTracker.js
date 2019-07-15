@@ -104,7 +104,7 @@ class KnackObject {
     let sortOrderEnc = encodeURI(JSON.stringify(sortOrder))
     let sortFieldEnc = encodeURI(JSON.stringify(sortField))
 
-    let url = this.knackURL + 'objects/' + objectId + '/records?rows_per_page=' + recordPerPage +
+    let url = this.knackURL + 'objects/' + this.key + '/records?rows_per_page=' + recordPerPage +
       '&filters=' + filtersEnc + "&sort_field=" + sortFieldEnc + "&sort_order=" +
       sortOrderEnc
 
@@ -113,7 +113,9 @@ class KnackObject {
       headers: this.headers
     }
 
-    return await this._goFetch(url, init)
+    let json =  await this._goFetch(url, init)
+    let records = await json.records
+    return records
 
   }
 
