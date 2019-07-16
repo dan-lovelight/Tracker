@@ -287,15 +287,6 @@ async function getJobDataForCallOut(callOut) {
     ['field_59', 'field_1495'], // Busines Unit
   ]
 
-  // let addressFieldsToCopy = [
-  //   ['field_12', 'field_981'], // Address
-  //   ['field_12', 'field_1478'], // Previous address (to remove has changed flag)
-  // ]
-  //
-  // let siteContactFieldsToCopy = [
-  //   ['field_432', 'field_1025'] // Site contact
-  // ]
-
   // Return early if the job is not updated
   if (!isObjectUpdated(callOut, trackJobChangeFields)) {
     return {}
@@ -303,15 +294,6 @@ async function getJobDataForCallOut(callOut) {
 
   // Get the job details
   let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
-
-  // // Add site contact to fields to copy if required
-  // if (callOut.field_1024 === 'Yes') {
-  //   fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
-  // }
-  // // Add address to fields to copy (and to previous address to remove flag) if required
-  // if (callOut.field_982 === 'Yes') {
-  //   fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
-  // }
 
   // Preprocess the job data
   job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
@@ -385,7 +367,7 @@ async function getCallOutName(callOut) {
 }
 
 // Gather key callout data with human readable names
-function getPrettyCallOut(callOut) {
+async function getPrettyCallOut(callOut) {
   return {
     'id': callOut.id,
     'fromTime': callOut.field_924_raw.timestamp,
@@ -401,11 +383,58 @@ function getPrettyCallOut(callOut) {
     'status': callOut.field_1005,
     'calendarID': callOut.field_1082,
     'installers': callOut.field_927.length > 0 ? getConnectionIdentifiers(callOut.field_927_raw).join(', ') : undefined,
-    'attendees': callOut.field_1476.indexOf('Yes') > -1 ? [callOut.field_1503, callOut.field_1081, callOut.field_1475].join() : [callOut.field_1503],
+    'attendees': await getAttendees(callOut),
     'productToInstall': callOut.field_954.length > 0 ? getConnectionIdentifiers(callOut.field_954_raw).join(', ') : undefined,
     'instructions': callOut.field_929,
     'displayName': callOut.field_1488
   }
+}
+
+async function getAttendees(callOut) {
+  let isConfirmed = callOut.field_955 === 'No' // If the callOut is not 'Tentative' then it is isConfirmed
+  let attendees = ''
+  // Get installers, need them whether confirmed or not
+  let installerIDs = getConnectionIDs(callOut.field_927_raw)
+  let installerFilter = createFilterFromArrayOfIDs(installerIDs)
+  let installers = await searchRecordsPromise('object_71', installerFilter)
+
+  // if confiremd, return everyone who should see event
+  if (isConfirmed) {
+    installers = installers.map(installer => installer.field_870_raw.email).join(',')
+    let salesperson = ''
+    let opsperson = ''
+
+    // Get sales and ops if they are to be emailed
+    if (callOut.field_1476.indexOf('Yes') > -1) {
+      if (callOut.field_985_raw) {
+        let salesId = [callOut.field_985_raw[0].id]
+        let salesFilter = createFilterFromArrayOfIDs(salesId)
+        salesperson = await searchRecordsPromise('object_82', salesFilter)
+        salesperson = salesperson.filter(sales => sales.field_1596 !== 'Yes')[0]
+        salesperson = salesperson.field_957_raw.email
+      }
+
+      if (callOut.field_1474_raw) {
+        let opsId = [callOut.field_1474_raw[0].id]
+        let opsFilter = createFilterFromArrayOfIDs(opsId)
+        opsperson = await searchRecordsPromise('object_68', opsFilter)
+        opsperson = salesperson.filter(sales => sales.field_1597 !== 'Yes')[0]
+        opsperson = salesperson.field_814_raw.email
+      }
+    }
+
+    // replace semiconons and spaces in other attendeeds with commas
+    let otherAttendees = callOut.field_1503.replace(/;/g, ',').replace(/ /g, ',')
+
+    attendees = [installers, salesperson, opsperson, otherAttendees].join(',')
+    return attendees
+
+  } else {
+    installers = installers.filter(installer => installer.field_1565 === 'Yes')
+    installers = installers.map(installer => installer.field_870_raw.email).join(',')
+    return installers
+  }
+
 }
 
 // Returns a string of emails for the installers associated with a call out
@@ -477,8 +506,8 @@ async function processGoogleEvent(eventAction, callOut) {
     // Gather the data required for the event change
     let prettyCallOut = callOut
     if (eventAction !== 'delete') {
-      prettyCallOut = getPrettyCallOut(callOut)
-      prettyCallOut.attendees += (',' + await getInstallerEmailsString(callOut)) // Add installer emails to the attendee list
+      prettyCallOut = await getPrettyCallOut(callOut)
+      // prettyCallOut.attendees += (',' + await getInstallerEmailsString(callOut)) // Add installer emails to the attendee list
       // Add a record flag to indciate there's an update in progress to prevent race conditions
       await updateRecordPromise('object_78', callOut.id, {
         'field_1101': 'Yes'
