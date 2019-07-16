@@ -70,7 +70,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         let msg = `*${user.name}* just updated a <${url}${slug}/${scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}': \n${chgString}`
         updateLog(msg)
       } catch (error) {
-        updateLog(`KnackObject error: \`\`\`${error.message}\n${error.stack}\`\`\``)
+        updateLog(`KnackObject error: \`\`\`${user}\n${view.key}\n${error.message}\n${error.stack}\`\`\``)
       }
     }
 
