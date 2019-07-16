@@ -113,7 +113,7 @@ class KnackObject {
       headers: this.headers
     }
 
-    let json =  await this._goFetch(url, init)
+    let json = await this._goFetch(url, init)
     let records = await json.records
     return records
 
@@ -121,7 +121,7 @@ class KnackObject {
 
   onCreate(callback) {
 
-    if(!this._isValidView) return
+    if (!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
     this._assert(this.view, this.errorMsgs.noView)
 
@@ -131,14 +131,14 @@ class KnackObject {
 
     // Listen for new records
     $(document).on(`knack-record-create.${this.view.key}`, function(event, view, record) {
-      callback(view, record,  {}, [])
+      callback(view, record, {}, [])
     })
 
   }
 
   async onUpdate(callback) {
 
-    if(!this._isValidView) return
+    if (!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
     this._assert(this.view, this.errorMsgs.noView)
 
@@ -155,12 +155,13 @@ class KnackObject {
     }
 
     // Handle tables that allow inline edits
-    if (this.view.type === 'table' && this.view.options.cell_editor) {
-      // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
-      KnackObject.prototype.dataBefore[this.view.key] = JSON.parse(JSON.stringify(Knack.views[this.view.key].model.data.models))
-      // Only add global listeners once
-      if (!this._isListenerAlreadyApplied('update', callback)) {
-        $(document).on(`knack-cell-update.${this.view.key}`, cellUpdateHandler)
+    if (this.view.type === 'table' && this.view.options) {
+      if (this.view.options.cell_editor) { // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
+        KnackObject.prototype.dataBefore[this.view.key] = JSON.parse(JSON.stringify(Knack.views[this.view.key].model.data.models))
+        // Only add global listeners once
+        if (!this._isListenerAlreadyApplied('update', callback)) {
+          $(document).on(`knack-cell-update.${this.view.key}`, cellUpdateHandler)
+        }
       }
     }
 
@@ -233,14 +234,14 @@ class KnackObject {
         if (recordBefore[key] !== record[key] && key.indexOf('raw') < 0) changes.push(key)
       })
       // Pass to callback if there are changes
-      if (changes.length > 0) callback(self.view, record,  recordBefore, changes)
+      if (changes.length > 0) callback(self.view, record, recordBefore, changes)
     }
 
   }
 
   async onDelete(callback) {
 
-    if(!this._isValidView) return
+    if (!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
     this._assert(this.view, this.errorMsgs.noView)
 
@@ -291,7 +292,7 @@ class KnackObject {
 
       function waitForRecord() {
         if (record) {
-          callback(self.view, record,  {}, [])
+          callback(self.view, record, {}, [])
         } else {
           console.log('had to wait')
           setTimeout(waitForRecord, 250);
@@ -325,12 +326,12 @@ class KnackObject {
     let alreadyApplied = true
     let viewCallback = this.view.key + callback.toString()
 
-    if(!KnackObject.prototype.listeners){
-      KnackObject.prototype.listeners ={}
+    if (!KnackObject.prototype.listeners) {
+      KnackObject.prototype.listeners = {}
       alreadyApplied = false
     }
 
-    if(!KnackObject.prototype.listeners[this.view.key]){
+    if (!KnackObject.prototype.listeners[this.view.key]) {
       KnackObject.prototype.listeners[this.view.key] = {
         'create': new Set(),
         'update': new Set(),
@@ -339,7 +340,7 @@ class KnackObject {
       alreadyApplied = false
     }
 
-    if(!KnackObject.prototype.listeners[this.view.key][action].has(viewCallback)) {
+    if (!KnackObject.prototype.listeners[this.view.key][action].has(viewCallback)) {
       KnackObject.prototype.listeners[this.view.key][action].add(viewCallback)
       alreadyApplied = false
     }
