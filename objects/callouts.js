@@ -407,19 +407,23 @@ async function getAttendees(callOut) {
     // Get sales and ops if they are to be emailed
     if (callOut.field_1476.indexOf('Yes') > -1) {
       if (callOut.field_985_raw) {
-        let salesId = [callOut.field_985_raw[0].id]
-        let salesFilter = createFilterFromArrayOfIDs(salesId)
-        salesperson = await searchRecordsPromise('object_82', salesFilter)
-        salesperson = salesperson.filter(sales => sales.field_1596 !== 'Yes')[0]
-        salesperson = salesperson.field_957_raw.email
+        if (callOut.field_985_raw.length > 0) {
+          let salesId = [callOut.field_985_raw[0].id]
+          let salesFilter = createFilterFromArrayOfIDs(salesId)
+          salesperson = await searchRecordsPromise('object_82', salesFilter)
+          salesperson = salesperson.filter(sales => sales.field_1596 !== 'Yes')[0]
+          salesperson = salesperson.field_957_raw.email
+        }
       }
 
       if (callOut.field_1474_raw) {
-        let opsId = [callOut.field_1474_raw[0].id]
-        let opsFilter = createFilterFromArrayOfIDs(opsId)
-        opsperson = await searchRecordsPromise('object_68', opsFilter)
-        opsperson = opsperson.filter(ops => ops.field_1597 !== 'Yes')[0]
-        opsperson = opsperson.field_814_raw.email
+        if (callOut.field_1474_raw.lenght > 0) {
+          let opsId = [callOut.field_1474_raw[0].id]
+          let opsFilter = createFilterFromArrayOfIDs(opsId)
+          opsperson = await searchRecordsPromise('object_68', opsFilter)
+          opsperson = opsperson.filter(ops => ops.field_1597 !== 'Yes')[0]
+          opsperson = opsperson.field_814_raw.email
+        }
       }
     }
 
