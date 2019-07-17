@@ -418,8 +418,8 @@ async function getAttendees(callOut) {
         let opsId = [callOut.field_1474_raw[0].id]
         let opsFilter = createFilterFromArrayOfIDs(opsId)
         opsperson = await searchRecordsPromise('object_68', opsFilter)
-        opsperson = salesperson.filter(sales => sales.field_1597 !== 'Yes')[0]
-        opsperson = salesperson.field_814_raw.email
+        opsperson = opsperson.filter(ops => ops.field_1597 !== 'Yes')[0]
+        opsperson = opsperson.field_814_raw.email
       }
     }
 
