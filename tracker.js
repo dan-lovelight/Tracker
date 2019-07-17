@@ -33,39 +33,51 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 
     function updateHandler(view, record, previousRecord, changes) {
       try {
+
         let chgString = ''
         let slug = view.scene.slug || ''
         let scene_id = view.scene.scene_id || ''
+
         for (let i = 0; i < changes.length; i++) {
+
           let fieldKey = changes[i]
           let fieldKeyRaw = fieldKey + '_raw'
           let from = previousRecord[fieldKey]
           let to = record[fieldKey]
-          chgString += `> _${monitor.fields[fieldKey].name}_ `
+
+          chgString += `> _${monitor.fields[fieldKey].name}_ ` // name of the field
+
           if (monitor.fields[fieldKey].type === 'connection') {
+
+            from = ''
             if (previousRecord[fieldKeyRaw]) {
               if (previousRecord[fieldKeyRaw].length > 0) {
-                from = ''
                 for (j = 0; j < previousRecord[fieldKeyRaw].length; j++) {
                   from += previousRecord[fieldKeyRaw][j].identifier
                   if (j !== (record[fieldKeyRaw].length - 1)) from += ','
                 }
               }
-            } else {
-              updateLog(`previousRecord connection field ${fieldKeyRaw} doesn't exist - avoided error`)
             }
-            if (record[fieldKeyRaw].length > 0) {
-              to = ''
-              for (k = 0; k < record[fieldKeyRaw].length; k++) {
-                to += record[fieldKeyRaw][k].identifier
-                if (k !== (record[fieldKeyRaw].length - 1)) to += ','
+
+            to = ''
+            if (record[fieldKeyRaw]) {
+              if (record[fieldKeyRaw].length > 0) {
+                for (k = 0; k < record[fieldKeyRaw].length; k++) {
+                  to += record[fieldKeyRaw][k].identifier
+                  if (k !== (record[fieldKeyRaw].length - 1)) to += ','
+                }
               }
             }
+
             chgString += `(from \`${from}\` to \`${to}\`)`
+
           } else {
+            // not a connection field
             chgString += `(from \`${previousRecord[fieldKey]}\` to \`${record[fieldKey]}\`)`
           }
-          if (i !== (changes.length - 1)) chgString += '\n'
+
+          if (i !== (changes.length - 1)) chgString += '\n' // add a new line and repeat for next change
+
         }
         let msg = `*${user.name}* just updated a <${url}${slug}/${scene_id}|*${monitor.nameSingular}*> via ${view.key} '${view.name}': \n${chgString}`
         updateLog(msg)
