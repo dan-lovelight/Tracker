@@ -20,7 +20,7 @@ $(document).on('knack-scene-render.scene_642', function(event, scene) {
   $("#view_2062 > div.control").prepend(`<a class="kn-link kn-button is-primary" id="submit-button"><span class="icon is-small"><i class="fa fa-bullhorn"></i></span><span>${buttonTxt}</span></a>`)
 
   // Add click listener to button
-  $("#view_2062 > div.control").click(function(){
+  $("#submit-button").click(function(){
     // Toggle visibility of report form
     $('#view_2074').toggle()
   })
