@@ -119,6 +119,12 @@ class KnackObject {
 
   }
 
+  onChange(callback){
+    this.onCreate(callback)
+    this.onUpdate(callback)
+    this.onDelete(callback)
+  }
+
   onCreate(callback) {
 
     if (!this._isValidView) return
@@ -131,7 +137,7 @@ class KnackObject {
 
     // Listen for new records
     $(document).on(`knack-record-create.${this.view.key}`, function(event, view, record) {
-      callback(view, record, {}, [])
+      callback(view, record, 'Create', self.fields, {}, [])
     })
 
   }
@@ -179,9 +185,6 @@ class KnackObject {
       Object.keys(record).forEach(key => {
         if (KnackObject.prototype.recordBefore[self.view.key][key] === undefined) KnackObject.prototype.recordBefore[self.view.key][key] = record[key]
       })
-
-      // Just in case the view doesn't re-render, need to update our baseline data
-      KnackObject.prototype.dataBefore[view.key] = JSON.parse(JSON.stringify(Knack.views[view.key].model.data.models))
 
       compareAndReturn(record, KnackObject.prototype.recordBefore[self.view.key])
     }
@@ -234,7 +237,7 @@ class KnackObject {
         if (recordBefore[key] !== record[key] && key.indexOf('raw') < 0) changes.push(key)
       })
       // Pass to callback if there are changes
-      if (changes.length > 0) callback(self.view, record, recordBefore, changes)
+      if (changes.length > 0) callback(self.view, record, 'Update', self.fields, recordBefore, changes)
     }
 
   }
@@ -292,7 +295,7 @@ class KnackObject {
 
       function waitForRecord() {
         if (record) {
-          callback(self.view, record, {}, [])
+          callback(self.view, record, 'Delete', self.fields, {}, [])
         } else {
           console.log('had to wait')
           setTimeout(waitForRecord, 250);
@@ -301,16 +304,20 @@ class KnackObject {
     }
   }
 
-  static objects() {
+  static objects(objectKey) {
     let objectsModel = Knack.objects.models
-    objectsModel.forEach(object => {
-      let objects = []
-      objects.push({
-        'name': object.attributes.name,
-        'key': object.attributes.key,
-      })
-    })
-    return objects
+    let requestedObjects =  objectsModel.reduce((objects, object) =>{
+      // if no key is provided, return everything
+      if(objectKey === undefined || objectKey === object.attributes.key){
+        objects.push({
+          'name': object.attributes.name,
+          'key': object.attributes.key,
+        })
+      }
+        return objects
+    },[])
+
+    return requestedObjects
   }
 
   _assert(cond, message) {
