@@ -419,7 +419,7 @@ async function getAttendees(callOut) {
       }
 
       if (callOut.field_1474_raw) {
-        if (callOut.field_1474_raw.lenght > 0) {
+        if (callOut.field_1474_raw.length > 0) {
           let opsId = [callOut.field_1474_raw[0].id]
           let opsFilter = createFilterFromArrayOfIDs(opsId)
           opsperson = await searchRecordsPromise('object_68', opsFilter)
