@@ -25,10 +25,10 @@ $(document).on('knack-scene-render.scene_642', function(event, scene) {
     $('#view_2074').toggle()
   })
 
-  // Change button to 'update report' if already reported
-  if(Knack.models.view_1442.attributes.field_1546.indexOf('Submitted')>-1){
-    $("#submit-button")[0].innerHTML = '<span class="icon is-small"><i class="fa fa-bullhorn"></i></span>&nbsp;Update Report'
-  }
+  // Format button in menu
+  $('#view_2062').css({
+    "margin-bottom": "2em"
+})
 
 });
 
