@@ -95,7 +95,7 @@ function removeUnusedTableGroups() {
 
 // CUSTOM OPPORTUNITIES
 // Add open/pending badges to opportunities in 'To Quote' status
-$(document).on('knack-view-render.view_1038', function(event, view, data) {
+$(document).on('knack-view-render.view_1038 knack-view-render.view_1564', function(event, view, data) {
   data.forEach(record => {
     if (record['field_1606'].indexOf('Open') > -1) {
       let $openQuote = $('#' + record.id)
