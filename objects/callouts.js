@@ -723,7 +723,7 @@ $(document).on('knack-record-create.view_1962', function(event, view, record) {
   })
 })
 
-// Create & Edit forms rendered
+// Development Create Forms rendered
 $(document).on('knack-view-render.view_2254 knack-view-render.view_2258', async function(event, view, data) {
   Knack.showSpinner()
   let development = await getRecordPromise(view.scene.object, view.scene.scene_id)
