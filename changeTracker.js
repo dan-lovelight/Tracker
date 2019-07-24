@@ -205,8 +205,11 @@ class KnackObject {
     }
 
     async function interceptActionLinks() {
-      // Get the listner currently attached to the element
-      let clickListener = $._data($actionLinks[0]).events.click[0];
+      // Collect all the listeners attached to the action links
+      let clickListeners = []
+      $actionLinks.each(function(){
+        clickListeners.push($._data($(this)[0]).events.click[0])
+      })
       // Detatch the click event
       $actionLinks.off('click')
       // Replace the click event with our own
@@ -214,6 +217,8 @@ class KnackObject {
         let recordId = self.view.type === 'table' ? $(event.currentTarget).closest('tr').attr('id') : $actionLinks[0].baseURI.split('/').slice(-2).reverse().pop()
         // Execute before function
         let recordBefore = await self.get(recordId)
+        // Get the listener for the link that was clicked
+        let clickListener = clickListeners[$actionLinks.index($(event.currentTarget))]
         // Trigger the original click event
         clickListener.handler(event)
         // Instead, wait for the spinner to disappear before triggering the after function
