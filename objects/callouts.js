@@ -159,14 +159,13 @@ $(document).on('knack-view-render.any', function(event, view, data) {
     callouts.onCreate(function(view, record, user) {
       callouts.onChange(processCallout, view)
     })
-  }
-  catch(error){
+  } catch (error) {
     throw error
   }
 
 })
 
-async function processCallout(view, record, action, fields, previousRecord, changes){
+async function processCallout(view, record, action, fields, previousRecord, changes) {
   try {
 
     // Set the default values
@@ -199,8 +198,8 @@ async function processCallout(view, record, action, fields, previousRecord, chan
 
     if (action !== 'Delete') {
       // Determine what changes have been made to the record
-      isCoreDataUpdated = keyFields.filter(field => changes.includes(field)).length>1
-      isSalesOpsUpdated = salesOpsFields.filter(field => changes.includes(field)).length>1
+      isCoreDataUpdated = keyFields.filter(field => changes.includes(field)).length > 1
+      isSalesOpsUpdated = salesOpsFields.filter(field => changes.includes(field)).length > 1
       isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
       isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
       isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
@@ -369,17 +368,18 @@ async function processCallOutChanges(record, changeType) {
 
       // Handle installers who are allowed to see tentative bookings
       if (!isConfirmed) {
-        if(updatedRecord.field_927.length > 0){ // can't do this without installers
+        if (updatedRecord.field_927.length > 0) { // can't do this without installers
           let permittedInstallers = await getInstallersWhoSeeTentativeBookings(updatedRecord)
-        if (permittedInstallers.length > 0) {
-          // We're sending this event anyway, but only to the installer permitted to see it
-          updatedRecord.field_927_raw = permittedInstallers
-          updatedRecord.field_1503 = '',
-            updatedRecord.field_1081 = '',
-            updatedRecord.field_1475 = ''
+          if (permittedInstallers.length > 0) {
+            // We're sending this event anyway, but only to the installer permitted to see it
+            updatedRecord.field_927_raw = permittedInstallers
+            updatedRecord.field_1503 = '',
+              updatedRecord.field_1081 = '',
+              updatedRecord.field_1475 = ''
 
-          isConfirmed = true
-        }}
+            isConfirmed = true
+          }
+        }
       }
 
       let isNewEventRequired = isConfirmed && !isInCalendar && !isCancelled
@@ -538,7 +538,7 @@ async function getAttendees(callOut) {
           let salesFilter = createFilterFromArrayOfIDs(salesId)
           salesperson = await searchRecordsPromise('object_82', salesFilter)
           salesperson = salesperson.filter(sales => sales.field_1596 !== 'Yes')[0] || ''
-          if(salesperson.field_957_raw){
+          if (salesperson.field_957_raw) {
             salesperson = salesperson.field_957_raw.email
           }
         }
@@ -550,7 +550,7 @@ async function getAttendees(callOut) {
           let opsFilter = createFilterFromArrayOfIDs(opsId)
           opsperson = await searchRecordsPromise('object_68', opsFilter)
           opsperson = opsperson.filter(ops => ops.field_1597 !== 'Yes')[0] || ''
-          if(opsperson.field_814_raw){
+          if (opsperson.field_814_raw) {
             opsperson = opsperson.field_814_raw.email
           }
         }
@@ -736,8 +736,10 @@ $(document).on('knack-view-render.view_2254 knack-view-render.view_2258', async 
   let zip = document.getElementById('zip')
 
   //Populate Site Contact
-  if (development.field_417_raw.length > 0) {
-    $siteContact.html(`<option value='${development.field_417_raw[0].id}'>${development.field_417_raw[0].identifier}</option>`).trigger('liszt:updated')
+  if (development.field_417_raw) {
+    if (development.field_417_raw.length > 0) {
+      $siteContact.html(`<option value='${development.field_417_raw[0].id}'>${development.field_417_raw[0].identifier}</option>`).trigger('liszt:updated')
+    }
   }
   //Populate Address
   street.value = development.field_199_raw.street
