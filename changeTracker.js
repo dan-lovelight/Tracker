@@ -214,6 +214,7 @@ class KnackObject {
       $actionLinks.off('click')
       // Replace the click event with our own
       $actionLinks.click(async function(event) {
+        Knack.showSpinner()
         let recordId = self.view.type === 'table' ? $(event.currentTarget).closest('tr').attr('id') : $actionLinks[0].baseURI.split('/').slice(-2).reverse().pop()
         // Execute before function
         let recordBefore = await self.get(recordId)
