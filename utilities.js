@@ -213,8 +213,10 @@ function hideEmptyTables(scene) {
   //Iterate throught each view in the page
   scene.views.map(function(view) {
     // If the view has row data (ie it's a table) AND that data is 0...
-    if (view.type === 'table' && Knack.models[view.key].data.length === 0) {
-      $('#' + view.key).remove()
+    if (view.type === 'table' && Knack.models[view.key]) {
+      if (Knack.models[view.key].data.length === 0) {
+        $('#' + view.key).remove()
+      }
     }
   })
 }
