@@ -285,7 +285,7 @@ const pSBC = (p, c0, c1, l) => {
 // Takes an error object, and a boolean that indicates if the error should be thrown again
 // logError(*callingFunction*, arguments, err, Knack.getUserAttributes(), window.location.href, true)
 async function logError(callerFunction, args, err, user, url, throwAgain) {
-
+  Sentry.captureException(err)
   let callerArgs = Array.prototype.slice.call(args) // Convert caller's arguements to an array
   let callerArgsNames = getParamNames(callerFunction) // Extract arguement variable names from function code
   let callerName = err.stack.split('\n')[1].trim().split(' ')[1].trim() // Get the name of the calling function from the Error stack
