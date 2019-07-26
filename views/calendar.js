@@ -113,8 +113,8 @@ function pimpSchedulingCalendar(view,installerColourKeyList) {
   let installersInCalendar = getInstallerDetailsFromListView(installerColourKeyList) // Get the installer data from the temporary key view
   let eventColours = getInstallerColourFiltersFromListView(installerColourKeyList)
   let newFilter = createFilterMenuNode(installersInCalendar, view) // Build the new filter
-  let insertLocation = '#' + view + ' div.kn-records-nav' // selector of the element that the new filter will be placed after
-  if(newFilter !== undefined) $(insertLocation)[0].insertBefore(newFilter, $(insertLocation)[0].children[1]); // Add menu to page
+  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
+  if(newFilter && $insertLocation[0]) $insertLocation[0].insertBefore(newFilter, $insertLocation[0].children[1]); // Add menu to page
   $('#'+ view +' div.kn-records-nav div.js-filter-menu')[0].style = 'display:inline-block' // Make menus display next to each other
   $('#' + installerColourKeyList).hide() // Remvoe the temporary key view
   Knack.models[view].view.events.event_colors = eventColours
