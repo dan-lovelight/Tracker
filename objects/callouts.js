@@ -135,8 +135,10 @@ function addJobDetailsToCallOut(view) {
     // Get the job deatils
     let job = await getRecordPromise('object_3', jobId)
     //Populate Site Contact
-    if (job.field_432_raw.length > 0) {
-      siteContact.html(`<option value='${job.field_432_raw[0].id}'>${job.field_432_raw[0].identifier}</option>`).trigger('liszt:updated')
+    if (job.field_432_raw) {
+      if (job.field_432_raw.length > 0) {
+        siteContact.html(`<option value='${job.field_432_raw[0].id}'>${job.field_432_raw[0].identifier}</option>`).trigger('liszt:updated')
+      }
     }
     //Populate Address
     street.value = job.field_12_raw.street
