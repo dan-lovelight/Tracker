@@ -157,10 +157,13 @@ function addJobDetailsToCallOut(view) {
 $(document).on('knack-view-render.any', function(event, view, data) {
 
   try {
-    let callouts = new KnackObject('object_78', view)
-    callouts.onCreate(function(view, record, user) {
-      callouts.onChange(processCallout, view)
-    })
+    if (view.source) {
+      if (view.source.object) {
+        if(view.source.object === objects.callouts){
+          let callouts = new KnackObject(view.source.object, view)
+        }
+      }
+    }
   } catch (error) {
     throw error
   }
