@@ -189,14 +189,14 @@ $(document).on('knack-view-render.view_1038 knack-view-render.view_1564', functi
 
 // Send For Review form loaded
 // Update the review field to the sales person
-$(document).on('knack-view-render.view_1024', async function(event, view, data) {
+$(document).on('knack-view-render.view_1024', async function(event, view, record) {
   Knack.showSpinner()
   try {
-    let opportunity = await getRecordPromise(view.scene.object, view.scene.scene_id)
-    if (opportunity.field_1274_raw.length > 0) {
-      $reviewer = $('#' + view.key + '-field_830')
-      let salesPerson = await getRecordPromise('object_82', opportunity.field_1274_raw[0].id)
-      $reviewer.html(`<option value='${salesPerson.id}'>${salesPerson.field_956}</option>`).trigger('liszt:updated')
+    if (record.field_1274_raw.length > 0) {
+      let $options = $('#' + view.key + '-field_830 option')
+      let reviewerOption = $('#' + view.key + '-field_830 ' + `option:contains(${record.field_1274_raw[0].identifier})`)[0].outerHTML
+      let $reviewer = $('#' + view.key + '-field_830')
+      $reviewer.html(reviewerOption).trigger('liszt:updated')
     }
   } catch (error) {
     updateLog(`Send for review error: \`\`\`${error.message}\n${error.stack}\`\`\``)
