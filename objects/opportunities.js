@@ -27,8 +27,9 @@ $(document).on('knack-view-render.any', function(event, view, data) {
           "date": moment().format("DD/MM/YYYY"),
         }
         // Has status become 'To Quote'?
-        if(record.field_127 === "To Quote") {
-          data.field_1606 === "Open" // Set the 'Quote Status' to Open
+        if(record.field_127 !== "Pending Review" && record.field_127 === "To Quote") {
+          // User can set quote status during transition from Pending Review back to Quote
+          data.field_1606 = "Open" // Set the 'Quote Status' to Open
         }
       }
       // Record the date the quoted status changed (eg Open/Pending)
