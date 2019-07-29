@@ -98,7 +98,7 @@ function processOpportunityChanges(record) {
   zapierData.status = status;
   zapierData.opportunity = record.field_123_raw;
   zapierData.value = value;
-  zapierData.value_formatted = record.field_128_raw.split(".")[0];
+  zapierData.value_formatted = record.field_128_raw ? record.field_128_raw.split(".")[0] : value
   zapierData.salesPerson = salesPerson;
   zapierData.quotedBy = quotedBy;
   zapierData.company = company;
