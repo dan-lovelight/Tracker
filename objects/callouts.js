@@ -18,8 +18,6 @@ const callOutDeleteEvents = [
   'knack-record-delete.view_1215', // Callout Deleted,
 ]
 
-
-
 // ----------------
 
 const createEditDeleteCallOutViews = [
@@ -126,12 +124,13 @@ async function processCallOutChanges(record, changeType) {
       } : {} // Flag for update required, only reset on success
 
       // Merge the data
-      let updateData = {
-        ...resetData,
-        ...jobData,
-        ...nameData,
-        ...pendingCalendarUpdateFlag
-      }
+      let updateData = Object.assign({}, resetData, jobData, nameData, pendingCalendarUpdateFlag)
+      // let updateData = {
+      //   ...resetData,
+      //   ...jobData,
+      //   ...nameData,
+      //   ...pendingCalendarUpdateFlag
+      // }
 
       // Update the callout record
       updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
