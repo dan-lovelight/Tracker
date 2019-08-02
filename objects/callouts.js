@@ -35,10 +35,10 @@ const createEditDeleteCallOutViews = [
 ]
 
 // CallOut created
-$(document).on(callOutCreateEvents.join(' '), function(event, view, record) {
-  processCallOutChanges(record, 'create');
-  updateConnectedJobsInPortal(record)
-});
+// $(document).on(callOutCreateEvents.join(' '), function(event, view, record) {
+//   processCallOutChanges(record, 'create');
+//   updateConnectedJobsInPortal(record)
+// });
 
 // CallOut editted
 $(document).on(callOutUpdateEvents.join(' '), function(event, view, record) {
@@ -501,14 +501,15 @@ $(document).on('knack-view-render.any', function(event, view, data) {
       window.callOutProcessing = true
       let defaultData = {
         'field_1581': user.name, // created by
-        'field_955': 'Yes', // tentative?
-        'field_1005': 'Tentative' // status
+        // 'field_955': 'Yes', // tentative?
+        // 'field_1005': 'Tentative' // status
       }
       let names = await getCallOutName(record)
       let jobDetails = await getJobDataForCallOutRefactor(record)
       let updateData = Object.assign({}, defaultData, names, jobDetails)
       // update the callout
       await calloutsObj.update(record.id, updateData)
+      updateConnectedJobsInPortal(record)
     } catch (err) {
       throw err
     } finally {
