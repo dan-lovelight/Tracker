@@ -199,7 +199,10 @@ async function getJobDataForCallOut(callOut) {
 
   // Preprocess the job data
   job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
-  if (job.field_12.length === 0) job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
+  if (job.field_12.length === 0) {
+    job.field_12_raw = {}
+    job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
+  }
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
