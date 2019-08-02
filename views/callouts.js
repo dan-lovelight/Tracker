@@ -25,16 +25,16 @@ $(document).on('knack-record-create.view_1962', function(event, view, record) {
     onBeforeOpen: () => {
       Swal.showLoading()
     },
-    onOpen: async () => {
-      // Regardless of defaults, ensure the booking is tentative
-      record = await updateRecordPromise('object_78', record.id, {
-        'field_955': 'Yes',
-        'field_1005': 'Tentative'
-      })
-      await processCallOutChanges(record);
-      // Redirect to main edit screen
-      window.location.replace(`${event.currentTarget.URL.split('?')[0]}edit-call-out/${record.id}`)
-      Swal.close()
+    onOpen: () => {
+      let wait = setInterval(function(){
+        // all callout record inserts are handled in objects/callouts.js
+        // the processing function sets this global variable while in progress
+        if(!window.callOutProcessing){
+          clearInterval(wait)
+          window.location.replace(`${event.currentTarget.URL.split('?')[0]}edit-call-out/${record.id}`)
+          Swal.close()
+        }
+      },100)
     }
   })
 })

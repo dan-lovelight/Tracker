@@ -477,21 +477,79 @@ function updateConnectedJobsInPortal(record) {
 }
 
 
-// $(document).on('knack-view-render.any', function(event, view, data) {
-//
-//   try {
-//     if (view.source) {
-//       if (view.source.object) {
-//         if(view.source.object === objects.callouts){
-//           let callouts = new KnackObject(view.source.object, view)
-//         }
-//       }
-//     }
-//   } catch (error) {
-//     throw error
-//   }
-//
-// })
+$(document).on('knack-view-render.any', function(event, view, data) {
+  let calloutsObj
+  // If a view is displaying callouts, add listners
+  try {
+    if (view.source) {
+      if (view.source.object) {
+        if (view.source.object === objects.callouts) {
+          calloutsObj = new KnackObject(view.source.object, view)
+          calloutsObj.onCreate(processNewCallOut)
+        }
+      }
+    }
+  } catch (err) {
+    throw err
+  }
+
+  let user = Knack.getUserAttributes()
+
+  // Process newly created callouts
+  async function processNewCallOut(view, record, action, fields) {
+    try {
+      window.callOutProcessing = true
+      let defaultData = {
+        'field_1581': user.name, // created by
+        'field_955': 'Yes', // tentative?
+        'field_1005': 'Tentative' // status
+      }
+      let names = await getCallOutName(record)
+      let jobDetails = await getJobDataForCallOutRefactor(record)
+      let updateData = Object.assign({}, defaultData, names, jobDetails)
+      // update the callout
+      await calloutsObj.update(record.id, updateData)
+    } catch (err) {
+      throw err
+    } finally {
+      window.callOutProcessing = false
+    }
+  }
+
+})
+
+// Get all relevant data from job to update callout details
+// Returns a partial callout object with all the necessary fields populated
+async function getJobDataForCallOutRefactor(callOut, previous, changes) {
+
+  // If changes supplied, return early if no changes to job
+  if (changes) {
+    if (!changes.includes('field_928')) return {}
+  }
+
+  // Return early if job is blank
+  if (callOut.field_928.length === 0) return {}
+
+  let fieldsToCopy = [
+    ['field_1276', 'field_985'], // Salesperson
+    ['field_1277', 'field_1474'], // Ops person
+    ['field_58', 'field_1494'], // State
+    ['field_186', 'field_1482'], // Development
+    ['field_59', 'field_1495'], // Busines Unit
+  ]
+
+  // Get the job details
+  let job = await getRecordPromise(objects.jobs, callOut.field_928_raw[0].id)
+
+  // Preprocess the job data
+  job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
+  if (job.field_12.length === 0) {
+    job.field_12_raw = {}
+    job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
+  }
+
+  return updateData = copyFieldsToNewObject(job, fieldsToCopy)
+}
 
 // async function processCallout(view, record, action, fields, previousRecord, changes) {
 //   try {
