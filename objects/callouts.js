@@ -125,6 +125,15 @@ async function processCallOutChanges(record, changeType) {
 
       // Merge the data
       let updateData = Object.assign({}, resetData, jobData, nameData, pendingCalendarUpdateFlag)
+<<<<<<< HEAD
+=======
+      // let updateData = {
+      //   ...resetData,
+      //   ...jobData,
+      //   ...nameData,
+      //   ...pendingCalendarUpdateFlag
+      // }
+>>>>>>> 21a488ccec91d4d39363ff80f62e6f975243c17b
 
       // Update the callout record
       updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
