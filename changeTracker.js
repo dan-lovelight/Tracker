@@ -162,9 +162,19 @@ class KnackObject {
 
     // Handle tables that allow inline edits
     if (this.view.type === 'table' && this.view.options) {
-      if (this.view.options.cell_editor) { // This needs to be a global variable - knack listeners are only added once, but the data can change after sorting, paging etc
-        KnackObject.prototype.dataBefore[this.view.key] = JSON.parse(JSON.stringify(Knack.views[this.view.key].model.data.models))
-        // Only add global listeners once
+      if (this.view.options.cell_editor) {
+        // Get the data in the table
+        let dataInTable = Knack.views[this.view.key].model.data.models
+        // Check if this is a search view. Data is stored differently if it is
+        if (this.view.filter_type){
+          if (this.view.filter_type === 'search') {
+            // Get the search results instead
+            dataInTable = Knack.views[this.view.key].model.results_model.data.models
+          }
+        }
+        // Store the table data prior to any change being made
+        KnackObject.prototype.dataBefore[this.view.key] = JSON.parse(JSON.stringify(dataInTable))
+        // Add a listner to the table for inline edits, but only once per view
         if (!this._isListenerAlreadyApplied('update', callback)) {
           $(document).on(`knack-cell-update.${this.view.key}`, cellUpdateHandler)
         }
