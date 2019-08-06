@@ -47,10 +47,14 @@ $(document).on('knack-scene-render.scene_713', function(event, scene) {
   const jobsIdsBookedForOrAlreadyMeasured = scheduledForMeasureJobIds.concat(successfullyMeasuredJobIds)
 
   const jobsToHideFromBookForMeasureTable = jobsReadyToMeasure.filter(job => jobsIdsBookedForOrAlreadyMeasured.includes(job.id))
-  jobsToHideFromBookForMeasureTable.forEach(job => document.getElementById(job.id).remove())
+  if(jobsToHideFromBookForMeasureTable) jobsToHideFromBookForMeasureTable.forEach(job =>{
+    if(document.getElementById(job.id)) document.getElementById(job.id).remove()
+  })
 
   const duplicateCallOutIdsToHideFromMeasuredTable = duplicateCompletedMeasures.map(callout => callout.id)
-  duplicateCallOutIdsToHideFromMeasuredTable.forEach(callout => document.getElementById(callout).remove())
+  if (duplicateCallOutIdsToHideFromMeasuredTable) duplicateCallOutIdsToHideFromMeasuredTable.forEach(callout => {
+    if(document.getElementById(callout)) document.getElementById(callout).remove()
+  })
 
   // Add notification to jobs in book for status that have unsuccessful installs
   unsuccessfullyMeasured.forEach(callout =>{
@@ -108,11 +112,15 @@ $(document).on('knack-scene-render.scene_713', function(event, scene) {
 
   // Hide jobs in the book for table that have bookings or succsfully installs
   const jobsToHideFromBookForInstallTable = jobsReadyToInstall.filter(job => jobsIdsBookedForOrAlreadyInstalled.includes(job.id))
-  jobsToHideFromBookForInstallTable.forEach(job => document.getElementById(job.id).remove())
+  if(jobsToHideFromBookForInstallTable) jobsToHideFromBookForInstallTable.forEach(job => {
+    if(document.getElementById(job.id)) document.getElementById(job.id).remove()
+  })
 
   // Hide duplicate callouts from the installed table
   const duplicateCallOutIdsToHideFromInstallTable = duplicateCompletedInstalls.map(callout => callout.id)
-  duplicateCallOutIdsToHideFromInstallTable.forEach(callout => document.getElementById(callout).remove())
+  if(duplicateCallOutIdsToHideFromInstallTable) duplicateCallOutIdsToHideFromInstallTable.forEach(callout => {
+    if(document.getElementById(callout)) document.getElementById(callout).remove()
+  })
 
   // Hide completed installs if there's another one already scheduled
   uniqueCompletedInstalls.forEach(callout => {
