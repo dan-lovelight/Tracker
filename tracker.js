@@ -5,7 +5,8 @@ const objects = {
   'invoices': 'object_19',
   'orders': 'object_19',
   'opportunities': 'object_17',
-  'users' : 'object_8'
+  'users' : 'object_8',
+  'contacts': 'object_13'
 }
 
 $(document).on('knack-view-render.any', function(event, view, data) {
