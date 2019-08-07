@@ -285,7 +285,7 @@ async function issueInvoice(record) {
   } else if (invoiceType == 'Installment') {
     description += 'Total remaining to be invoiced is ' + jobValueRemaining;
   } else if (invoiceType == 'Call Out Fee') {
-    description += 'Payment due prior to service call'
+    description += 'Payment due upon receipt'
   }
 
   //Add PO number if present
@@ -324,10 +324,11 @@ async function createCallOutInvoice(record) {
     field_1629: [record.id], // Link to this callout
     field_1396: [record.field_1025_raw[0].id], // Invoice Contact to Site Contact
     field_1398: record.field_1025_raw[0].identifier, // Issue Invoice To to Site Contact Name
-    field_313: 'Balance', // Invoice type
+    field_313: 'Call Out Fee', // Invoice type
     field_315: 'Service Call', // Custom Service
     field_314: 'Other', // Sevice Option
-    field_835: moment().format("DD/MM/YYYY") // Due date
+    field_835: moment().format("DD/MM/YYYY"), // Due date
+    field_1399: 'Pick a date'
   }
   let invoiceObj = new KnackObject(objects.invoices)
   let invoice = await invoiceObj.create(data)
