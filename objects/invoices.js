@@ -315,3 +315,21 @@ async function issueInvoice(record) {
   return triggerZap('cmjwd2', data, 'Create Invoice');
 
 }
+
+
+async function createCallOutInvoice(record) {
+  // Insert a connected invoice
+  let data = {
+    field_155: [record.field_928_raw[0].id], // Job
+    field_1629: [record.id], // Link to this callout
+    field_1396: [record.field_1025_raw[0].id], // Invoice Contact to Site Contact
+    field_1398: record.field_1025_raw[0].identifier, // Issue Invoice To to Site Contact Name
+    field_313: 'Balance', // Invoice type
+    field_315: 'Service Call', // Custom Service
+    field_314: 'Other', // Sevice Option
+    field_835: moment().format("DD/MM/YYYY") // Due date
+  }
+  let invoiceObj = new KnackObject(objects.invoices)
+  let invoice = await invoiceObj.create(data)
+  return invoice
+}
