@@ -26,15 +26,15 @@ $(document).on('knack-record-create.view_1962', function(event, view, record) {
       Swal.showLoading()
     },
     onOpen: () => {
-      let wait = setInterval(function(){
+      let wait = setInterval(function() {
         // all callout record inserts are handled in objects/callouts.js
         // the processing function sets this global variable while in progress
-        if(!window.callOutProcessing){
+        if (!window.callOutProcessing) {
           clearInterval(wait)
           window.location.replace(`${event.currentTarget.URL.split('?')[0]}edit-call-out/${record.id}`)
           Swal.close()
         }
-      },100)
+      }, 100)
     }
   })
 })
@@ -89,56 +89,173 @@ function addJobDetailsToCallOut(view) {
 
   // Gather existing callout fields
   let selectedJob = document.getElementById(view.key + '-field_928')
-  let siteContact = $('#' + view.key + '-field_1025') // Need the jquery wrapper for later manipuation
+  let $siteContact = $('#' + view.key + '-field_1025') // Need the jquery wrapper for later manipuation
   let street = document.getElementById('street')
   let street2 = document.getElementById('street2')
   let city = document.getElementById('city')
   let state = document.getElementById('state')
   let zip = document.getElementById('zip')
 
-  // Populate job details for new callouts created from a target job
-  // This is only relevant when a user first navigates the a job, then adds a callout from that context
+  // If creating a new callout for the job context, populate details from the job
   if (view.scene.object === 'object_3') {
     populateSiteContactAndAddress(view.scene.scene_id)
+  } else {
+    if ($siteContact[0].length > 0) displaySiteContactDetails($siteContact[0].value)
   }
 
-  if (selectedJob) {
+  // Add a listner for changes in site contact selection
+  $('#' + view.key + '-field_1025').on('change', async function() {
+    if ($siteContact[0].length > 0) displaySiteContactDetails($siteContact[0].value)
+  })
 
-    // Populate site and address details if these are blank but there is a job
-    if (selectedJob.value.length > 0 && (siteContact[0].value + street.value + street2.value + city.value + state.value + zip.value).length === 0) {
-      populateSiteContactAndAddress(selectedJob.value)
+  // If the job field doesn't exists, exit here
+  if (!selectedJob) return
+
+  // Populate site and address details if these are blank but there is a job
+  if (selectedJob.value.length > 0 && ($siteContact[0].value + street.value + street2.value + city.value + state.value + zip.value).length === 0) {
+    populateSiteContactAndAddress(selectedJob.value)
+  }
+
+  // Store original value
+  let originalJob = selectedJob.value
+
+  // Add a listner for changes in job selection
+  $('#' + view.key + '-field_928').on('change', async function() {
+    let newJob = selectedJob.value
+    let qtySelections = selectedJob.selectedOptions.length
+    if (originalJob.length === 0 && newJob.length !== 0 && qtySelections === 1) {
+      populateSiteContactAndAddress(newJob)
     }
+    originalJob = newJob
+  })
 
-    // Store original value
-    let originalSelection = selectedJob.value
-
-    // Add a listner for changes in job selection
-    $('#' + view.key + '-field_928').on('change', async function() {
-      let newSelection = selectedJob.value
-      let qtySelections = selectedJob.selectedOptions.length
-      if (originalSelection.length === 0 && newSelection.length !== 0 && qtySelections === 1) {
-        populateSiteContactAndAddress(newSelection)
-      }
-      originalSelection = newSelection
-    })
-  }
 
   async function populateSiteContactAndAddress(jobId) {
     Knack.showSpinner()
-    // Get the job deatils
-    let job = await getRecordPromise('object_3', jobId)
-    //Populate Site Contact
-    if (job.field_432_raw) {
-      if (job.field_432_raw.length > 0) {
-        siteContact.html(`<option value='${job.field_432_raw[0].id}'>${job.field_432_raw[0].identifier}</option>`).trigger('liszt:updated')
+    try { // Get the job deatils
+      let job = await getRecordPromise('object_3', jobId)
+      //Populate Site Contact
+      if (job.field_432_raw) {
+        if (job.field_432_raw.length > 0) {
+          $siteContact.html(`<option value='${job.field_432_raw[0].id}'>${job.field_432_raw[0].identifier}</option>`).trigger('liszt:updated')
+          displaySiteContactDetails(job.field_432_raw[0].id)
+        }
       }
+      //Populate Address
+      if (job.field_12_raw) {
+        street.value = job.field_12_raw.street
+        street2.value = job.field_12_raw.street2 === undefined ? "" : job.field_12_raw.street2 // Only and issue for stree2, only sometimes... ?
+        city.value = job.field_12_raw.city
+        state.value = job.field_12_raw.state
+        zip.value = job.field_12_raw.zip
+      }
+    } catch (err) {
+      Sentry.captureException(err)
+    } finally {
+      Knack.hideSpinner()
     }
-    //Populate Address
-    street.value = job.field_12_raw.street
-    street2.value = job.field_12_raw.street2 === undefined ? "" : job.field_12_raw.street2 // Only and issue for stree2, only sometimes... ?
-    city.value = job.field_12_raw.city
-    state.value = job.field_12_raw.state
-    zip.value = job.field_12_raw.zip
-    Knack.hideSpinner()
+  }
+
+  async function displaySiteContactDetails(siteContactId) {
+    let $siteContactDetails = $('#site-contact-details')
+    if ($siteContactDetails.length === 0) {
+      $('#connection-picker-chosen-field_1025').append('<div id="site-contact-details">Loading...</div>')
+      $siteContactDetails = $('#site-contact-details')
+    } else if ($siteContactDetails[0].innerText.indexOf('Loading') > -1) {
+      return
+    } else {
+      $siteContactDetails[0].innerText = 'Loading...'
+    }
+    let contactObj = new KnackObject(objects.contacts)
+    let siteContact = await contactObj.get(siteContactId)
+    displayDetails()
+
+    function displayDetails() {
+      let phone = siteContact.field_231_raw ? siteContact.field_231_raw : ''
+      let email = siteContact.field_76_raw ? siteContact.field_76_raw.email : ''
+      let html = `<strong>mobile:</strong> ${phone} <a id='edit-mobile'>edit</a><br><strong>email:</strong> ${email} <a id='edit-email'>edit</a>`
+      $('#site-contact-details').html(html)
+
+      $('#edit-mobile').click(function() {
+        getInlineUserInput('Phone', phone, '#edit-mobile', async function(newNumber) {
+          try {
+            $('#site-contact-details').html('Loading...')
+            siteContact = await contactObj.update(siteContact.id, {
+              'field_231': newNumber
+            })
+            displayDetails()
+          } catch (err) {
+            Sentry.captureException(err)
+          }
+        })
+      })
+
+      $('#edit-email').click(function() {
+        getInlineUserInput('Email', email, '#edit-email', async function(newEmail) {
+          try {
+            $('#site-contact-details').html('Loading...')
+            siteContact = await contactObj.update(siteContact.id, {
+              'field_76': newEmail
+            })
+            displayDetails()
+          } catch (err) {
+            Sentry.captureException(err)
+          }
+        })
+      })
+    }
   }
 }
+
+// ***************************************************************************
+// ******************* SERVICE CALLS *********************
+// ***************************************************************************
+
+// Add a new service call
+$(document).on('knack-view-render.view_2286', function(event, view, data) {
+  addJobDetailsToCallOut(view)
+
+  // Add a listner for changes in invoicing time
+  let $invoiceTime = $('#' + view.key + '-field_1625')
+  $invoiceTime.on('change', async function() {
+    if($invoiceTime[0].value.indexOf('Before')>-1){
+      $('form > div > button')[0].innerText = 'Submit >> Create Invoice'
+    } else {
+      $('form > div > button')[0].innerText = 'Submit'
+    }
+  })
+
+});
+
+// Submit service call request
+$(document).on('knack-form-submit.view_2286', async function(event, view, record) {
+  if (record.field_1625.indexOf('Before')>-1) {
+    Knack.showSpinner()
+    try {
+      let invoice = await createCallOutInvoice(record)
+      window.location.replace(`${event.currentTarget.URL.split('?')[0]}invoice-call-out/${invoice.id}`)
+    } catch (err) {
+      Sentry.captureException(err)
+    } finally {
+      Knack.hideSpinner()
+    }
+  }
+});
+
+// Finalise invoicing for completed callout
+$(document).on('knack-form-submit.view_2305', async function(event, view, record) {
+    Knack.showSpinner()
+    try {
+      let invoice = await createCallOutInvoice(record)
+      window.location.replace(`${event.currentTarget.URL.split('?')[0]}invoice-call-out/${invoice.id}`)
+    } catch (err) {
+      Sentry.captureException(err)
+    } finally {
+      Knack.hideSpinner()
+    }
+});
+
+// Raise invoice in Xero for a callout
+$(document).on('knack-form-submit.view_2297', async function(event, view, record) {
+  issueInvoice(record)
+})
