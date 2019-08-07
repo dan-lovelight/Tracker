@@ -147,3 +147,8 @@ $(document).on('knack-view-render.view_2041', function(event, scene) {
 $(document).on('knack-view-render.view_2045', function(event, scene) {
   pimpSchedulingCalendar(scene.key, 'view_2047')
 })
+
+// Schedulers requested bookings
+$(document).on('knack-scene-render.scene_203', function(event, scene) {
+  hideEmptyTables(scene)
+})
