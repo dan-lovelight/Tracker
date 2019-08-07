@@ -100,12 +100,12 @@ function addJobDetailsToCallOut(view) {
   if (view.scene.object === 'object_3') {
     populateSiteContactAndAddress(view.scene.scene_id)
   } else {
-    if ($siteContact[0].length > 0) displaySiteContactDetails($siteContact[0].value)
+    if ($siteContact[0].length > 0) displayContactDetails($siteContact[0].value, 'field_1025')
   }
 
   // Add a listner for changes in site contact selection
   $('#' + view.key + '-field_1025').on('change', async function() {
-    if ($siteContact[0].length > 0) displaySiteContactDetails($siteContact[0].value)
+    if ($siteContact[0].length > 0) displayContactDetails($siteContact[0].value, 'field_1025')
   })
 
   // If the job field doesn't exists, exit here
@@ -138,7 +138,7 @@ function addJobDetailsToCallOut(view) {
       if (job.field_432_raw) {
         if (job.field_432_raw.length > 0) {
           $siteContact.html(`<option value='${job.field_432_raw[0].id}'>${job.field_432_raw[0].identifier}</option>`).trigger('liszt:updated')
-          displaySiteContactDetails(job.field_432_raw[0].id)
+          displayContactDetails(job.field_432_raw[0].id, 'field_1025')
         }
       }
       //Populate Address
@@ -153,56 +153,6 @@ function addJobDetailsToCallOut(view) {
       Sentry.captureException(err)
     } finally {
       Knack.hideSpinner()
-    }
-  }
-
-  async function displaySiteContactDetails(siteContactId) {
-    let $siteContactDetails = $('#site-contact-details')
-    if ($siteContactDetails.length === 0) {
-      $('#connection-picker-chosen-field_1025').append('<div id="site-contact-details">Loading...</div>')
-      $siteContactDetails = $('#site-contact-details')
-    } else if ($siteContactDetails[0].innerText.indexOf('Loading') > -1) {
-      return
-    } else {
-      $siteContactDetails[0].innerText = 'Loading...'
-    }
-    let contactObj = new KnackObject(objects.contacts)
-    let siteContact = await contactObj.get(siteContactId)
-    displayDetails()
-
-    function displayDetails() {
-      let phone = siteContact.field_231_raw ? siteContact.field_231_raw : ''
-      let email = siteContact.field_76_raw ? siteContact.field_76_raw.email : ''
-      let html = `<strong>mobile:</strong> ${phone} <a id='edit-mobile'>edit</a><br><strong>email:</strong> ${email} <a id='edit-email'>edit</a>`
-      $('#site-contact-details').html(html)
-
-      $('#edit-mobile').click(function() {
-        getInlineUserInput('Phone', phone, '#edit-mobile', async function(newNumber) {
-          try {
-            $('#site-contact-details').html('Loading...')
-            siteContact = await contactObj.update(siteContact.id, {
-              'field_231': newNumber
-            })
-            displayDetails()
-          } catch (err) {
-            Sentry.captureException(err)
-          }
-        })
-      })
-
-      $('#edit-email').click(function() {
-        getInlineUserInput('Email', email, '#edit-email', async function(newEmail) {
-          try {
-            $('#site-contact-details').html('Loading...')
-            siteContact = await contactObj.update(siteContact.id, {
-              'field_76': newEmail
-            })
-            displayDetails()
-          } catch (err) {
-            Sentry.captureException(err)
-          }
-        })
-      })
     }
   }
 }
@@ -254,6 +204,11 @@ $(document).on('knack-form-submit.view_2305', async function(event, view, record
       Knack.hideSpinner()
     }
 });
+
+// Expose invoicing contact details on invoice form
+$(document).on('knack-view-render.view_2297', async function(event, view, data) {
+  displayContactDetails(data.field_1396_raw[0].id,'field_1396')
+})
 
 // Raise invoice in Xero for a callout
 $(document).on('knack-form-submit.view_2297', async function(event, view, record) {
