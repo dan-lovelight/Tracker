@@ -351,3 +351,38 @@ async function triggerZap(endPoint, dataObject, logEntry) {
     logError(triggerZap, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
+
+// Creates a popover to collect user input
+// Places the popover relative to the passed in selector
+// Callback takes a single parameter - the value of the user input
+function getInlineUserInput(title, defaultValue, selector, callback) {
+  // Don't duplicate the popover
+  if ($('#popover-input').length > 0) return
+  // Insert the popover into the page
+  let inputModalHtml = `<div class="drop kn-popover drop-target-attached-top" id="popover-input"> <div class="drop-content"> <h1 class="kn-title">${title}<span class="close-popover fa fa-times"></span></h1> <div> <div class="renderer-form kn-form"> <form> <ul class="kn-form-group columns kn-form-group-1"> <li class="kn-form-col column is-constrained"> <div class="kn-input kn-input-short_text control" id="kn-input-field_1477" data-input-id="field_1477"> <div class="control"> <input class="input"> </div> </div> </li> </ul> </form> </div> <div class="submit"><a class="kn-button is-primary save prevent-close trigger-load">Submit</a></div> </div> </div> </div>`
+  $('body').append(inputModalHtml)
+  // Format and position popover
+  let $input = $('#popover-input')
+  $input.find('.input')[0].value = defaultValue
+  $input.css({
+    'position': 'fixed'
+  })
+  let offset = $(selector).offset()
+  let inputHeight = $input.outerHeight()
+  let inputWidth = $input.width()
+  offset.left = (offset.left - inputWidth / 2)
+  offset.top = (offset.top - inputHeight)
+  $input.offset(offset)
+
+  // add close listener
+  $input.find('span').click(function() {
+    $input.remove()
+  })
+
+  // add submit listener
+  $input.find('a').click(function() {
+    callback($input.find('input')[0].value)
+    $input.remove()
+    // need to consider error handling here
+  })
+}
