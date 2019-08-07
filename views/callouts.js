@@ -162,7 +162,7 @@ function addJobDetailsToCallOut(view) {
 // ***************************************************************************
 
 // Add a new service call
-$(document).on('knack-view-render.view_2286', function(event, view, data) {
+$(document).on('knack-view-render.view_2314', function(event, view, data) {
   addJobDetailsToCallOut(view)
 
   // Add a listner for changes in invoicing time
@@ -178,7 +178,7 @@ $(document).on('knack-view-render.view_2286', function(event, view, data) {
 });
 
 // Submit service call request
-$(document).on('knack-form-submit.view_2286', async function(event, view, record) {
+$(document).on('knack-form-submit.view_2314', async function(event, view, record) {
   if (record.field_1625.indexOf('Before')>-1) {
     Knack.showSpinner()
     try {
