@@ -11,6 +11,7 @@ const createCallOutForms = [
   'knack-view-render.view_1294', // #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
   'knack-view-render.view_2126', // #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
   'knack-view-render.view_2207', // #upcoming/add-leaveunavailable/, #pages/scene_1057/views/view_2207
+  'knack-view-render.view_2316', // #jobs/raise-service-call/, #pages/scene_1093/views/view_2316
 ]
 
 // Add call out - via My Calendar
@@ -162,23 +163,23 @@ function addJobDetailsToCallOut(view) {
 // ***************************************************************************
 
 // Add a new service call
-$(document).on('knack-view-render.view_2314', function(event, view, data) {
+$(document).on('knack-view-render.view_2314 knack-view-render.view_2316', function(event, view, data) {
   addJobDetailsToCallOut(view)
 
   // Add a listner for changes in invoicing time
   let $invoiceTime = $('#' + view.key + '-field_1625')
   $invoiceTime.on('change', async function() {
     if($invoiceTime[0].value.indexOf('Before')>-1){
-      $('form > div > button')[0].innerText = 'Submit >> Create Invoice'
+      $('#' + view.key + ' > form > div > button')[0].innerText = 'Submit >> Create Invoice'
     } else {
-      $('form > div > button')[0].innerText = 'Submit'
+      $('#' + view.key + ' > form > div > button')[0].innerText = 'Submit'
     }
   })
 
 });
 
 // Submit service call request
-$(document).on('knack-form-submit.view_2314', async function(event, view, record) {
+$(document).on('knack-form-submit.view_2314 knack-form-submit.view_2316', async function(event, view, record) {
   if (record.field_1625.indexOf('Before')>-1) {
     Knack.showSpinner()
     try {
