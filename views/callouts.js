@@ -144,11 +144,13 @@ function addJobDetailsToCallOut(view) {
       }
       //Populate Address
       if (job.field_12_raw) {
-        street.value = job.field_12_raw.street
-        street2.value = job.field_12_raw.street2 === undefined ? "" : job.field_12_raw.street2 // Only and issue for stree2, only sometimes... ?
-        city.value = job.field_12_raw.city
-        state.value = job.field_12_raw.state
-        zip.value = job.field_12_raw.zip
+        if (job.field_12_raw.length > 0) {
+          street.value = job.field_12_raw.street
+          street2.value = job.field_12_raw.street2 === undefined ? "" : job.field_12_raw.street2 // Only and issue for stree2, only sometimes... ?
+          city.value = job.field_12_raw.city
+          state.value = job.field_12_raw.state
+          zip.value = job.field_12_raw.zip
+        }
       }
     } catch (err) {
       Sentry.captureException(err)
