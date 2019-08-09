@@ -18,28 +18,6 @@ const callOutDeleteEvents = [
   'knack-record-delete.view_1215', // Callout Deleted,
 ]
 
-// ----------------
-
-const createEditDeleteCallOutViews = [
-  // Create
-  'knack-view-render.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
-  'knack-view-render.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
-  'knack-view-render.view_2199', // Add service call - job, #jobs/view-job-details2/{}/summary/{}/, #pages/scene_1054/views/view_2199
-  // Update
-  'knack-view-render.view_1294', // Edit Callout, #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
-  'knack-view-render.view_1426', // Review Callout, #call-outs/review-call-out-details2/{id}/, #pages/scene_638/views/view_1426
-  'knack-view-render.view_1541', // Cancel Callout, #jobs/view-job-details/{id}/cancel-call-out/{id}/, #pages/scene_690
-  'knack-view-render.view_1967', // ReSync Callout, #pages/scene_950/views/view_1967
-  // Delete
-  'knack-view-render.view_1215', // Callout Deleted,
-]
-
-// CallOut created
-// $(document).on(callOutCreateEvents.join(' '), function(event, view, record) {
-//   processCallOutChanges(record, 'create');
-//   updateConnectedJobsInPortal(record)
-// });
-
 // CallOut editted
 $(document).on(callOutUpdateEvents.join(' '), function(event, view, record) {
   processCallOutChanges(record, 'update');
@@ -207,68 +185,98 @@ async function getJobDataForCallOut(callOut) {
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
 
-// Create the display names for the call out
-// Returns a partial callout object with all the necessary fields populated
-async function getCallOutName(callOut) {
+// Change type can be 'create', 'update' or 'delete'
+async function processCallOutChanges(record, changeType) {
+  try {
 
-  let name = {}
+    // Set the default values
+    let updatedRecord = record
+    let isDataUpdateRequired = false // Don't try to update callout record unless we're sure one exists
+    let isCalendarUpdateRequired = true // Always check if calendar needs updating unless explicity stopped
+    let isCoreDataUpdated = false
+    let isSalesOpsUpdated = false
+    let isAttendeeDataUpdated = false
+    let isJobUpdated = false
+    let isCalendarFlagSet = false
 
-  const tentativeIcon = '❓'
-  const completeIcon = '✔️'
-  const scheduledIcon = '📆'
-  const typeIcons = [
-    ['Unavailable/Leave', '🏄'],
-    ['Install', '🔨'],
-    ['Service & Install', '👷🔨'],
-    ['Measure & Install', '📏🔨'],
-    ['Measure', '📏'],
-    ['Service Call', '👷'],
-    ['Drop Off', '🚚'],
-    ['Pick Up', '🚚'],
-  ]
+    // Variables that tell us what we need to do this this callout
+    let isConfirmed = record.field_955 === 'No' // If the callout is not 'Tentative' then it is isConfirmed
+    let isInCalendar = record.field_1082.length > 1 // If the callout has a matching calendar item the id will be in this field
+    let isCancelled = record.field_1005 === 'Cancelled'
 
-  // Collect Name Variables
-  let confirmationIcon = callOut.field_955 === 'No' ? '' : '[' + tentativeIcon + ']' // Show confirmed / tentative status
-  let type = callOut.field_925 === 'Other' ? callOut.field_1477 : callOut.field_925 // The selected callout type - install, measure etc, unless type is 'other'
-  let jobsCount = callOut.field_928.length > 0 ? callOut.field_928_raw.length : 0
-  let jobsCountDisplay = jobsCount > 1 ? '(+' + (jobsCount - 1) + ' others)' : ''
-  let firstJob = jobsCount > 0 ? callOut.field_928_raw['0'].identifier : ''
-  let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
-  let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
-  let completionIcon = callOut.field_1005 === 'Complete' ? completeIcon : scheduledIcon
-  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street + '' + callOut.field_981_raw.street2 : ''
-  let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
-  let address = street + ' ' + city
-  let addressDisplay = address.length < 2 ? '' : '| ' + address
-  let installers = getConnectionIdentifiers(callOut.field_927_raw).join(', ')
-  let development = callOut.field_1482.length > 0 ? ' | ' + callOut.field_1482_raw['0'].identifier : ''
-  let nameToDisplay = jobsCount > 0 ? jobDisplay : development
-  let typeIcon = ''
-  let multiInstallerIndicator = ''
+    if (changeType !== 'delete') {
+      // Determine what changes have been made to the record
+      isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
+      isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
+      isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
+      isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
+      isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
 
-  // Get type icon
-  typeIcon = typeIcons.reduce((icon, iconPair) => {
-    icon += iconPair[0] === type ? iconPair[1] : ''
-    return icon
-  }, '')
+      isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
+      isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet || isCancelled // always false if isDataUpdateRequired is false
+    }
 
-  // Build indicator of multiple installers if this is required
-  if (callOut.field_927_raw !== undefined && callOut.field_927_raw.length > 1) {
-    let installerIDs = getConnectionIDs(callOut.field_927_raw)
-    let installerFilter = createFilterFromArrayOfIDs(installerIDs)
-    let installers = await searchRecordsPromise('object_71', installerFilter)
-    multiInstallerIndicator = installers.reduce(function(colouredHeads, installer) {
-      colouredHeads += '<span style="background-color:' + installer.field_1486 + '">👤</span>'
-      return colouredHeads
-    }, '')
+    // Update the callout data if required
+    if (!isDataUpdateRequired) {
+      console.log('No update required')
+    } else {
+
+      // Gather all data that needs to be updated as a result of the changes
+      let resetData = copyFieldsToNewObject(record, trackChangeFields)
+      let jobData = isJobUpdated ? await getJobDataForCallOut(record) : {}
+      let nameData = await getCallOutName(record)
+      let pendingCalendarUpdateFlag = isCalendarUpdateRequired ? {
+        'field_1496': 'Yes'
+      } : {} // Flag for update required, only reset on success
+
+      // Merge the data
+      let updateData = Object.assign({}, resetData, jobData, nameData, pendingCalendarUpdateFlag)
+
+      // Update the callout record
+      updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
+      console.log('Record updated')
+    }
+
+    // Update calendar events if required
+    if (!isCalendarUpdateRequired) {
+      console.log('No calendar invites update required')
+    } else {
+
+      // Exit if there is an update in progress
+      if (record.field_1101 === 'Yes') {
+        console.log('Callendar updates cancelled because an update is arleady in progress')
+        return
+      }
+
+      // Handle installers who are allowed to see tentative bookings
+      if (!isConfirmed) {
+        if (updatedRecord.field_927.length > 0) { // can't do this without installers
+          let permittedInstallers = await getInstallersWhoSeeTentativeBookings(updatedRecord)
+          if (permittedInstallers.length > 0) {
+            // We're sending this event anyway, but only to the installer permitted to see it
+            updatedRecord.field_927_raw = permittedInstallers
+            updatedRecord.field_1503 = '',
+              updatedRecord.field_1081 = '',
+              updatedRecord.field_1475 = ''
+
+            isConfirmed = true
+          }
+        }
+      }
+
+      let isNewEventRequired = isConfirmed && !isInCalendar && !isCancelled
+      let isEventUpdateRequired = isConfirmed && isInCalendar && !isCancelled
+      let isEventCancellationRequired = isInCalendar && (!isConfirmed || isCancelled)
+
+      if (isNewEventRequired) processGoogleEvent('new', updatedRecord)
+      if (isEventUpdateRequired) processGoogleEvent('update', updatedRecord)
+      if (isEventCancellationRequired) processGoogleEvent('delete', updatedRecord)
+
+    }
+    return
+  } catch (err) {
+    logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, false)
   }
-
-  // Build Display Names
-  name.field_1488 = `${confirmationIcon}${typeIcon}${type}${nameToDisplay}`.trim() // Form display name
-  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}`.trim() // Calendar display name
-  name.field_1490 = `${confirmationIcon}${completionIcon} | ${typeIcon}${type} (${installers})` // Scheduled status and installers display
-
-  return name
 }
 
 // Gather key callout data with human readable names
@@ -551,112 +559,3 @@ async function getJobDataForCallOutRefactor(callOut, previous, changes) {
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
-
-// async function processCallout(view, record, action, fields, previousRecord, changes) {
-//   try {
-//
-//     // Set the default values
-//     let isDataUpdateRequired = false // Don't try to update callout record unless we're sure one exists
-//     let isCalendarUpdateRequired = true // Always check if calendar needs updating unless explicity stopped
-//     let isCoreDataUpdated = false
-//     let isSalesOpsUpdated = false
-//     let isAttendeeDataUpdated = false
-//     let isJobUpdated = false
-//     let isCalendarFlagSet = false
-//
-//     // Variables that tell us what we need to do this this callout
-//     let isConfirmed = record.field_955 === 'No' // If the callout is not 'Tentative' then it is isConfirmed
-//     let isInCalendar = record.field_1082.length > 1 // If the callout has a matching calendar item the id will be in this field
-//     let isCancelled = record.field_1005 === 'Cancelled' || action === 'Delete'
-//
-//     let keyFields = [
-//       'field_924', // Scheduled Date
-//       'field_981', // Address
-//       'field_955', // Status
-//       'field_925', // Type
-//       'field_927', // Installer
-//       'field_1503' // Other attendees
-//     ]
-//
-//     const salesOpsFields = [
-//       'field_985', // Salesperson
-//       'field_1474', // Ops person
-//     ]
-//
-//     if (action !== 'Delete') {
-//       // Determine what changes have been made to the record
-//       isCoreDataUpdated = keyFields.filter(field => changes.includes(field)).length > 1
-//       isSalesOpsUpdated = salesOpsFields.filter(field => changes.includes(field)).length > 1
-//       isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
-//       isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
-//       isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
-//
-//       isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
-//       isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet || isCancelled // always false if isDataUpdateRequired is false
-//     }
-//
-//     // Update the callout data if required
-//     if (!isDataUpdateRequired) {
-//       console.log('No update required')
-//     } else {
-//
-//       // Gather all data that needs to be updated as a result of the changes
-//       let resetData = copyFieldsToNewObject(record, trackChangeFields)
-//       let jobData = isJobUpdated ? await getJobDataForCallOut(record) : {}
-//       let nameData = await getCallOutName(record)
-//       let pendingCalendarUpdateFlag = isCalendarUpdateRequired ? {
-//         'field_1496': 'Yes'
-//       } : {} // Flag for update required, only reset on success
-//
-//       // Merge the data
-//       let updateData = {
-//         ...resetData,
-//         ...jobData,
-//         ...nameData,
-//         ...pendingCalendarUpdateFlag
-//       }
-//
-//       // Update the callout record
-//       updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
-//       console.log('Record updated')
-//     }
-//
-//     // Update calendar events if required
-//     if (!isCalendarUpdateRequired) {
-//       console.log('No calendar invites update required')
-//     } else {
-//
-//       // Exit if there is an update in progress
-//       if (record.field_1101 === 'Yes') {
-//         console.log('Callendar updates cancelled because an update is arleady in progress')
-//         return
-//       }
-//
-//       // Handle installers who are allowed to see tentative bookings
-//       if (!isConfirmed) {
-//         let permittedInstallers = await getInstallersWhoSeeTentativeBookings(updatedRecord)
-//         if (permittedInstallers.length > 0) {
-//           // We're sending this event anyway, but only to the installer permitted to see it
-//           updatedRecord.field_927_raw = permittedInstallers
-//           updatedRecord.field_1503 = '',
-//             updatedRecord.field_1081 = '',
-//             updatedRecord.field_1475 = ''
-//
-//           isConfirmed = true
-//         }
-//       }
-//
-//       let isNewEventRequired = isConfirmed && !isInCalendar && !isCancelled
-//       let isEventUpdateRequired = isConfirmed && isInCalendar && !isCancelled
-//       let isEventCancellationRequired = isInCalendar && (!isConfirmed || isCancelled)
-//
-//       if (isNewEventRequired) processGoogleEvent('new', updatedRecord)
-//       if (isEventUpdateRequired) processGoogleEvent('update', updatedRecord)
-//       if (isEventCancellationRequired) processGoogleEvent('delete', updatedRecord)
-//
-//     }
-//     return
-//   } catch (err) {
-//     logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, false)
-//   }
-// }
