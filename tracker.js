@@ -6,7 +6,10 @@ const objects = {
   'orders': 'object_19',
   'opportunities': 'object_17',
   'users' : 'object_8',
-  'contacts': 'object_13'
+  'contacts': 'object_13',
+  'salespeople': 'object_82',
+  'opspeople': 'object_68',
+
 }
 
 $(document).on('knack-view-render.any', function(event, view, data) {
