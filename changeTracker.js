@@ -149,7 +149,7 @@ class KnackObject {
     this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
-    let hash = _hashCode(`${self.view.key}${callback.toString()}`)
+    let hash = this._hashCode(`${self.view.key}${callback.toString()}`)
     KnackObject.prototype.recordBefore[self.view.key] = {}
 
     // Handle update forms
@@ -359,7 +359,7 @@ class KnackObject {
   _isListenerAlreadyApplied(action, callback) {
     // Create a unique id for the view/callback combo.
     let alreadyApplied = true
-    let hash = _hashCode(`${this.view.key}${callback.toString()}`)
+    let hash = this._hashCode(`${this.view.key}${callback.toString()}`)
 
     if (!KnackObject.prototype.listeners) {
       KnackObject.prototype.listeners = {}
