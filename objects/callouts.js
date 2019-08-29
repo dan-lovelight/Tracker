@@ -1,36 +1,5 @@
-// Update commercial jobs connected callouts if callout is Install or Measure
-function updateConnectedJobsInPortal(record) {
-
-  const portalToTrackerMap = [
-    //portal status name, callout type name,
-    ['measure_booked', 'Measure'],
-    ['install_booked', 'Install']
-  ]
-
-  let isConnectedToJob = record.field_928.length > 0
-  let isConfirmed = record.field_1005 !== 'Tentative'
-  let isCommercial = record.field_1495.indexOf('Commercial') > -1
-  let isCancelled = record.field_1005 === 'Cancelled'
-
-  // Exit early if there is no job or the callout is tentative or it's not a commercial job
-  if (!(isConnectedToJob && isConfirmed && isCommercial) || isCancelled) {
-    return
-  }
-
-  let callOutType = record.field_925
-  let changeDetails = portalToTrackerMap.filter((type) => type[1] === callOutType)[0]
-  // Proceed if the callout type is measure or an install
-  if (changeDetails !== undefined) {
-    record.field_928_raw.forEach(job => {
-      let measureDate = changeDetails[1] = 'Measure' ? record.field_939 : ''
-      let installDate = changeDetails[1] = 'Install' ? record.field_939 : ''
-      changeStatusInPortal(job.id, changeDetails[0], measureDate, installDate)
-    })
-  }
-}
-
-
-
+// -------------------------------------------------------
+// Start Listener
 $(document).on('knack-view-render.any', function(event, view, data) {
   let calloutsObj
   // If a view is displaying callouts, add listners
@@ -48,6 +17,10 @@ $(document).on('knack-view-render.any', function(event, view, data) {
     Sentry.captureException(err)
   }
 })
+// End Listner
+
+// -------------------------------------------------------
+// Start Handlers
 
 // Process newly created callouts
 async function processNewCallOut(view, record, action, fields) {
@@ -79,7 +52,7 @@ async function processNewCallOut(view, record, action, fields) {
   }
 }
 
-// Process newly created callouts
+// Process updated created callouts
 async function processUpdatedCallOut(view, callout, action, fields, previous, changes) {
   try {
 
@@ -97,7 +70,7 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
     }
 
     handleCalendarUpdates(callout, previous, changes)
-    // handleInstallerReports(callout, changes)
+    handleInstallerReports(callout, changes)
 
   } catch (err) {
     throw new Error(err)
@@ -106,6 +79,42 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
 
   }
 }
+// End Handlers
+
+// -------------------------------------------------------
+// Start Calendar Management Functions
+
+// Creates, updates or deletes synced calendar event if required
+async function handleCalendarUpdates(callout, previous, changes) {
+
+  if (!isGoogleCalendarActionRequired(callout, previous, changes)) return // Exit if we somehow got here when a update is not required
+  await applyCalendarUpdateFlag(callout) // Add flag to stop race conditions
+
+  // Get data that describes the event in a human readable way
+  let eventData = getCalendarEventData(callout)
+
+  if (isEventDeletionRequired(callout)) return triggerZap('xp4tzz', eventData)
+
+  // If creating or updating, will need attendees
+  eventData.attendees = await getAttendees(callout)
+
+  if (isEventCreationRequired(callout)) return triggerZap('xpuj8p', eventData)
+  if (isEventUpdateRequired(callout, previous, changes)) return triggerZap('xnc85h', eventData)
+
+}
+
+// Applies a calendar flag to a Knack record to prevent race conditions
+async function applyCalendarUpdateFlag(callout){
+  let calloutsObj = new KnackObject(objects.callouts)
+  let updateData = {}
+  updateData.field_1101 = 'Yes' // Add 'Calendar Update In Progress Flag' to avoid race conditions
+  await calloutsObj.update(callout.id, updateData)
+}
+
+// End Calendar Management Functions
+
+// ----------------------------------------------------------
+// Start Helper Functions
 
 // Create the display names for the call out
 // Returns a partial callout object with all the necessary fields populated
@@ -241,32 +250,6 @@ async function getJobUpdates(callOut, changes) {
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
 
-// Creates, updates or deletes synced calendar event if required
-async function handleCalendarUpdates(callout, previous, changes) {
-
-  if (!isGoogleCalendarActionRequired(callout, previous, changes)) return // Exit if we somehow got here when a update is not required
-  await applyCalendarUpdateFlag(callout) // Add flag to stop race conditions
-
-  // Get data that describes the event in a human readable way
-  let eventData = getCalendarEventData(callout)
-
-  if (isEventDeletionRequired(callout)) return triggerZap('xp4tzz', eventData)
-
-  // If creating or updating, will need attendees
-  eventData.attendees = await getAttendees(callout)
-
-  if (isEventCreationRequired(callout)) return triggerZap('xpuj8p', eventData)
-  if (isEventUpdateRequired(callout, previous, changes)) return triggerZap('xnc85h', eventData)
-
-}
-
-async function applyCalendarUpdateFlag(callout){
-  let calloutsObj = new KnackObject(objects.callouts)
-  let updateData = {}
-  updateData.field_1101 = 'Yes' // Add 'Calendar Update In Progress Flag' to avoid race conditions
-  await calloutsObj.update(callout.id, updateData)
-}
-
 // Gather key callout data with human readable names
 function getCalendarEventData(callout) {
   return {
@@ -331,33 +314,10 @@ function getOtherAttendeeEmails(callout){
   return callout.field_1503.replace(/;/g, ',').replace(/ /g, ',')
 }
 
-async function handleInstallerReports(record, changes) {
+// End Helper Functions
 
-  let installerReportFields = [
-    'field_1542', // Outcome
-    'field_1547', // What went wrong?
-    'field_1545', // Report details
-    'field_1548', // Photos uploaded?
-    'field_1549', // Docs uploaded?
-    'field_1626', // Consumables supplied?
-    'field_1627', // What was supplied?
-    'field_1616', // Estimated install time
-  ]
-
-  // Only continue if there have been report updates
-  if (installerReportFields.filter(field => changes.includes(field)).length === 0) return
-
-  // Record who submitted the report
-  let calloutsObj = new KnackObject(objects.callouts)
-  record = await calloutsObj.update(record.id, {
-    'field_1632': Knack.getUserAttributes().name
-  })
-
-  let isFirstReport = previous.field_1546 === 'Pending'
-
-  // Gather data for email.
-
-}
+// ----------------------------------------------------------
+// Start Boolean Helper Functions
 
 function isGoogleCalendarActionRequired(callout, previous, changes) {
   if (callout.field_1101 === 'Yes') return false // there's already an update in progress
@@ -458,4 +418,76 @@ function isOpsUpdated(callout, previous, changes) {
     if (callout.field_1476.indexOf('Yes') > -1) return true // return true if they are to be included
   }
   return false
+}
+
+function isReportUpdated(changes) {
+
+  let installerReportFields = [
+    'field_1542', // Outcome
+    'field_1547', // What went wrong?
+    'field_1545', // Report details
+    'field_1548', // Photos uploaded?
+    'field_1549', // Docs uploaded?
+    'field_1626', // Consumables supplied?
+    'field_1627', // What was supplied?
+    'field_1616', // Estimated install time
+  ]
+
+  // Only continue if there have been report updates
+  if (installerReportFields.filter(field => changes.includes(field)).length>0) return true
+  return false
+}
+
+// End Boolean Helper Functions
+
+// ----------------------------------------------------------
+// Start Related Functions
+
+// Update commercial jobs connected to callouts if callout is Install or Measure
+function updateConnectedJobsInPortal(record) {
+
+  const portalToTrackerMap = [
+    //portal status name, callout type name,
+    ['measure_booked', 'Measure'],
+    ['install_booked', 'Install']
+  ]
+
+  if (record.field_1635 === 'No') return // record wasn't created by the portal
+
+  let isConnectedToJob = record.field_928.length > 0
+  let isConfirmed = record.field_1005 !== 'Tentative'
+  let isCommercial = record.field_1495.indexOf('Commercial') > -1
+  let isCancelled = record.field_1005 === 'Cancelled'
+
+  // Exit early if there is no job or the callout is tentative or it's not a commercial job
+  if (!(isConnectedToJob && isConfirmed && isCommercial) || isCancelled) {
+    return
+  }
+
+  let callOutType = record.field_925
+  let changeDetails = portalToTrackerMap.filter((type) => type[1] === callOutType)[0]
+  // Proceed if the callout type is measure or an install
+  if (changeDetails !== undefined) {
+    record.field_928_raw.forEach(job => {
+      let measureDate = changeDetails[1] = 'Measure' ? record.field_939 : ''
+      let installDate = changeDetails[1] = 'Install' ? record.field_939 : ''
+      changeStatusInPortal(job.id, changeDetails[0], measureDate, installDate)
+    })
+  }
+}
+
+async function handleInstallerReports(record, changes) {
+
+  if(!isReportUpdated(changes)) return
+
+  // Record who submitted the report
+  let calloutsObj = new KnackObject(objects.callouts)
+  record = await calloutsObj.update(record.id, {
+    'field_1632': Knack.getUserAttributes().name
+  })
+
+  let isFirstReport = previous.field_1546 === 'Pending'
+
+  // Gather data for email.
+
 }
