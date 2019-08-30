@@ -149,10 +149,12 @@ class KnackObject {
     this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
+    let hash = this._hashCode(`${self.view.key}${callback.toString()}`)
+    KnackObject.prototype.recordBefore[self.view.key] = {}
 
     // Handle update forms
     if (this.view.type === 'form' && this.view.action === 'update') {
-      KnackObject.prototype.recordBefore[self.view.key] = await this.get(this.view.scene.scene_id)
+      KnackObject.prototype.recordBefore[hash] = await this.get(this.view.scene.scene_id)
       // Only add global listeners once
       if (!this._isListenerAlreadyApplied('update', callback)) {
         $(document).on(`knack-record-update.${this.view.key}`, recordUpdateHandler)
@@ -173,7 +175,7 @@ class KnackObject {
           }
         }
         // Store the table data prior to any change being made
-        KnackObject.prototype.dataBefore[this.view.key] = JSON.parse(JSON.stringify(dataInTable))
+        KnackObject.prototype.dataBefore[hash] = JSON.parse(JSON.stringify(dataInTable))
         // Add a listner to the table for inline edits, but only once per view
         if (!this._isListenerAlreadyApplied('update', callback)) {
           $(document).on(`knack-cell-update.${this.view.key}`, cellUpdateHandler)
@@ -182,21 +184,21 @@ class KnackObject {
     }
 
     function recordUpdateHandler(event, view, record) {
-      compareAndReturn(record, KnackObject.prototype.recordBefore[self.view.key])
+      compareAndReturn(record, KnackObject.prototype.recordBefore[hash])
       // Reset the baseline
-      KnackObject.prototype.recordBefore[self.view.key] = JSON.parse(JSON.stringify(record))
+      KnackObject.prototype.recordBefore[hash] = JSON.parse(JSON.stringify(record))
     }
 
     function cellUpdateHandler(event, view, record) {
       // Identify the original record
-      KnackObject.prototype.recordBefore[self.view.key] = KnackObject.prototype.dataBefore[view.key].filter(recordInTable => recordInTable.id === record.id)[0]
+      KnackObject.prototype.recordBefore[hash] = KnackObject.prototype.dataBefore[hash].filter(recordInTable => recordInTable.id === record.id)[0]
 
       // Build a complete previous record
       Object.keys(record).forEach(key => {
-        if (KnackObject.prototype.recordBefore[self.view.key][key] === undefined) KnackObject.prototype.recordBefore[self.view.key][key] = record[key]
+        if (KnackObject.prototype.recordBefore[hash][key] === undefined) KnackObject.prototype.recordBefore[hash][key] = record[key]
       })
 
-      compareAndReturn(record, KnackObject.prototype.recordBefore[self.view.key])
+      compareAndReturn(record, KnackObject.prototype.recordBefore[hash])
     }
 
     // Handle views with action links (tables & view details)
@@ -342,12 +344,22 @@ class KnackObject {
     }
   }
 
+  _hashCode(string) {
+  var hash = 0, i, chr;
+  if (string.length === 0) return hash;
+  for (i = 0; i < string.length; i++) {
+    chr   = string.charCodeAt(i);
+    hash  = ((hash << 5) - hash) + chr;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash;
+  }
   // for each callback function, important to only apply the listener once
   // this checks via a record kept on the KnackObject prototype
   _isListenerAlreadyApplied(action, callback) {
-    // Create a unique id for the view/callback combo. Must be a better way...
+    // Create a unique id for the view/callback combo.
     let alreadyApplied = true
-    let viewCallback = this.view.key + callback.toString()
+    let hash = this._hashCode(`${this.view.key}${callback.toString()}`)
 
     if (!KnackObject.prototype.listeners) {
       KnackObject.prototype.listeners = {}
@@ -363,8 +375,8 @@ class KnackObject {
       alreadyApplied = false
     }
 
-    if (!KnackObject.prototype.listeners[this.view.key][action].has(viewCallback)) {
-      KnackObject.prototype.listeners[this.view.key][action].add(viewCallback)
+    if (!KnackObject.prototype.listeners[this.view.key][action].has(hash)) {
+      KnackObject.prototype.listeners[this.view.key][action].add(hash)
       alreadyApplied = false
     }
 
