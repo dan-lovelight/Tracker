@@ -181,7 +181,7 @@ function getCalloutTypeIcon(callout) {
     ['Christmas', '🎄'],
     ['Drinks', '🍺'],
     ['Party', '🎉'],
-    ['Take Down', '⬇']
+    ['Take Down', '👇']
   ]
 
   // Get type icon
@@ -326,23 +326,33 @@ function isGoogleCalendarActionRequired(callout, previous, changes) {
 }
 
 function isEventCreationRequired(callout) {
-  if (callout.field_1082.length > 0) return false // if it's already in the calendar, don't create
+  if (callout.field_1082.length > 1) return false // if it's already in the calendar, don't create
   if (!isEventTypeInviteable(callout)) return false // if not an invitable type, no need to create
-  if (isCalloutStatusInviteable(callout)) return true // given above two checks, if invitable status, create required
+  if (isCalloutStatusInviteable(callout)) {
+    console.log('isEventCreationRequired = true')
+    return true
+  } // given above two checks, if invitable status, create required
   return false // else return false
 }
 
 function isEventDeletionRequired(callout) {
   if (callout.field_1082.length === 0) return false // if it's not in the calendar, no need to delete
-  if (!isEventTypeInviteable(callout)) return true // if it's not an inviteable type, need to delete it
-  if (!isCalloutStatusInviteable(callout)) return true // given the above two checks, if it's not an inviteable status, delete it
+  if (!isEventTypeInviteable(callout) || !isCalloutStatusInviteable(callout)) {
+    // if it's not an inviteable type, need to delete it
+    // if it's not an inviteable status, need to delete it
+    console.log('isEventDeletionRequired = true')
+    return true
+  }
   return false // else return false
 }
 
 function isEventUpdateRequired(callout, previous, changes) {
   if (isEventCreationRequired(callout) || isEventDeletionRequired(callout)) return false // don't update if creating or deleting
   if (callout.field_1082.length === 0) return false // if it's not in the calendar, no need to udpate
-  if (isEventDataUpdated(callout, previous, changes)) return true // if data the impacts the event is changed, need to update it
+  if (isEventDataUpdated(callout, previous, changes)) {
+    console.log('isEventUpdateRequired = true')
+    return true
+  } // if data the impacts the event is changed, need to update it
   return false // else return false
 }
 
