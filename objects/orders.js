@@ -1,8 +1,11 @@
-const orderEvents = [
+const orderCreated = [
   'knack-record-create.view_1139', //Add estimate
   'knack-record-create.view_96', //Add order
   'knack-record-create.view_1019', //Record Stock Usage
   'knack-record-create.view_1000', //Create Related Order
+]
+
+const orderUpdated = [
   'knack-form-submit.view_1140', //Edit Estimate
   'knack-form-submit.view_223', //Edit Order
   'knack-form-submit.view_997', //Change Order Status
@@ -17,8 +20,27 @@ const orderEvents = [
   'knack-cell-update.view_1335', //Recently received table
 ]
 
+// Order is created
+$(document).on(orderCreated.join(' '), function(event, view, record) {
+  if (record.field_1446_raw[0].id === '5c09553e2e148d3a56e05b6a') { // FabCon
+    let zapData = {
+      'job': record.field_10.length > 0 ? record.field_10_raw[0].identifier : '',
+      'product': record.field_11.length > 0 ? record.field_11_raw[0].identifier : '',
+      'quantity': record.field_17,
+      'metres': record.field_1617,
+      'fabric': `${record.field_935.length>0 ? record.field_935_raw[0].identifier : ''} - ${record.field_909.length>0 ? record.field_909_raw[0].identifier : ''}`,
+      'tapeSupplied': record.field_1618,
+      'dateOrderd': record.field_1619,
+      'datePromised': record.field_1620,
+      'contact': record.field_53.length > 0 ? record.field_53_raw[0].identifier : '',
+    }
+    triggerZap('oo1i5ut', zapData, 'new fabcon order');
+  }
+  processOrderChanges(record);
+});
+
 // Order is updated
-$(document).on(orderEvents.join(' '), function(event, view, record) {
+$(document).on(orderUpdated.join(' '), function(event, view, record) {
   processOrderChanges(record);
 });
 
@@ -72,7 +94,7 @@ async function sendOrderReceivedNotifications(record) {
 
   zapData.orderID = record.id;
   zapData.jobID = record.field_10_raw["0"].id;
-  zapData.bays = record.field_90.length>0 ? getConnectionIdentifiers(record.field_90_raw) : ''
+  zapData.bays = record.field_90.length > 0 ? getConnectionIdentifiers(record.field_90_raw) : ''
   zapData.supplier = record.field_1446_raw["0"].identifier;
   zapData.quantity = record.field_17;
   zapData.product = record.field_11_raw["0"].identifier;
@@ -85,13 +107,13 @@ async function sendOrderReceivedNotifications(record) {
   zapData.jobName = job.field_296
 
   // Get salesperson details
-  if(job.field_1276.length>0){
+  if (job.field_1276.length > 0) {
     let salesperson = await getRecordPromise('object_82', job.field_1276_raw[0].id)
     zapData.salesEmail = salesperson.field_957_raw.email
   }
 
   // Get salesperson details
-  if(job.field_1277.length>0){
+  if (job.field_1277.length > 0) {
     let opsperson = await getRecordPromise('object_68', job.field_1277_raw[0].id)
     zapData.opsEmail = opsperson.field_814_raw.email
   }

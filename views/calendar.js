@@ -20,9 +20,12 @@ function getInstallerDetailsFromListView(view) {
 // Instead users can manage this themselves
 function getInstallerColourFiltersFromListView(view) {
 
-  let eventColours = [
-    {field: "field_1005", operator: "is", value: "Tentative", color: "#ff0000"}
-  ]
+  let eventColours = [{
+    field: "field_1005",
+    operator: "is",
+    value: "Tentative",
+    color: "#ff0000"
+  }]
 
   $('#' + view + ' .kn-list-item-container').each((index, tableRow) => {
     let eventColour = {}
@@ -83,7 +86,7 @@ function createFilterMenuNode(arrExtraFilters, view) {
     let anchor = document.createElement('a')
     let span = document.createElement('span')
     span.innerText = filter.filterTitle
-    if(filter.colour === '') {
+    if (filter.colour === '') {
       anchor.style = `border-color:black;`
       span.style = "color:black"
     } else {
@@ -109,39 +112,45 @@ async function filterView(filterString, view) {
   Knack.models[view].fetch()
 }
 
-function pimpSchedulingCalendar(view,installerColourKeyList) {
+function pimpSchedulingCalendar(view, installerColourKeyList) {
   let installersInCalendar = getInstallerDetailsFromListView(installerColourKeyList) // Get the installer data from the temporary key view
   let eventColours = getInstallerColourFiltersFromListView(installerColourKeyList)
   let newFilter = createFilterMenuNode(installersInCalendar, view) // Build the new filter
-  let insertLocation = '#' + view + ' div.kn-records-nav' // selector of the element that the new filter will be placed after
-  if(newFilter !== undefined) $(insertLocation)[0].insertBefore(newFilter, $(insertLocation)[0].children[1]); // Add menu to page
-  $('#'+ view +' div.kn-records-nav div.js-filter-menu')[0].style = 'display:inline-block' // Make menus display next to each other
+  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
+  if (newFilter && $insertLocation[0]) $insertLocation[0].insertBefore(newFilter, $insertLocation[0].children[1]); // Add menu to page
+  let $menu = $('#' + view + ' div.kn-records-nav div.js-filter-menu')[0]
+  if ($menu) $menu.style = 'display:inline-block' // Make menus display next to each other
   $('#' + installerColourKeyList).hide() // Remvoe the temporary key view
   Knack.models[view].view.events.event_colors = eventColours
 
   // Sometimes duplicate buttons and calendars are added when filtering, don't know why
-  if ($('#'+ view +' .fc-header').length > 1) $('#'+ view +' .fc-header')[1].remove()
-  if ($('#'+ view +' .fc-content').length > 1) $('#'+ view +' .fc-content')[1].remove()
+  if ($('#' + view + ' .fc-header').length > 1) $('#' + view + ' .fc-header')[1].remove()
+  if ($('#' + view + ' .fc-content').length > 1) $('#' + view + ' .fc-content')[1].remove()
 }
 
 // My calendar
 $(document).on('knack-view-render.view_1962', function(event, scene) {
-    pimpSchedulingCalendar(scene.key,'view_1964')
+  pimpSchedulingCalendar(scene.key, 'view_1964')
 })
 
 // Vic calendar
 $(document).on('knack-view-render.view_1347', function(event, scene) {
-    pimpSchedulingCalendar(scene.key,'view_1933')
+  pimpSchedulingCalendar(scene.key, 'view_1933')
 })
 
 // NSW calendar
 $(document).on('knack-view-render.view_2041', function(event, scene) {
-    pimpSchedulingCalendar(scene.key,'view_2043')
+  pimpSchedulingCalendar(scene.key, 'view_2043')
 })
 
 // QLD calendar
 $(document).on('knack-view-render.view_2045', function(event, scene) {
-    pimpSchedulingCalendar(scene.key,'view_2047')
+  pimpSchedulingCalendar(scene.key, 'view_2047')
+})
+
+// Schedulers requested bookings
+$(document).on('knack-scene-render.scene_203', function(event, scene) {
+  hideEmptyTables(scene)
 })
 
 

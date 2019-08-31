@@ -1,373 +1,233 @@
-const callOutCreateEvents = [
-  'knack-record-create.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
-  'knack-record-create.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
-  'knack-record-create.view_2199', // Add service call - job, #jobs/view-job-details2/{}/summary/{}/, #pages/scene_1054/views/view_2199
-]
-
-const callOutUpdateEvents = [
-  'knack-form-submit.view_1294', // Edit Callout, #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
-  'knack-form-submit.view_1426', // Review Callout, #call-outs/review-call-out-details2/{id}/, #pages/scene_638/views/view_1426
-  'knack-form-submit.view_1541', // Cancel Callout, #jobs/view-job-details/{id}/cancel-call-out/{id}/, #pages/scene_690
-  'knack-form-submit.view_1967', // ReSync Callout, #pages/scene_950/views/view_1967
-]
-
-const callOutDeleteEvents = [
-  'knack-record-delete.view_1215', // Callout Deleted,
-]
-
-const hideTablesSchedulingScenes = [
-  'knack-scene-render.scene_947', // My CallOuts Calendar view for schedulers
-  'knack-scene-render.scene_1023', // Developments page
-  'knack-scene-render.scene_981', // VIC Calendar
-  'knack-scene-render.scene_982', // NSW Calendar
-  'knack-scene-render.scene_983', // QLD Calendar
-]
-
-const createCallOutForms = [
-  'knack-view-render.view_1437', // #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
-  'knack-view-render.view_1294', // #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
-  'knack-view-render.view_2126', // #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
-]
-
-
-// ----------------
-
-const createEditDeleteCallOutViews = [
-  // Create
-  'knack-view-render.view_1437', // Add call out - job, #jobs/view-job-details/{id}/add-a-call-out/{id}/, #pages/scene_641/views/view_1437
-  'knack-view-render.view_2126', // Add call out - development, #developments/view-development-details/{id}/, #pages/scene_1024/views/view_2126
-  'knack-view-render.view_2199', // Add service call - job, #jobs/view-job-details2/{}/summary/{}/, #pages/scene_1054/views/view_2199
-  // Update
-  'knack-view-render.view_1294', // Edit Callout, #jobs/view-job-details/{id}/edit-call-out/{id}/, #pages/scene_576/views/view_1294
-  'knack-view-render.view_1426', // Review Callout, #call-outs/review-call-out-details2/{id}/, #pages/scene_638/views/view_1426
-  'knack-view-render.view_1541', // Cancel Callout, #jobs/view-job-details/{id}/cancel-call-out/{id}/, #pages/scene_690
-  'knack-view-render.view_1967', // ReSync Callout, #pages/scene_950/views/view_1967
-  // Delete
-  'knack-view-render.view_1215', // Callout Deleted,
-]
-
-const objects = {
-  'callouts': 'object_78'
-}
-
+// -------------------------------------------------------
+// Start Listener
 $(document).on('knack-view-render.any', function(event, view, data) {
-  trackChanges(objects.callouts, data, view, callOutHandler)
-})
-
-function callOutHandler(changesArray) {
-  console.log(changesArray)
-}
-
-async function trackChanges(targetObject, originalViewData, view, callback) {
-
-    // Array of events that can modify a record and need to be tracked
-    let trackedEvents = [
-      `knack-record-create.${view.key}`,
-      `knack-record-update.${view.key}`,
-      `knack-cell-update.${view.key}`,
-      `knack-record-delete.${view.key}`
-    ]
-
-  let originalRecord = JSON.parse(JSON.stringify(originalViewData))
-
-  // Exit if the view has no source (it's a menu)
-  if (view.source === undefined) {
-    return
-  }
-  // Exit if it's a 'pseudo' celleditor view
-  if (view.key.indexOf('_celleditor') > 0) {
-    return
-  }
-  // Exit if it's not a view we want to track
-  if (view.source.object !== targetObject) {
-    return
-  }
-  // Update forms don't load all fields, need to get full data to catch changes via record rules
-  if (view.action === 'update') {
-    originalRecord = await getRecordPromise(view.source.object,originalRecord.id)
-  }
-
-  // For brand new records there is no original, but knack passes the default values of an empty form
-   if (view.action === 'insert') {
-    originalRecord = null
-  } else {
-
-  }
-
-
-  // Listen for events
-  $(document).on(trackedEvents.join(' '), function(event, view, updatedRecord) {
-
-    if(isItAnArray(originalRecord)) {
-      originalRecord = originalRecord.filter(tableRecord => tableRecord.id === updatedRecord.id)[0]
-    }
-
-    record = createChangeRecord(originalRecord, updatedRecord)
-    record.event = view.action // insert, update
-    callback(record)
-  });
-
-  function createChangeRecord(orginalRecord, updatedRecord) {
-    // Copy updated data to a new record
-    let record = JSON.parse(JSON.stringify(updatedRecord))
-
-    record.updatedFields = []
-    record.previous = {}
-    // Create a full set of previous records on the record
-    // Loop through the updatedRecord and for each key, assign the record.previous value to the orginalRecord value
-    console.log('just before forEach', updatedRecord)
-    Object.keys(updatedRecord).forEach(key => {
-      // If there is a previous record, populate the previous property with value
-      if (originalRecord) {
-        if (originalRecord[key] !== undefined) {
-          record.previous[key] = orginalRecord[key]
-        } else {
-          record.previous[key] = ''
+  let calloutsObj
+  // If a view is displaying callouts, add listners
+  try {
+    if (view.source) {
+      if (view.source.object) {
+        if (view.source.object === objects.callouts) {
+          calloutsObj = new KnackObject(view.source.object, view)
+          calloutsObj.onCreate(processNewCallOut)
+          calloutsObj.onUpdate(processUpdatedCallOut)
         }
-      } else {
-        record.previous[key] = ''
       }
-      // If the field has changed, add the field name to change tracking array
-      if (record[key] !== record.previous[key] && key.indexOf('raw')<0) {
-        record.updatedFields.push(key)
-      }
-    })
-    // Flag if anything has changed
-    record.isChanged = record.updatedFields.length > 0 ? true : false
-
-    return record
+    }
+  } catch (err) {
+    Sentry.captureException(err)
   }
-}
-
-// ----------------
-// Record change actions
-
-// CallOut created
-$(document).on(callOutCreateEvents.join(' '), function(event, view, record) {
-  processCallOutChanges(record, 'create');
-  updateConnectedJobsInPortal(record)
-});
-
-// CallOut editted
-$(document).on(callOutUpdateEvents.join(' '), function(event, view, record) {
-  processCallOutChanges(record, 'update');
-  updateConnectedJobsInPortal(record)
-});
-
-// CallOut changed
-$(document).on(callOutDeleteEvents.join(' '), function(event, view, record) {
-  processCallOutChanges(record, 'delete');
-});
-
-// Record change actions
-// ----------------
-
-// Hide empty tables
-$(document).on(hideTablesSchedulingScenes.join(' '), function(event, scene) {
-  hideEmptyTables(scene)
-});
-
-// Create & Edit forms rendered
-$(document).on(createCallOutForms.join(' '), function(event, view, data) {
-  pimpTimePicker(view.key + '-field_924')
-  addJobDetailsToCallOut(view)
 })
+// End Listner
 
-// ***************************************************************************
-// ******************* WHEN A CALL EDIT FORM IS RENDERED *********************
-// ***************************************************************************
+// -------------------------------------------------------
+// Start Handlers
 
-// Some details for a callout are taken directly from the associated job
-// These can be set by record rule, but that doesn't give the user a chance to review them
-// This function popualtes the callout record with job details when a form is loaded
-function addJobDetailsToCallOut(view) {
+// Process newly created callouts
+async function processNewCallOut(view, record, action, fields) {
+  try {
+    // Set processing flag
+    window.callOutProcessing = true
 
-  // Gather existing callout fields
-  let selectedJob = document.getElementById(view.key + '-field_928')
-  let siteContact = $('#' + view.key + '-field_1025') // Need the jquery wrapper for later manipuation
-  let street = document.getElementById('street')
-  let street2 = document.getElementById('street2')
-  let city = document.getElementById('city')
-  let state = document.getElementById('state')
-  let zip = document.getElementById('zip')
+    // Get name of user creating the record
+    let user = Knack.getUserAttributes()
+    let createdBy = {}
+    createdBy.field_1581 = user.name // created by
 
-  // Populate job details for new callouts created from a target job
-  // This is only relevant when a user first navigates the a job, then adds a callout from that context
-  if (view.scene.object === 'object_3') {
-    populateSiteContactAndAddress(view.scene.scene_id)
-  }
+    // Gather required updates to the callout record
+    let names = await getCallOutName(record)
+    let jobDetails = await getJobUpdates(record)
+    let updateData = Object.assign({}, createdBy, names, jobDetails)
 
-  if (selectedJob) {
+    // Update the callout
+    let calloutsObj = new KnackObject(objects.callouts)
+    await calloutsObj.update(record.id, updateData)
 
-    // Populate site and address details if these are blank but there is a job
-    if (selectedJob.value.length > 0 && (siteContact[0].value + street.value + street2.value + city.value + state.value + zip.value).length === 0) {
-      populateSiteContactAndAddress(selectedJob.value)
-    }
+    // Update any connected portal records
+    updateConnectedJobsInPortal(record)
 
-    // Store original value
-    let originalSelection = selectedJob.value
-
-    // Add a listner for changes in job selection
-    $('#' + view.key + '-field_928').on('change', async function() {
-      let newSelection = selectedJob.value
-      let qtySelections = selectedJob.selectedOptions.length
-      if (originalSelection.length === 0 && newSelection.length !== 0 && qtySelections === 1) {
-        populateSiteContactAndAddress(newSelection)
-      }
-      originalSelection = newSelection
-    })
-  }
-
-  async function populateSiteContactAndAddress(jobId) {
-    Knack.showSpinner()
-    // Get the job deatils
-    let job = await getRecordPromise('object_3', jobId)
-    //Populate Site Contact
-    if (job.field_432_raw.length > 0) {
-      siteContact.html(`<option value='${job.field_432_raw[0].id}'>${job.field_432_raw[0].identifier}</option>`).trigger('liszt:updated')
-    }
-    //Populate Address
-    street.value = job.field_12_raw.street
-    street2.value = job.field_12_raw.street2 === undefined ? "" : job.field_12_raw.street2 // Only and issue for stree2, only sometimes... ?
-    city.value = job.field_12_raw.city
-    state.value = job.field_12_raw.state
-    zip.value = job.field_12_raw.zip
-    Knack.hideSpinner()
+  } catch (err) {
+    Sentry.captureException(err)
+  } finally {
+    window.callOutProcessing = false
   }
 }
 
-// ***************************************************************************
-// ******************* WHEN A CALL OUT IS UPDATED ****************************
-// ***************************************************************************
-
-// A list of key fields, with the live field and the 'previous' field
-// The previous value is updated in code whenever there is a change
-// This acts as a flag - any submission where the two fields differ
-// indicates that the change is yet to be processed
-const trackChangeCoreFields = [
-  ['field_924', 'field_1026'], // Scheduled Date
-  ['field_981', 'field_1478'], // Address
-  ['field_955', 'field_1028'], // Status
-  ['field_925', 'field_1492'], // Type
-  ['field_927', 'field_1034'], // Installer
-  ['field_1503', 'field_1506'] // Other attendees
-]
-
-const trackChangeSalesOpsFields = [
-  ['field_985', 'field_1504'], // Salesperson
-  ['field_1474', 'field_1505'] // Ops person
-]
-
-const trackChangeJobFields = [
-  ['field_928', 'field_1493'], // Job
-]
-
-const trackChangeFields = trackChangeCoreFields.concat(trackChangeSalesOpsFields, trackChangeJobFields)
-
-// Change type can be 'create', 'update' or 'delete'
-async function processCallOutChanges(record, changeType) {
+// Process updated created callouts
+async function processUpdatedCallOut(view, callout, action, fields, previous, changes) {
   try {
 
-    // Set the default values
-    let updatedRecord = record
-    let isDataUpdateRequired = false // Don't try to update callout record unless we're sure one exists
-    let isCalendarUpdateRequired = true // Always check if calendar needs updating unless explicity stopped
-    let isCoreDataUpdated = false
-    let isSalesOpsUpdated = false
-    let isAttendeeDataUpdated = false
-    let isJobUpdated = false
-    let isCalendarFlagSet = false
+    let names = await getCallOutName(callout, changes)
+    let jobDetails = await getJobUpdates(callout, changes)
+    let updateData = Object.assign({}, names, jobDetails)
 
-    // Variables that tell us what we need to do this this callout
-    let isConfirmed = record.field_955 === 'No' // If the callout is not 'Tentative' then it is isConfirmed
-    let isInCalendar = record.field_1082.length > 1 // If the callout has a matching calendar item the id will be in this field
-    let isCancelled = record.field_1005 === 'Cancelled'
+    // Add 'Calendar update required' flag if required
+    if (isGoogleCalendarActionRequired(callout, previous, changes)) updateData.field_1496 = 'Yes'
 
-    if (changeType !== 'delete') {
-      // Determine what changes have been made to the record
-      isCoreDataUpdated = isObjectUpdated(record, trackChangeCoreFields)
-      isSalesOpsUpdated = isObjectUpdated(record, trackChangeSalesOpsFields)
-      isAttendeeDataUpdated = record.field_1476.indexOf('Yes') > -1 ? isObjectUpdated(record, trackChangeSalesOpsFields) : false // Sales & Ops may not impact the calendar event
-      isJobUpdated = isObjectUpdated(record, trackChangeJobFields)
-      isCalendarFlagSet = record.field_1496 === 'Yes' // This will only be yes if an error has stopped the calendar update
-
-      isDataUpdateRequired = isCoreDataUpdated || isSalesOpsUpdated || isJobUpdated
-      isCalendarUpdateRequired = isCoreDataUpdated || isAttendeeDataUpdated || isJobUpdated || isCalendarFlagSet || isCancelled // always false if isDataUpdateRequired is false
+    // If there are changes, update the callout
+    if (!$.isEmptyObject(updateData)) {
+      let calloutsObj = new KnackObject(objects.callouts)
+      callout = await calloutsObj.update(callout.id, updateData)
     }
 
-    // Update the callout data if required
-    if (!isDataUpdateRequired) {
-      console.log('No update required')
-    } else {
+    handleCalendarUpdates(callout, previous, changes)
+    handleInstallerReports(callout, changes)
 
-      // Gather all data that needs to be updated as a result of the changes
-      let resetData = copyFieldsToNewObject(record, trackChangeFields)
-      let jobData = isJobUpdated ? await getJobDataForCallOut(record) : {}
-      let nameData = await getCallOutName(record)
-      let pendingCalendarUpdateFlag = isCalendarUpdateRequired ? {
-        'field_1496': 'Yes'
-      } : {} // Flag for update required, only reset on success
-
-      // Merge the data
-      let updateData = {
-        ...resetData,
-        ...jobData,
-        ...nameData,
-        ...pendingCalendarUpdateFlag
-      }
-
-      // Update the callout record
-      updatedRecord = await updateRecordPromise('object_78', record.id, updateData)
-      console.log('Record updated')
-    }
-
-    // Update calendar events if required
-    if (!isCalendarUpdateRequired) {
-      console.log('No calendar invites update required')
-    } else {
-
-      // Exit if there is an update in progress
-      if (record.field_1101 === 'Yes') {
-        console.log('Callendar updates cancelled because an update is arleady in progress')
-        return
-      }
-
-      // Handle installers who are allowed to see tentative bookings
-      if (!isConfirmed) {
-        let permittedInstallers = await getInstallersWhoSeeTentativeBookings(updatedRecord)
-        if (permittedInstallers.length > 0) {
-          // We're sending this event anyway, but only to the installer permitted to see it
-          updatedRecord.field_927_raw = permittedInstallers
-          updatedRecord.field_1503 = '',
-            updatedRecord.field_1081 = '',
-            updatedRecord.field_1475 = ''
-
-          isConfirmed = true
-        }
-      }
-
-      let isNewEventRequired = isConfirmed && !isInCalendar && !isCancelled
-      let isEventUpdateRequired = isConfirmed && isInCalendar && !isCancelled
-      let isEventCancellationRequired = isInCalendar && (!isConfirmed || isCancelled)
-
-      if (isNewEventRequired) processGoogleEvent('new', updatedRecord)
-      if (isEventUpdateRequired) processGoogleEvent('update', updatedRecord)
-      if (isEventCancellationRequired) processGoogleEvent('delete', updatedRecord)
-
-    }
-    return
   } catch (err) {
-    logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, false)
+    throw new Error(err)
+    Sentry.captureException(err)
+  } finally {
+
   }
+}
+// End Handlers
+
+// -------------------------------------------------------
+// Start Calendar Management Functions
+
+// Creates, updates or deletes synced calendar event if required
+async function handleCalendarUpdates(callout, previous, changes) {
+
+  if (!isGoogleCalendarActionRequired(callout, previous, changes)) return // Exit if we somehow got here when a update is not required
+  await applyCalendarUpdateFlag(callout) // Add flag to stop race conditions
+
+  // Get data that describes the event in a human readable way
+  let eventData = getCalendarEventData(callout)
+
+  if (isEventDeletionRequired(callout)) return triggerZap('xp4tzz', eventData)
+
+  // If creating or updating, will need attendees
+  eventData.attendees = await getAttendees(callout)
+
+  if (isEventCreationRequired(callout)) return triggerZap('xpuj8p', eventData)
+  if (isEventUpdateRequired(callout, previous, changes)) return triggerZap('xnc85h', eventData)
+
+}
+
+// Applies a calendar flag to a Knack record to prevent race conditions
+async function applyCalendarUpdateFlag(callout){
+  let calloutsObj = new KnackObject(objects.callouts)
+  let updateData = {}
+  updateData.field_1101 = 'Yes' // Add 'Calendar Update In Progress Flag' to avoid race conditions
+  await calloutsObj.update(callout.id, updateData)
+}
+
+// End Calendar Management Functions
+
+// ----------------------------------------------------------
+// Start Helper Functions
+
+// Create the display names for the call out
+// Returns a partial callout object with all the necessary fields populated
+async function getCallOutName(callOut, changes) {
+
+  let nameUpdateField = [
+    'field_1485', // Callout Type
+    'field_1447', // 'Other' Type description
+    'field_1633', // Calendar Event Type
+    'field_928', // Jobs
+    'field_1482', // Development
+    'field_981', // Addresss
+    'field_927', // Installers
+  ]
+
+  // Only continue if there have been report updates
+  if (changes) {
+    if (nameUpdateField.filter(field => changes.includes(field)).length === 0) return {}
+  }
+
+  let type = callOut.field_1485
+  let typeIcon = getCalloutTypeIcon(callOut)
+  let multiInstallerIndicator = await getMultiInstallerIndicator(callOut)
+  let confirmationIcon = callOut.field_1633.indexOf('Confirmed')>-1 ? '' : callOut.field_1633.substring(0, 1)
+
+  let jobsCount = callOut.field_928.length > 0 ? callOut.field_928_raw.length : 0
+  let jobsCountDisplay = jobsCount > 1 ? '(+' + (jobsCount - 1) + ' others)' : ''
+  let firstJob = jobsCount > 0 ? callOut.field_928_raw['0'].identifier : ''
+  let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
+  let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
+
+  let development = callOut.field_1482.length > 0 ? ' | ' + callOut.field_1482_raw['0'].identifier : ''
+  let nameToDisplay = jobsCount > 0 ? jobDisplay : development
+
+  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street + '' + callOut.field_981_raw.street2 : ''
+  let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
+  let address = street + ' ' + city
+  let addressDisplay = address.length < 2 ? '' : '| ' + address
+
+  // Build Display Names
+  let name = {}
+  name.field_1488 = `${confirmationIcon}${typeIcon}${type}${nameToDisplay}`.trim() // Form display name
+  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}`.trim() // Calendar display name
+
+  return name
+
+}
+
+function getCalloutTypeIcon(callout) {
+
+  let typeOption = callout.field_925
+
+  const typeIcons = [
+    ['Unavailable/Leave', '🏄'],
+    ['Install', '🔨'],
+    ['Service & Install', '👷🔨'],
+    ['Measure & Install', '📏🔨'],
+    ['Measure', '📏'],
+    ['Service Call', '👷'],
+    ['Service', '👷'],
+    ['Drop Off', '🚚'],
+    ['Pick Up', '🚚'],
+    ['Load', '💪'],
+    ['Christmas', '🎄'],
+    ['Drinks', '🍺'],
+    ['Party', '🎉'],
+    ['Take Down', '👇']
+  ]
+
+  // Get type icon
+  let icon = typeIcons.reduce((icon, iconPair) => {
+    icon += iconPair[0] === typeOption ? iconPair[1] : ''
+    return icon
+  }, '')
+
+  const otherSearch = ['Take Down', 'Load', 'Party', 'Christmas', 'Drinks', 'Service', 'Measure', 'Install']
+
+  if (typeOption === 'Other') {
+    otherSearch.forEach(option => {
+      if (callout.field_1477.toLowerCase().indexOf(option.toLowerCase()) > -1) {
+        icon += typeIcons.filter(iconPair => iconPair[0] === option)[0][1]
+      }
+    })
+  }
+
+  return icon
+
+}
+
+// Build indicator of multiple installers if this is required
+async function getMultiInstallerIndicator(callout) {
+  if (!callout.field_927_raw) return ''
+  if (callout.field_927_raw.length < 2) return ''
+  let installerIDs = getConnectionIDs(callout.field_927_raw)
+  let installerFilter = createFilterFromArrayOfIDs(installerIDs)
+  let installers = await searchRecordsPromise('object_71', installerFilter)
+  return installers.reduce(function(colouredHeads, installer) {
+    colouredHeads += '<span style="background-color:' + installer.field_1486 + '">👤</span>'
+    return colouredHeads
+  }, '')
 }
 
 // Get all relevant data from job to update callout details
-// Returns a partial callout object with all the necessary fields populated
-async function getJobDataForCallOut(callOut) {
+// Returns a partial callout object with all the necgessary fields populated
+async function getJobUpdates(callOut, changes) {
 
-  let trackJobChangeFields = [
-    ['field_928', 'field_1493'] // Live jobs field, previous jobs field
-  ]
+  // If changes supplied, return early if no changes to job
+  if (changes) {
+    if (!isJobUpdated(changes)) return {}
+  }
+
+  // Return early if job is blank
+  if (callOut.field_928.length === 0) return {}
 
   let fieldsToCopy = [
     ['field_1276', 'field_985'], // Salesperson
@@ -377,223 +237,223 @@ async function getJobDataForCallOut(callOut) {
     ['field_59', 'field_1495'], // Busines Unit
   ]
 
-  // let addressFieldsToCopy = [
-  //   ['field_12', 'field_981'], // Address
-  //   ['field_12', 'field_1478'], // Previous address (to remove has changed flag)
-  // ]
-  //
-  // let siteContactFieldsToCopy = [
-  //   ['field_432', 'field_1025'] // Site contact
-  // ]
-
-  // Return early if the job is not updated
-  if (!isObjectUpdated(callOut, trackJobChangeFields)) {
-    return {}
-  }
-
   // Get the job details
-  let job = await getRecordPromise('object_3', callOut.field_928_raw[0].id)
-
-  // // Add site contact to fields to copy if required
-  // if (callOut.field_1024 === 'Yes') {
-  //   fieldsToCopy = fieldsToCopy.concat(siteContactFieldsToCopy)
-  // }
-  // // Add address to fields to copy (and to previous address to remove flag) if required
-  // if (callOut.field_982 === 'Yes') {
-  //   fieldsToCopy = fieldsToCopy.concat(addressFieldsToCopy)
-  // }
+  let job = await getRecordPromise(objects.jobs, callOut.field_928_raw[0].id)
 
   // Preprocess the job data
   job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
-  if (job.field_12.length === 0) job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
+  if (job.field_12.length === 0) {
+    job.field_12_raw = {}
+    job.field_12_raw.street = 'TBA' // address is required field, prevents errors if the job field is blank
+  }
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
 
-// Create the display names for the call out
-// Returns a partial callout object with all the necessary fields populated
-async function getCallOutName(callOut) {
-
-  let name = {}
-
-  const tentativeIcon = '❓'
-  const completeIcon = '✔️'
-  const scheduledIcon = '📆'
-  const typeIcons = [
-    ['Unavailable/Leave', '🏄'],
-    ['Install', '🔨'],
-    ['Service & Install', '👷🔨'],
-    ['Measure & Install', '📏🔨'],
-    ['Measure', '📏'],
-    ['Service Call', '👷'],
-    ['Drop Off', '🚚'],
-    ['Pick Up', '🚚'],
-  ]
-
-  // Collect Name Variables
-  let confirmationIcon = callOut.field_955 === 'No' ? '' : '[' + tentativeIcon + ']' // Show confirmed / tentative status
-  let type = callOut.field_925 === 'Other' ? callOut.field_1477 : callOut.field_925 // The selected callout type - install, measure etc, unless type is 'other'
-  let jobsCount = callOut.field_928.length > 0 ? callOut.field_928_raw.length : 0
-  let jobsCountDisplay = jobsCount > 1 ? '(+' + (jobsCount - 1) + ' others)' : ''
-  let firstJob = jobsCount > 0 ? callOut.field_928_raw['0'].identifier : ''
-  let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
-  let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
-  let completionIcon = callOut.field_1005 === 'Complete' ? completeIcon : scheduledIcon
-  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street : ''
-  let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
-  let address = street + ' ' + city
-  let addressDisplay = address.length < 2 ? '' : '| ' + address
-  let installers = getConnectionIdentifiers(callOut.field_927_raw).join(', ')
-  let development = callOut.field_1482.length > 0 ? ' | ' + callOut.field_1482_raw['0'].identifier : ''
-  let nameToDisplay = jobsCount > 0 ? jobDisplay : development
-  let typeIcon = ''
-  let multiInstallerIndicator = ''
-
-  // Get type icon
-  typeIcon = typeIcons.reduce((icon, iconPair) => {
-    icon += iconPair[0] === type ? iconPair[1] : ''
-    return icon
-  }, '')
-
-  // Build indicator of multiple installers if this is required
-  if (callOut.field_927_raw !== undefined && callOut.field_927_raw.length > 1) {
-    let installerIDs = getConnectionIDs(callOut.field_927_raw)
-    let installerFilter = createFilterFromArrayOfIDs(installerIDs)
-    let installers = await searchRecordsPromise('object_71', installerFilter)
-    multiInstallerIndicator = installers.reduce(function(colouredHeads, installer) {
-      colouredHeads += '<span style="background-color:' + installer.field_1486 + '">👤</span>'
-      return colouredHeads
-    }, '')
-  }
-
-  // Build Display Names
-  name.field_1488 = `${confirmationIcon}${typeIcon}${type}${nameToDisplay}`.trim() // Form display name
-  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}`.trim() // Calendar display name
-  name.field_1490 = `${confirmationIcon}${completionIcon} | ${typeIcon}${type} (${installers})` // Scheduled status and installers display
-
-  return name
-}
-
 // Gather key callout data with human readable names
-function getPrettyCallOut(callOut) {
+function getCalendarEventData(callout) {
   return {
-    'id': callOut.id,
-    'fromTime': callOut.field_924_raw.timestamp,
-    'toTime': callOut.field_924_raw.to.timestamp,
-    'jobs': callOut.field_928.length > 0 ? getConnectionIdentifiers(callOut.field_928_raw).join(', ') : undefined,
-    'jobID': callOut.field_928.length > 0 ? callOut.field_928_raw['0'].id : undefined,
-    'address': callOut.field_981.replace(/<\/?[^>]+(>|$)/g, ' '), // remove </br> from address string
-    'type': callOut.field_925,
-    'salesName': callOut.field_985.length > 0 ? callOut.field_985_raw['0'].identifier : undefined,
-    'salesEmail': callOut.field_1081,
-    'opsName': callOut.field_1474.length > 0 ? callOut.field_1474_raw['0'].identifier : undefined,
-    'opsEmail': callOut.field_1475,
-    'status': callOut.field_1005,
-    'calendarID': callOut.field_1082,
-    'installers': callOut.field_927.length > 0 ? getConnectionIdentifiers(callOut.field_927_raw).join(', ') : undefined,
-    'attendees': callOut.field_1476.indexOf('Yes') > -1 ? [callOut.field_1503, callOut.field_1081, callOut.field_1475].join() : [callOut.field_1503],
-    'productToInstall': callOut.field_954.length > 0 ? getConnectionIdentifiers(callOut.field_954_raw).join(', ') : undefined,
-    'instructions': callOut.field_929,
-    'displayName': callOut.field_1488
+    'id': callout.id,
+    'fromTime': callout.field_924_raw.timestamp,
+    'toTime': callout.field_924_raw.to.timestamp,
+    'jobs': callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join(', ') : undefined,
+    'address': callout.field_981.replace(/<\/?[^>]+(>|$)/g, ' '), // remove </br> from address string
+    'calendarID': callout.field_1082,
+    'installers': callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join(', ') : undefined,
+    'productToInstall': callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join(', ') : undefined,
+    'instructions': callout.field_929,
+    'displayName': callout.field_1488
   }
 }
 
-// Returns a string of emails for the installers associated with a call out
-async function getInstallersWhoSeeTentativeBookings(callout) {
+// Returns a comma separated string of email addresses
+async function getAttendees(callout){
+  let attendees = []
+  attendees.push(await getInstallerEmails(callout))
+  attendees.push(await getSalesEmail(callout))
+  attendees.push(await getOpsEmail(callout))
+  attendees.push(await getOtherAttendeeEmails(callout))
+  attendees = attendees.join(',').trim()
+  if(attendees.replace(/,/g, ',').length===0) throw new Error("Can't create event without any attendees")
+  return attendees
+}
 
-  if (callout.field_927.length === 0) {
-    throw new Error("Can't get installer emails without installer IDs")
-  }
-
+// Returns a comma separated string of email addresses
+async function getInstallerEmails(callout){
+  let installersObj = new KnackObject(objects.installers)
   let installerIDs = getConnectionIDs(callout.field_927_raw)
   let installerFilter = createFilterFromArrayOfIDs(installerIDs)
-  let installers = await searchRecordsPromise('object_71', installerFilter)
-
-  return installers.reduce((ids, installer) => {
-    if (installer.field_1565 === 'Yes') {
-      ids.push({
-        'id': installer.id,
-        'identifier': installer.field_869
-      })
-    }
-    return ids
-  }, [])
+  let installers = await installersObj.find(installerFilter)
+  return installers.map(installer => installer.field_870_raw.email).join(',')
 }
 
-// Returns a string of emails for the installers associated with a call out
-async function getInstallerEmailsString(callout) {
+// Checks for inclusion and salesperson opt out
+// Returns an email address
+async function getSalesEmail(callout){
+  if (callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
+  let salespeopleObj = new KnackObject(objects.salespeople)
+  let salesperson = salespeopleObj.get(callout.field_985_raw[0].id)
+  if (salesperson.field_1596 === 'Yes') return '' // they've opted out of event emails
+  if (salesperson.field_957_raw) return salesperson.field_957_raw.email
+  return ''
+}
 
-  if (callout.field_927.length === 0) {
-    throw new Error("Can't get installer emails without installer IDs")
+// Checks for inclusion and opsperson opt out
+// Returns an email address
+async function getOpsEmail(callout){
+  if (callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
+  let opspeopleObj = new KnackObject(objects.opspeople)
+  let opsperson = opspeopleObj.get(callout.field_985_raw[0].id)
+  if (opsperson.field_1597 === 'Yes') return '' // they've opted out of event emails
+  if (opsperson.field_814_raw) return opsperson.field_814_raw.email
+  return ''
+}
+
+// Returns a comma separated string of email addresses
+function getOtherAttendeeEmails(callout){
+  return callout.field_1503.replace(/;/g, ',').replace(/ /g, ',')
+}
+
+// End Helper Functions
+
+// ----------------------------------------------------------
+// Start Boolean Helper Functions
+
+function isGoogleCalendarActionRequired(callout, previous, changes) {
+  if (callout.field_1101 === 'Yes') return false // there's already an update in progress
+  if (isEventCreationRequired(callout) || isEventDeletionRequired(callout) || isEventUpdateRequired(callout, previous, changes)) return true
+  return false
+}
+
+function isEventCreationRequired(callout) {
+  if (callout.field_1082.length > 1) return false // if it's already in the calendar, don't create
+  if (!isEventTypeInviteable(callout)) return false // if not an invitable type, no need to create
+  if (isCalloutStatusInviteable(callout)) {
+    console.log('isEventCreationRequired = true')
+    return true
+  } // given above two checks, if invitable status, create required
+  return false // else return false
+}
+
+function isEventDeletionRequired(callout) {
+  if (callout.field_1082.length === 0) return false // if it's not in the calendar, no need to delete
+  if (!isEventTypeInviteable(callout) || !isCalloutStatusInviteable(callout)) {
+    // if it's not an inviteable type, need to delete it
+    // if it's not an inviteable status, need to delete it
+    console.log('isEventDeletionRequired = true')
+    return true
   }
-
-  let installerIDs = getConnectionIDs(callout.field_927_raw)
-  let installerFilter = createFilterFromArrayOfIDs(installerIDs)
-  let installers = await searchRecordsPromise('object_71', installerFilter) // Why does this return an empty array?
-
-  return installers.reduce((emails, installer) => {
-    emails.push(installer.field_870_raw.email)
-    return emails
-  }, []).join()
-
+  return false // else return false
 }
 
-async function processGoogleEvent(eventAction, callOut) {
+function isEventUpdateRequired(callout, previous, changes) {
+  if (isEventCreationRequired(callout) || isEventDeletionRequired(callout)) return false // don't update if creating or deleting
+  if (callout.field_1082.length === 0) return false // if it's not in the calendar, no need to udpate
+  if (isEventDataUpdated(callout, previous, changes)) {
+    console.log('isEventUpdateRequired = true')
+    return true
+  } // if data the impacts the event is changed, need to update it
+  return false // else return false
+}
 
-  // Target zaps that manage event changes
-  let webhookArray = [{
-      action: 'new',
-      zap: 'xpuj8p',
-      message: 'new event created'
-    },
-    {
-      action: 'update',
-      zap: 'xnc85h',
-      message: 'event updated'
-    },
-    {
-      action: 'delete',
-      zap: 'xp4tzz',
-      message: 'event deleted'
-    }
+function isEventTypeInviteable(callout) {
+  let inviteableTypes = ['✔️ Confirmed', '❔ Tentative - but still send invites']
+  if (inviteableTypes.includes(callout.field_1633)) return true
+  return false
+}
+
+function isCalloutStatusInviteable(callout) {
+  let inviteableStatuses = ['Scheduled', 'Tentative']
+  if (inviteableStatuses.includes(callout.field_1005)) return true
+  return false
+}
+
+function isEventDataUpdated(callout, previous, changes) {
+  if (isJobUpdated(changes)) return true
+  if (isScheduledDateUpdated(changes)) return true
+  if (isAddressUpdated(changes)) return true
+  if (isTypeUpdated(changes)) return true
+  if (isInstallerUpdated(changes)) return true
+  if (isOtherAttendeesUpdated(changes)) return true
+  if (isSalesUpdated(callout, previous, changes)) return true
+  if (isOpsUpdated(callout, previous, changes)) return true
+  return false
+}
+
+function isJobUpdated(changes) {
+  if (changes.includes('field_928')) return true
+  return false
+}
+
+function isScheduledDateUpdated(changes) {
+  if (changes.includes('field_924')) return true
+  return false
+}
+
+function isAddressUpdated(changes) {
+  if (changes.includes('field_981')) return true
+  return false
+}
+
+function isTypeUpdated(changes) {
+  if (changes.includes('field_1485')) return true
+  return false
+}
+
+function isInstallerUpdated(changes) {
+  if (changes.includes('field_927')) return true
+  return false
+}
+
+function isOtherAttendeesUpdated(changes) {
+  if (changes.includes('field_1503')) return true
+  return false
+}
+
+function isSalesUpdated(callout, previous, changes) {
+  if (changes.includes('field_1476')) { // if include sales toggle has changed
+    if (callout.field_985.length > 0 || previous.field_985.length > 0) return true // return true if there is (or was) a sales person
+  }
+  if (changes.includes('field_985')) { // given include toggle hasn't changed, if salesperson is updated
+    if (callout.field_1476.indexOf('Yes') > -1) return true // return true if they are to be included
+  }
+  return false
+}
+
+function isOpsUpdated(callout, previous, changes) {
+  if (changes.includes('field_1476')) { // if include sales toggle has changed
+    if (callout.field_1474.length > 0 || previous.field_1474.length > 0) return true // return true if there is (or was) a sales person
+  }
+  if (changes.includes('field_1474')) { // given include toggle hasn't changed, if salesperson is updated
+    if (callout.field_1476.indexOf('Yes') > -1) return true // return true if they are to be included
+  }
+  return false
+}
+
+function isReportUpdated(changes) {
+
+  let installerReportFields = [
+    'field_1542', // Outcome
+    'field_1547', // What went wrong?
+    'field_1545', // Report details
+    'field_1548', // Photos uploaded?
+    'field_1549', // Docs uploaded?
+    'field_1626', // Consumables supplied?
+    'field_1627', // What was supplied?
+    'field_1616', // Estimated install time
   ]
 
-  // Exit if no installers are invited - is a required field, shouldn't happen
-  if (callOut.field_927.length === 0) {
-    throw new Error("Can't create an event with no installers")
-  }
-
-  try {
-    // Gather the data required for the event change
-    let prettyCallOut = callOut
-    if (eventAction !== 'delete') {
-      prettyCallOut = getPrettyCallOut(callOut)
-      prettyCallOut.attendees += (',' + await getInstallerEmailsString(callOut)) // Add installer emails to the attendee list
-      // Add a record flag to indciate there's an update in progress to prevent race conditions
-      await updateRecordPromise('object_78', callOut.id, {
-        'field_1101': 'Yes'
-      })
-    }
-
-    // Get the target zap
-    let eventChange = webhookArray.find(zap => {
-      return zap.action === eventAction
-    })
-
-    triggerZap(eventChange.zap, prettyCallOut, eventChange.message)
-
-  } catch (err) {
-    // Update is no longer in progress, reset the flag
-    await updateRecordPromise('object_78', callOut.id, {
-      'field_1101': 'No'
-    })
-    console.log('error managing event changes:' + eventAction)
-    logError(processCallOutChanges, arguments, err, Knack.getUserAttributes(), window.location.href, true)
-
-  }
+  // Only continue if there have been report updates
+  if (installerReportFields.filter(field => changes.includes(field)).length>0) return true
+  return false
 }
 
-// Update commercial jobs connected callouts if callout is Install or Measure
+// End Boolean Helper Functions
+
+// ----------------------------------------------------------
+// Start Related Functions
+
+// Update commercial jobs connected to callouts if callout is Install or Measure
 function updateConnectedJobsInPortal(record) {
 
   const portalToTrackerMap = [
@@ -602,7 +462,9 @@ function updateConnectedJobsInPortal(record) {
     ['install_booked', 'Install']
   ]
 
-  let isConnectedToJob = record.field_928_raw.length > 0
+  if (record.field_1635 === 'No') return // record wasn't created by the portal
+
+  let isConnectedToJob = record.field_928.length > 0
   let isConfirmed = record.field_1005 !== 'Tentative'
   let isCommercial = record.field_1495.indexOf('Commercial') > -1
   let isCancelled = record.field_1005 === 'Cancelled'
@@ -624,28 +486,18 @@ function updateConnectedJobsInPortal(record) {
   }
 }
 
-// Add call out - via My Calendar
-// https://lovelight.knack.com/tracker#my-calendar/
-// https://builder.knack.com/lovelight/tracker#pages/scene_947/views/view_1962
-$(document).on('knack-record-create.view_1962', function(event, view, record) {
+async function handleInstallerReports(record, changes) {
 
-  Swal.fire({
-    title: "Updating callout...",
-    text: "Please wait",
-    showConfirmButton: false,
-    onBeforeOpen: () => {
-      Swal.showLoading()
-    },
-    onOpen: async () => {
-      // Regardless of defaults, ensure the booking is tentative
-      record = await updateRecordPromise('object_78', record.id, {
-        'field_955': 'Yes',
-        'field_1005': 'Tentative'
-      })
-      await processCallOutChanges(record);
-      // Redirect to main edit screen
-      window.location.replace('https://lovelight.knack.com/tracker#my-calendar/edit-call-out/' + record.id)
-      Swal.close()
-    }
+  if(!isReportUpdated(changes)) return
+
+  // Record who submitted the report
+  let calloutsObj = new KnackObject(objects.callouts)
+  record = await calloutsObj.update(record.id, {
+    'field_1632': Knack.getUserAttributes().name
   })
-})
+
+  let isFirstReport = previous.field_1546 === 'Pending'
+
+  // Gather data for email.
+
+}

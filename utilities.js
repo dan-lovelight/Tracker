@@ -13,6 +13,9 @@ function pimpTimePicker(fieldId) {
     'maxTime': '8:00pm',
     'showDuration': true
   });
+  // Remove repeat and all day options
+  $('#kn-input-' + fieldId.split('-')[1] + ' > div:nth-child(3)').remove()
+
   // Update the start time of to-time for accurate duration when start time changes
   $('input#' + fieldId + '-time').on('focusout', function() {
     console.log('focusOut from time')
@@ -63,7 +66,7 @@ function isToFromDateFieldType(fieldValue) {
   return fieldValue.toString().match(dateRegex)
 }
 
-function isObjectUpdated(object,arrayOfFieldPairs) {
+function isObjectUpdated(object, arrayOfFieldPairs) {
   return arrayOfFieldPairs.some((fieldPair) => {
     return JSON.stringify(object[fieldPair[0]]) !== JSON.stringify(object[fieldPair[1]])
   })
@@ -72,7 +75,7 @@ function isObjectUpdated(object,arrayOfFieldPairs) {
 // Compares two fields, a 'live' field and a 'previous' value field
 // If live field is not blank, and the previous field is, assumed that just updated
 // fieldPair is array: [liveField, previousField]
-function isFieldJustAdded(object,fieldPairArray){
+function isFieldJustAdded(object, fieldPairArray) {
   return object[fieldPairArray[0]].length > 0 && object[fieldPairArray[1]].length === 0
 }
 
@@ -110,7 +113,7 @@ async function createRecordPromise(object, data) {
     let json = await response.json()
     return json
   } catch (err) {
-  logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
 
@@ -146,7 +149,7 @@ async function updateRecordPromise(object, id, data) {
     let json = await response.json()
     return json
   } catch (err) {
-  logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
 }
 
@@ -174,7 +177,7 @@ async function searchRecordsPromise(object, filter) {
 
 // Builds a filter for Knack to be used for fetching multiple records
 // Filter is for each ID in the array
-function createFilterFromArrayOfIDs (arrRecordIDs) {
+function createFilterFromArrayOfIDs(arrRecordIDs) {
   if (!isItAnArray(arrRecordIDs)) {
     throw new Error('you must pass an array to getKnackRecordsUsingIDs')
   }
@@ -196,7 +199,7 @@ function createFilterFromArrayOfIDs (arrRecordIDs) {
 
 // Function checks if the passed variable is an array
 // Feturns true or false
-function isItAnArray (array) {
+function isItAnArray(array) {
   if (array.length === 0 || !Array.isArray(array)) {
     return false
   } else {
@@ -210,8 +213,10 @@ function hideEmptyTables(scene) {
   //Iterate throught each view in the page
   scene.views.map(function(view) {
     // If the view has row data (ie it's a table) AND that data is 0...
-    if (view.type === 'table' && Knack.models[view.key].data.length === 0) {
-      $('#' + view.key).remove()
+    if (view.type === 'table' && Knack.models[view.key]) {
+      if (Knack.models[view.key].data.length === 0) {
+        $('#' + view.key).remove()
+      }
     }
   })
 }
@@ -237,29 +242,44 @@ var addCheckboxes = function(view) {
 
 //https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors
 // Version 4.0
-const pSBC=(p,c0,c1,l)=>{
-    let r,g,b,P,f,t,h,i=parseInt,m=Math.round,a=typeof(c1)=="string";
-    if(typeof(p)!="number"||p<-1||p>1||typeof(c0)!="string"||(c0[0]!='r'&&c0[0]!='#')||(c1&&!a))return null;
-    if(!this.pSBCr)this.pSBCr=(d)=>{
-        let n=d.length,x={};
-        if(n>9){
-            [r,g,b,a]=d=d.split(","),n=d.length;
-            if(n<3||n>4)return null;
-            x.r=i(r[3]=="a"?r.slice(5):r.slice(4)),x.g=i(g),x.b=i(b),x.a=a?parseFloat(a):-1
-        }else{
-            if(n==8||n==6||n<4)return null;
-            if(n<6)d="#"+d[1]+d[1]+d[2]+d[2]+d[3]+d[3]+(n>4?d[4]+d[4]:"");
-            d=i(d.slice(1),16);
-            if(n==9||n==5)x.r=d>>24&255,x.g=d>>16&255,x.b=d>>8&255,x.a=m((d&255)/0.255)/1000;
-            else x.r=d>>16,x.g=d>>8&255,x.b=d&255,x.a=-1
-        }return x};
-    h=c0.length>9,h=a?c1.length>9?true:c1=="c"?!h:false:h,f=pSBCr(c0),P=p<0,t=c1&&c1!="c"?pSBCr(c1):P?{r:0,g:0,b:0,a:-1}:{r:255,g:255,b:255,a:-1},p=P?p*-1:p,P=1-p;
-    if(!f||!t)return null;
-    if(l)r=m(P*f.r+p*t.r),g=m(P*f.g+p*t.g),b=m(P*f.b+p*t.b);
-    else r=m((P*f.r**2+p*t.r**2)**0.5),g=m((P*f.g**2+p*t.g**2)**0.5),b=m((P*f.b**2+p*t.b**2)**0.5);
-    a=f.a,t=t.a,f=a>=0||t>=0,a=f?a<0?t:t<0?a:a*P+t*p:0;
-    if(h)return"rgb"+(f?"a(":"(")+r+","+g+","+b+(f?","+m(a*1000)/1000:"")+")";
-    else return"#"+(4294967296+r*16777216+g*65536+b*256+(f?m(a*255):0)).toString(16).slice(1,f?undefined:-2)
+const pSBC = (p, c0, c1, l) => {
+  let r, g, b, P, f, t, h, i = parseInt,
+    m = Math.round,
+    a = typeof(c1) == "string";
+  if (typeof(p) != "number" || p < -1 || p > 1 || typeof(c0) != "string" || (c0[0] != 'r' && c0[0] != '#') || (c1 && !a)) return null;
+  if (!this.pSBCr) this.pSBCr = (d) => {
+    let n = d.length,
+      x = {};
+    if (n > 9) {
+      [r, g, b, a] = d = d.split(","), n = d.length;
+      if (n < 3 || n > 4) return null;
+      x.r = i(r[3] == "a" ? r.slice(5) : r.slice(4)), x.g = i(g), x.b = i(b), x.a = a ? parseFloat(a) : -1
+    } else {
+      if (n == 8 || n == 6 || n < 4) return null;
+      if (n < 6) d = "#" + d[1] + d[1] + d[2] + d[2] + d[3] + d[3] + (n > 4 ? d[4] + d[4] : "");
+      d = i(d.slice(1), 16);
+      if (n == 9 || n == 5) x.r = d >> 24 & 255, x.g = d >> 16 & 255, x.b = d >> 8 & 255, x.a = m((d & 255) / 0.255) / 1000;
+      else x.r = d >> 16, x.g = d >> 8 & 255, x.b = d & 255, x.a = -1
+    }
+    return x
+  };
+  h = c0.length > 9, h = a ? c1.length > 9 ? true : c1 == "c" ? !h : false : h, f = pSBCr(c0), P = p < 0, t = c1 && c1 != "c" ? pSBCr(c1) : P ? {
+    r: 0,
+    g: 0,
+    b: 0,
+    a: -1
+  } : {
+    r: 255,
+    g: 255,
+    b: 255,
+    a: -1
+  }, p = P ? p * -1 : p, P = 1 - p;
+  if (!f || !t) return null;
+  if (l) r = m(P * f.r + p * t.r), g = m(P * f.g + p * t.g), b = m(P * f.b + p * t.b);
+  else r = m((P * f.r ** 2 + p * t.r ** 2) ** 0.5), g = m((P * f.g ** 2 + p * t.g ** 2) ** 0.5), b = m((P * f.b ** 2 + p * t.b ** 2) ** 0.5);
+  a = f.a, t = t.a, f = a >= 0 || t >= 0, a = f ? a < 0 ? t : t < 0 ? a : a * P + t * p : 0;
+  if (h) return "rgb" + (f ? "a(" : "(") + r + "," + g + "," + b + (f ? "," + m(a * 1000) / 1000 : "") + ")";
+  else return "#" + (4294967296 + r * 16777216 + g * 65536 + b * 256 + (f ? m(a * 255) : 0)).toString(16).slice(1, f ? undefined : -2)
 }
 
 // -------------------- ERROR HANDLING ---------------------
@@ -267,7 +287,7 @@ const pSBC=(p,c0,c1,l)=>{
 // Takes an error object, and a boolean that indicates if the error should be thrown again
 // logError(*callingFunction*, arguments, err, Knack.getUserAttributes(), window.location.href, true)
 async function logError(callerFunction, args, err, user, url, throwAgain) {
-
+  Sentry.captureException(err)
   let callerArgs = Array.prototype.slice.call(args) // Convert caller's arguements to an array
   let callerArgsNames = getParamNames(callerFunction) // Extract arguement variable names from function code
   let callerName = err.stack.split('\n')[1].trim().split(' ')[1].trim() // Get the name of the calling function from the Error stack
@@ -278,11 +298,11 @@ async function logError(callerFunction, args, err, user, url, throwAgain) {
   logMessage += `> *user*: ${user.name} (${user.email})\n`
   logMessage += `> *url*: ${url} \n`
   for (var i = 0; i < callerArgs.length; ++i) {
-    if (typeof callerArgsNames[i][0] === '{' && callerArgsNames[i] !== null){ // Is the variable an object?
+    if (typeof callerArgsNames[i][0] === '{' && callerArgsNames[i] !== null) { // Is the variable an object?
       // Put message in code bock if it's an object
       logMessage += `*${callerArgsNames[i]}*: ` + '```' + JSON.stringify(callerArgs[i]) + '```' + '\n'
     } else {
-      logMessage += `> *${callerArgsNames[i]}*: ` + JSON.stringify(callerArgs[i]).slice(0,500) + '\n'
+      logMessage += `> *${callerArgsNames[i]}*: ` + JSON.stringify(callerArgs[i]).slice(0, 500) + '\n'
     }
   }
   logMessage += '```' + err.stack + '```'
@@ -325,11 +345,97 @@ async function triggerZap(endPoint, dataObject, logEntry) {
     method: 'POST',
     body: JSON.stringify(dataObject)
   }
-
   try {
     await fetch(url, init)
-    await updateLog(':heavy_check_mark: ' + logEntry)
   } catch (err) {
     logError(triggerZap, arguments, err, Knack.getUserAttributes(), window.location.href, true)
   }
+}
+
+// Adds a text box under a contact object to expose email and phone
+// Allows editing in conjunction with popover function
+async function displayContactDetails(contactId, field) {
+  if(!contactId) return
+  let $siteContactDetails = $('#site-contact-details')
+  if ($siteContactDetails.length === 0) {
+    $('#connection-picker-chosen-'+ field).append('<div id="site-contact-details">Loading...</div>')
+    $siteContactDetails = $('#site-contact-details')
+  } else if ($siteContactDetails[0].innerText.indexOf('Loading') > -1) {
+    return
+  } else {
+    $siteContactDetails[0].innerText = 'Loading...'
+  }
+  let contactObj = new KnackObject(objects.contacts)
+  let siteContact = await contactObj.get(contactId)
+  displayDetails()
+
+  function displayDetails() {
+    let phone = siteContact.field_231_raw ? siteContact.field_231_raw : ''
+    let email = siteContact.field_76_raw ? siteContact.field_76_raw.email : ''
+    let html = `<strong>mobile:</strong> ${phone} <a id='edit-mobile'>edit</a><br><strong>email:</strong> ${email} <a id='edit-email'>edit</a>`
+    $('#site-contact-details').html(html)
+
+    $('#edit-mobile').click(function() {
+      getInlineUserInput('Phone', phone, '#edit-mobile', async function(newNumber) {
+        try {
+          $('#site-contact-details').html('Loading...')
+          siteContact = await contactObj.update(siteContact.id, {
+            'field_231': newNumber
+          })
+          displayDetails()
+        } catch (err) {
+          Sentry.captureException(err)
+        }
+      })
+    })
+
+    $('#edit-email').click(function() {
+      getInlineUserInput('Email', email, '#edit-email', async function(newEmail) {
+        try {
+          $('#site-contact-details').html('Loading...')
+          siteContact = await contactObj.update(siteContact.id, {
+            'field_76': newEmail
+          })
+          displayDetails()
+        } catch (err) {
+          Sentry.captureException(err)
+        }
+      })
+    })
+  }
+}
+
+// Creates a popover to collect user input
+// Places the popover relative to the passed in selector
+// Callback takes a single parameter - the value of the user input
+function getInlineUserInput(title, defaultValue, selector, callback) {
+  // Don't duplicate the popover
+  if ($('#popover-input').length > 0) return
+  // Insert the popover into the page
+  let inputModalHtml = `<div class="drop kn-popover drop-target-attached-top" id="popover-input"> <div class="drop-content"> <h1 class="kn-title">${title}<span class="close-popover fa fa-times"></span></h1> <div> <div class="renderer-form kn-form"> <form> <ul class="kn-form-group columns kn-form-group-1"> <li class="kn-form-col column is-constrained"> <div class="kn-input kn-input-short_text control" id="kn-input-field_1477" data-input-id="field_1477"> <div class="control"> <input class="input"> </div> </div> </li> </ul> </form> </div> <div class="submit"><a class="kn-button is-primary save prevent-close trigger-load">Submit</a></div> </div> </div> </div>`
+  $('body').append(inputModalHtml)
+  // Format and position popover
+  let $input = $('#popover-input')
+  $input.find('.input')[0].value = defaultValue
+  $input.css({
+    'position': 'fixed'
+  })
+  let offset = $(selector).offset()
+  let inputHeight = $input.outerHeight()
+  let inputWidth = $input.width()
+  offset.left = (offset.left - inputWidth / 2)
+  offset.top = (offset.top - inputHeight)
+  $input.offset(offset)
+
+  // add close listener
+  $input.find('span').click(function() {
+    $input.remove()
+  })
+
+  // add submit listener
+  $input.find('a').click(function() {
+    callback($input.find('input')[0].value)
+    $input.remove()
+    // need to consider error handling here
+  })
 }
