@@ -154,50 +154,66 @@ $(document).on('knack-scene-render.scene_203', function(event, scene) {
 })
 
 
-$(document).on('knack-scene-render.scene_947', function(event, scene) {
+$(document).on('knack-view-render.view_1962', function(event, scene) {
 
   waitForAddedNode({
-    id: '',
     class: 'fc-event',
     parent: document.querySelector('#view_1962'),
     recursive: true,
-    done: function(el) {
-        console.log(el);
-        console.log(el.length)
-        for(let i =0; i<el.length; i++) {
-          el[i].textContent = "holy shit batman"
-          console.log(el[i])
-        }
-    }
-});
-
-  function waitForAddedNode(params) {
-      new MutationObserver(function(mutations) {
-          var el = document.getElementsByClassName(params.class);
-          if (el) {
-              this.disconnect();
-              params.done(el);
-          }
-      }).observe(params.parent || document, {
-          subtree: !!params.recursive,
-          childList: true,
-      });
-  }
-
-  var observer = new MutationObserver(function() {
-    let event = document.getElementsByClassName('fc-event')
-    if (event.length>0) {
-      console.log('events have appeared.');
-      for(let i =0; i<event.length; i++) {
-        //event[i].textContent = "holy shit batman"
-      }
-    }
-  });
-  observer.observe(document, {
-    childList: true,
-    subtree: true,
-    attributes: false,
-    characterData: false,
-  });
+    done: processCalendarEvents
+  })
 
 })
+
+function processCalendarEvents(elements) {
+  colourMultiPersonEvents(elements)
+  addPopOvers(elements)
+}
+
+function colourMultiPersonEvents(elements){
+  for (let event of elements) {
+    if (event.innerText.includes('👤👤')) {
+      let eventDetails = event.innerHTML
+      let searchString = '<span style="background-color:'
+      let backgroundColours = []
+      while (eventDetails.indexOf(searchString) > 0) {
+        let position = eventDetails.indexOf(searchString) + searchString.length
+        eventDetails = eventDetails.substring(position)
+        backgroundColours.push(eventDetails.substring(0, eventDetails.indexOf('"')))
+      }
+      let background = 'linear-gradient(145deg'
+      let numberOfColours = backgroundColours.length
+      let percentColoured = 0
+      backgroundColours.forEach(colour =>{
+        background += `,${colour} ${percentColoured}% ${percentColoured + 100/numberOfColours}%`
+        percentColoured = percentColoured + 100/numberOfColours
+      })
+      background += ')'
+      event.children[0].style.background = background
+      event.children[0].children[0].style.background = background
+      event.innerHTML = event.innerHTML.replace(/👤/g, '')
+    }
+  }
+}
+
+function addPopOvers(elements){
+  for (let event of elements){
+    let tooltip = new Tooltip(event, {
+    placement: 'right',
+    title: "Test"
+})
+  }
+}
+
+function waitForAddedNode(params) {
+  new MutationObserver(function(mutations) {
+    var el = document.getElementsByClassName(params.class);
+    if (el) {
+      //this.disconnect();
+      params.done(el);
+    }
+  }).observe(params.parent || document, {
+    subtree: !!params.recursive,
+    childList: true,
+  });
+}
