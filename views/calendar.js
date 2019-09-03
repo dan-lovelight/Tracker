@@ -153,7 +153,7 @@ $(document).on('knack-scene-render.scene_203', function(event, scene) {
   hideEmptyTables(scene)
 })
 
-
+// Calendar appearance manipulation
 $(document).on('knack-view-render.view_1962', function(event, scene) {
 
   waitForAddedNode({
@@ -167,7 +167,8 @@ $(document).on('knack-view-render.view_1962', function(event, scene) {
 
 function processCalendarEvents(elements) {
   colourMultiPersonEvents(elements)
-  addPopOvers(elements)
+  colourTenativeEvents(elements)
+  //addPopOvers(elements)
 }
 
 function colourMultiPersonEvents(elements){
@@ -196,10 +197,24 @@ function colourMultiPersonEvents(elements){
   }
 }
 
+function colourTenativeEvents(elements){
+  for (let event of elements) {
+    let tenativeColour = 'FF0000'
+    if (event.innerText.includes('❓')) {
+      event.style.borderColor = tenativeColour
+      event.style.backgroundColor = tenativeColour
+      event.children[0].style.borderColor = tenativeColour
+      event.children[0].children[0].style.borderColor = tenativeColour
+      event.children[0].children[0].style.backgroundColor = tenativeColour
+    }
+  }
+}
+
 function addPopOvers(elements){
   let $events = $('.fc-event').not('.has-tooltip')
   $events.each((index, element)=>{
     $(element).addClass("has-tooltip");
+    console.log($._data( $(element)[0].childNodes[0].childNodes[2], "events" ))
     let tooltip = new Tooltip(element, {
         placement: 'right',
         title: "Test"
