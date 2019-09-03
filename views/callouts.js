@@ -101,7 +101,9 @@ function addJobDetailsToCallOut(view) {
   if (view.scene.object === 'object_3') {
     populateSiteContactAndAddress(view.scene.scene_id)
   } else {
-    if ($siteContact[0].length > 0) displayContactDetails($siteContact[0].value, 'field_1025')
+    if ($siteContact[0].length) {
+      if ($siteContact[0].length > 0) displayContactDetails($siteContact[0].value, 'field_1025')
+    }
   }
 
   // Add a listner for changes in site contact selection
@@ -169,7 +171,7 @@ $(document).on('knack-view-render.view_2314 knack-view-render.view_2316', functi
   // Add a listner for changes in invoicing time
   let $invoiceTime = $('#' + view.key + '-field_1625')
   $invoiceTime.on('change', async function() {
-    if($invoiceTime[0].value.indexOf('Before')>-1){
+    if ($invoiceTime[0].value.indexOf('Before') > -1) {
       $('#' + view.key + ' > form > div > button')[0].innerText = 'Submit >> Create Invoice'
     } else {
       $('#' + view.key + ' > form > div > button')[0].innerText = 'Submit'
@@ -180,7 +182,7 @@ $(document).on('knack-view-render.view_2314 knack-view-render.view_2316', functi
 
 // Submit service call request
 $(document).on('knack-form-submit.view_2314 knack-form-submit.view_2316', async function(event, view, record) {
-  if (record.field_1625.indexOf('Before')>-1) {
+  if (record.field_1625.indexOf('Before') > -1) {
     Knack.showSpinner()
     try {
       let invoice = await createCallOutInvoice(record)
@@ -195,20 +197,20 @@ $(document).on('knack-form-submit.view_2314 knack-form-submit.view_2316', async 
 
 // Finalise invoicing for completed callout
 $(document).on('knack-form-submit.view_2305', async function(event, view, record) {
-    Knack.showSpinner()
-    try {
-      let invoice = await createCallOutInvoice(record)
-      window.location.replace(`${event.currentTarget.URL.split('?')[0]}invoice-call-out/${invoice.id}`)
-    } catch (err) {
-      Sentry.captureException(err)
-    } finally {
-      Knack.hideSpinner()
-    }
+  Knack.showSpinner()
+  try {
+    let invoice = await createCallOutInvoice(record)
+    window.location.replace(`${event.currentTarget.URL.split('?')[0]}invoice-call-out/${invoice.id}`)
+  } catch (err) {
+    Sentry.captureException(err)
+  } finally {
+    Knack.hideSpinner()
+  }
 });
 
 // Expose invoicing contact details on invoice form
 $(document).on('knack-view-render.view_2297', async function(event, view, data) {
-  displayContactDetails(data.field_1396_raw[0].id,'field_1396')
+  displayContactDetails(data.field_1396_raw[0].id, 'field_1396')
 })
 
 // Raise invoice in Xero for a callout
