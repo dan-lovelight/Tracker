@@ -70,7 +70,7 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
     }
 
     handleCalendarUpdates(callout, previous, changes)
-    handleInstallerReports(callout, changes)
+    handleInstallerReports(callout, previous, changes)
 
   } catch (err) {
     throw new Error(err)
@@ -290,6 +290,7 @@ async function getInstallerEmails(callout){
 // Checks for inclusion and salesperson opt out
 // Returns an email address
 async function getSalesEmail(callout){
+  if(!callout.field_985_raw) return // there is no salesperson on the job
   if (callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
   let salespeopleObj = new KnackObject(objects.salespeople)
   let salesperson = salespeopleObj.get(callout.field_985_raw[0].id)
@@ -486,7 +487,7 @@ function updateConnectedJobsInPortal(record) {
   }
 }
 
-async function handleInstallerReports(record, changes) {
+async function handleInstallerReports(record, previous, changes) {
 
   if(!isReportUpdated(changes)) return
 
