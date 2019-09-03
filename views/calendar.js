@@ -197,9 +197,9 @@ function colourMultiPersonEvents(elements){
 }
 
 function addPopOvers(elements){
-  let $events = $('.fc-event').not('.hasToolTip')
+  let $events = $('.fc-event').not('.has-tooltip')
   $events.each((index, element)=>{
-    element.setAttribute("class", "hasToolTip");
+    $(element).addClass("has-tooltip");
     let tooltip = new Tooltip(element, {
         placement: 'right',
         title: "Test"
