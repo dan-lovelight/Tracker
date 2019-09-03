@@ -20,12 +20,7 @@ function getInstallerDetailsFromListView(view) {
 // Instead users can manage this themselves
 function getInstallerColourFiltersFromListView(view) {
 
-  let eventColours = [{
-    field: "field_1005",
-    operator: "is",
-    value: "Tentative",
-    color: "#ff0000"
-  }]
+  let eventColours = []
 
   $('#' + view + ' .kn-list-item-container').each((index, tableRow) => {
     let eventColour = {}
@@ -171,7 +166,7 @@ function processCalendarEvents(elements) {
   //addPopOvers(elements)
 }
 
-function colourMultiPersonEvents(elements){
+function colourMultiPersonEvents(elements) {
   for (let event of elements) {
     if (event.innerText.includes('👤👤')) {
       let eventDetails = event.innerHTML
@@ -185,9 +180,9 @@ function colourMultiPersonEvents(elements){
       let background = 'linear-gradient(145deg'
       let numberOfColours = backgroundColours.length
       let percentColoured = 0
-      backgroundColours.forEach(colour =>{
+      backgroundColours.forEach(colour => {
         background += `,${colour} ${percentColoured}% ${percentColoured + 100/numberOfColours}%`
-        percentColoured = percentColoured + 100/numberOfColours
+        percentColoured = percentColoured + 100 / numberOfColours
       })
       background += ')'
       event.children[0].style.background = background
@@ -197,36 +192,42 @@ function colourMultiPersonEvents(elements){
   }
 }
 
-function colourTenativeEvents(elements){
-  for (let event of elements) {
-    let tenativeColour = 'FF0000'
-    if (event.innerText.includes('❓')) {
-      event.style.borderColor = tenativeColour
-      event.style.backgroundColor = tenativeColour
-      event.children[0].style.borderColor = tenativeColour
-      event.children[0].children[0].style.borderColor = tenativeColour
-      event.children[0].children[0].style.backgroundColor = tenativeColour
+function colourTenativeEvents(elements) {
+  let $eventHeader = $('.fc-event-time').not('is-tentative-styled')
+  $eventHeader.each((index, element) => {
+    if (element.parentElement.parentElement.innerText.includes('❓')) {
+      $(element).addClass("is-tentative-styled");
+      $(element).css({
+        'background': 'none',
+        'background-color': 'red',
+        'border-color': 'red'
+      })
+      $(element.parentElement.parentElement.parentElement).css({
+        'background': 'none',
+        'background-color': 'red',
+        'border-color': 'red'
+      })
     }
-  }
+  })
 }
 
-function addPopOvers(elements){
+function addPopOvers(elements) {
   let $events = $('.fc-event').not('.has-tooltip')
-  $events.each((index, element)=>{
+  $events.each((index, element) => {
     $(element).addClass("has-tooltip");
-    console.log($._data( $(element)[0].childNodes[0].childNodes[2], "events" ))
+    console.log($._data($(element)[0].childNodes[0].childNodes[2], "events"))
     let tooltip = new Tooltip(element, {
-        placement: 'right',
-        title: "Test"
+      placement: 'right',
+      title: "Test"
     })
   })
 
-//   for (let event of elements){
-//     let tooltip = new Tooltip(event, {
-//     placement: 'right',
-//     title: "Test"
-// })
-//   }
+  //   for (let event of elements){
+  //     let tooltip = new Tooltip(event, {
+  //     placement: 'right',
+  //     title: "Test"
+  // })
+  //   }
 }
 
 function waitForAddedNode(params) {
