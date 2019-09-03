@@ -290,7 +290,7 @@ async function getInstallerEmails(callout){
 // Checks for inclusion and salesperson opt out
 // Returns an email address
 async function getSalesEmail(callout){
-  if(!callout.field_985_raw) return // there is no salesperson on the job
+  if(!callout.field_985_raw) return // there is no salesperson on the callout
   if (callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
   let salespeopleObj = new KnackObject(objects.salespeople)
   let salesperson = salespeopleObj.get(callout.field_985_raw[0].id)
@@ -302,9 +302,10 @@ async function getSalesEmail(callout){
 // Checks for inclusion and opsperson opt out
 // Returns an email address
 async function getOpsEmail(callout){
+  if(!callout.field_1474_raw) return // there is no ops on the callout
   if (callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
   let opspeopleObj = new KnackObject(objects.opspeople)
-  let opsperson = opspeopleObj.get(callout.field_985_raw[0].id)
+  let opsperson = opspeopleObj.get(callout.field_1474_raw[0].id)
   if (opsperson.field_1597 === 'Yes') return '' // they've opted out of event emails
   if (opsperson.field_814_raw) return opsperson.field_814_raw.email
   return ''
