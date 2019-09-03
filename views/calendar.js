@@ -197,12 +197,21 @@ function colourMultiPersonEvents(elements){
 }
 
 function addPopOvers(elements){
-  for (let event of elements){
-    let tooltip = new Tooltip(event, {
-    placement: 'right',
-    title: "Test"
-})
-  }
+  let $events = $('.fc-event').not('.hasToolTip')
+  $events.each((index, element)=>{
+    element.setAttribute("class", "hasToolTip");
+    let tooltip = new Tooltip(element, {
+        placement: 'right',
+        title: "Test"
+    })
+  })
+
+//   for (let event of elements){
+//     let tooltip = new Tooltip(event, {
+//     placement: 'right',
+//     title: "Test"
+// })
+//   }
 }
 
 function waitForAddedNode(params) {
