@@ -253,7 +253,7 @@ async function issueInvoice(record) {
   let job = await getRecordPromise('object_3', jobID)
 
   jobSite = job.field_12.replace(/<\/?[^>]+(>|$)/g, " ");
-  jobValue = parseInt(job.field_130_raw.replace(/\,/g, ''));
+  jobValue = job.field_130_raw ? parseInt(job.field_130_raw.replace(/\,/g, '')) : 0
   jobValueFormatted = job.field_130;
   jobValueInvoiced = parseInt(job.field_162.replace(/\,/g, '').replace(/\$/g, ''));
   jobValueRemaining = formatter.format(jobValue - jobValueInvoiced);
