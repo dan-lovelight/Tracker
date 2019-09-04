@@ -23,27 +23,30 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 // Start Handlers
 
 // Process newly created callouts
-async function processNewCallOut(view, record, action, fields) {
+async function processNewCallOut(view, callout, action, fields) {
   try {
     // Set processing flag
     window.callOutProcessing = true
 
-    // Get name of user creating the record
+    // Get name of user creating the callout
     let user = Knack.getUserAttributes()
     let createdBy = {}
     createdBy.field_1581 = user.name // created by
 
-    // Gather required updates to the callout record
-    let names = await getCallOutName(record)
-    let jobDetails = await getJobUpdates(record)
+    // Gather required updates to the callout callout
+    let names = await getCallOutName(callout)
+    let jobDetails = await getJobUpdates(callout)
     let updateData = Object.assign({}, createdBy, names, jobDetails)
+
+    // Add 'Calendar update required' flag if required
+    if (isEventCreationRequired(callout)) updateData.field_1496 = 'Yes'
 
     // Update the callout
     let calloutsObj = new KnackObject(objects.callouts)
-    await calloutsObj.update(record.id, updateData)
+    callout = await calloutsObj.update(callout.id, updateData)
 
-    // Update any connected portal records
-    updateConnectedJobsInPortal(record)
+    handleCalendarUpdates(callout, callout, [])
+    updateConnectedJobsInPortal(callout) // Update any connected portal callouts
 
   } catch (err) {
     Sentry.captureException(err)
@@ -52,7 +55,7 @@ async function processNewCallOut(view, record, action, fields) {
   }
 }
 
-// Process updated created callouts
+// Process updated callouts
 async function processUpdatedCallOut(view, callout, action, fields, previous, changes) {
   try {
 
@@ -72,9 +75,12 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
     handleCalendarUpdates(callout, previous, changes)
     handleInstallerReports(callout, previous, changes)
 
+    // Update any connected portal records
+    updateConnectedJobsInPortal(callout)
+
   } catch (err) {
-    throw new Error(err)
     Sentry.captureException(err)
+    throw new Error(err)
   } finally {
 
   }
