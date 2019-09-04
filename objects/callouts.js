@@ -124,10 +124,10 @@ async function applyCalendarUpdateFlag(callout){
 
 // Create the display names for the call out
 // Returns a partial callout object with all the necessary fields populated
-async function getCallOutName(callOut, changes) {
+async function getCallOutName(callout, changes) {
 
   let nameUpdateField = [
-    'field_1485', // Callout Type
+    'field_1485', // callout Type
     'field_1447', // 'Other' Type description
     'field_1633', // Calendar Event Type
     'field_928', // Jobs
@@ -141,29 +141,30 @@ async function getCallOutName(callOut, changes) {
     if (nameUpdateField.filter(field => changes.includes(field)).length === 0) return {}
   }
 
-  let type = callOut.field_1485
-  let typeIcon = getCalloutTypeIcon(callOut)
-  let multiInstallerIndicator = await getMultiInstallerIndicator(callOut)
-  let confirmationIcon = callOut.field_1633.indexOf('Confirmed')>-1 ? '' : callOut.field_1633.substring(0, 1)
+  let type = callout.field_1485
+  let typeIcon = getCalloutTypeIcon(callout)
+  let multiInstallerIndicator = await getMultiInstallerIndicator(callout)
+  let confirmationIcon = callout.field_1633.indexOf('Confirmed')>-1 ? '' : callout.field_1633.substring(0, 1)
 
-  let jobsCount = callOut.field_928.length > 0 ? callOut.field_928_raw.length : 0
+  let jobsCount = callout.field_928.length > 0 ? callout.field_928_raw.length : 0
   let jobsCountDisplay = jobsCount > 1 ? '(+' + (jobsCount - 1) + ' others)' : ''
-  let firstJob = jobsCount > 0 ? callOut.field_928_raw['0'].identifier : ''
+  let firstJob = jobsCount > 0 ? callout.field_928_raw['0'].identifier : ''
   let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
   let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
 
-  let development = callOut.field_1482.length > 0 ? ' | ' + callOut.field_1482_raw['0'].identifier : ''
+  let development = callout.field_1482.length > 0 ? ' | ' + callout.field_1482_raw['0'].identifier : ''
   let nameToDisplay = jobsCount > 0 ? jobDisplay : development
 
-  let street = callOut.field_981.length > 0 ? callOut.field_981_raw.street + '' + callOut.field_981_raw.street2 : ''
-  let city = callOut.field_981.length > 0 ? callOut.field_981_raw.city : ''
+  let street = callout.field_981.length > 0 ? callout.field_981_raw.street + '' + callout.field_981_raw.street2 : ''
+  let city = callout.field_981.length > 0 ? callout.field_981_raw.city : ''
   let address = street + ' ' + city
   let addressDisplay = address.length < 2 ? '' : '| ' + address
 
   // Build Display Names
   let name = {}
   name.field_1488 = `${confirmationIcon}${typeIcon}${type}${nameToDisplay}`.trim() // Form display name
-  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}`.trim() // Calendar display name
+  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}<span id="${callout.id}"><span>`.trim() // Calendar display name
+  //The event id has been added in a hidden span at the end to identify the tile for popover population
 
   return name
 
