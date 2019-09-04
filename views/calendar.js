@@ -12,10 +12,10 @@ function getInstallerDetailsFromListView(view) {
     installerList.push(installerDetails)
   })
 
-  installerList.sort((a,b)=>{
-      var textA = a.filterTitle.toUpperCase();
-      var textB = b.filterTitle.toUpperCase();
-      return (textA < textB) ? -1 : (textA > textB) ? 1 : 0;
+  installerList.sort((a, b) => {
+    var textA = a.filterTitle.toUpperCase();
+    var textB = b.filterTitle.toUpperCase();
+    return (textA < textB) ? -1 : (textA > textB) ? 1 : 0;
   })
 
   return installerList
@@ -81,8 +81,9 @@ function createFilterMenuNode(arrExtraFilters, view) {
   // For each extra filter, add it to the filter list
   arrExtraFilters.forEach(filter => {
     let listItem = document.createElement('li')
-    listItem.addEventListener("click", function() {
+    listItem.addEventListener("click", async function() {
       filterView(filter.filterString, view, filter.buttonId) // Apply filter to table when clicked
+      //afterCalendarLoad(filter,view)
     });
 
     let anchor = document.createElement('a')
@@ -112,6 +113,28 @@ async function filterView(filterString, view) {
   //Calling twice is necessary, don't know why
   Knack.models[view].fetch()
   Knack.models[view].fetch()
+}
+
+function afterCalendarLoad(filter, view) {
+  Knack.showSpinner
+  const after = setInterval(async function() {
+    let spinner = document.getElementById('kn-loading-spinner')
+    let displayStyle = window.getComputedStyle(spinner, null)['display']
+    if (displayStyle === 'none') {
+      // Execute after function
+      clearInterval(after)
+      displayInstallerPhone(filter, view)
+    }
+  })
+}
+
+function displayInstallerPhone(filter, view) {
+  let phoneDisplay = document.createElement('div')
+  phoneDisplay.innerText = filter.filterTitle
+  phoneDisplay.id = 'installerPhone'
+  phoneDisplay.style = 'display:inline-block; margin-left:10px'
+  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
+  if ($insertLocation[0]) $insertLocation[0].insertBefore(phoneDisplay, $insertLocation[0].children[1]); // Add menu to page
 }
 
 function pimpSchedulingCalendar(view, installerColourKeyList) {
@@ -156,21 +179,22 @@ $(document).on('knack-scene-render.scene_203', function(event, scene) {
 })
 
 // Calendar appearance manipulation
-$(document).on('knack-view-render.view_1962', function(event, scene) {
+$(document).on('knack-view-render.view_1962', function(event, view) {
 
   waitForAddedNode({
     class: 'fc-event',
     parent: document.querySelector('#view_1962'),
     recursive: true,
-    done: processCalendarEvents
+    done: processCalendarEvents,
+    view: view
   })
 
 })
 
-function processCalendarEvents(elements) {
+function processCalendarEvents(elements, view) {
   colourMultiPersonEvents(elements)
   colourTenativeEvents(elements)
-  //addPopOvers(elements)
+  addPopOvers(elements, view)
 }
 
 function colourMultiPersonEvents(elements) {
@@ -218,15 +242,25 @@ function colourTenativeEvents(elements) {
   })
 }
 
-function addPopOvers(elements) {
+function addPopOvers(elements, view) {
   let $events = $('.fc-event').not('.has-tooltip')
   $events.each((index, element) => {
     $(element).addClass("has-tooltip");
-    console.log($._data($(element)[0].childNodes[0].childNodes[2], "events"))
-    let tooltip = new Tooltip(element, {
-      placement: 'right',
-      title: "Test"
-    })
+    if ($(element).find('span[id]').length > 0) {
+      let eventId = $(element).find('span[id]')[0].id
+      let eventDetails = Knack.models[view.key].data.models.find(event => event.attributes.id === eventId).attributes
+      let eventName = eventDetails.field_1488
+      let startTime = `${eventDetails.field_924_raw.hours}:${eventDetails.field_924_raw.minutes}${eventDetails.field_924_raw.am_pm.toLowerCase()}`
+      let endTime = `${eventDetails.field_924_raw.to.hours}:${eventDetails.field_924_raw.to.minutes}${eventDetails.field_924_raw.to.am_pm.toLowerCase()}`
+      let installers = eventDetails.field_927
+      let tooltipContents = `<div><strong>${eventName}</strong><hr>`
+      tooltipContents += `<div><table style="font-size: .9em;" align="center"><tr><td><strong>Start</strong></td><td>${startTime}</td></tr><tr><td><strong>End</strong></td><td>${endTime}</td></tr><tr><td><strong>Installers</strong></td><td>${installers}</td></tr></table></div></div>`
+      let tooltip = new Tooltip(element, {
+        placement: 'right',
+        title: tooltipContents,//,
+        html: true,
+      })
+    }
   })
 
   //   for (let event of elements){
@@ -242,7 +276,7 @@ function waitForAddedNode(params) {
     var el = document.getElementsByClassName(params.class);
     if (el) {
       //this.disconnect();
-      params.done(el);
+      params.done(el, params.view);
     }
   }).observe(params.parent || document, {
     subtree: !!params.recursive,
