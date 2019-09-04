@@ -11,6 +11,13 @@ function getInstallerDetailsFromListView(view) {
     installerDetails.colour = $(tableRow).find('.field_1487 .kn-detail-body div')[0].style['background-color']
     installerList.push(installerDetails)
   })
+
+  installerList.sort((a,b)=>{
+      var textA = a.filterTitle.toUpperCase();
+      var textB = b.filterTitle.toUpperCase();
+      return (textA < textB) ? -1 : (textA > textB) ? 1 : 0;
+  })
+
   return installerList
 }
 
