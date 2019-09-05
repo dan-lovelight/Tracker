@@ -178,6 +178,32 @@ $(document).on('knack-scene-render.scene_203', function(event, scene) {
   hideEmptyTables(scene)
 })
 
+$(document).on('knack-modal-render.view_1962', function(event, modal) {
+  if(modal.modal[0].innerHTML.indexOf('add-event-modal') > -1 ){
+
+    const after = setInterval(async function() {
+      let visibleModal = $('.add-event-modal') //document.getElementById('kn-loading-spinner')
+      //let displayStyle = window.getComputedStyle(spinner, null)['display']
+      if (visibleModal.length > 0) {
+        // Execute after function
+        clearInterval(after)
+        $('#view_2325').clone().prependTo('#cal_entry_view').css('display','block')
+        $('#ui-datepicker-div').css('display','none')
+        window.selectedTime = {
+          fromDate: $('#view_1962-field_924')[0].value,
+          fromTime: $('#view_1962-field_924-time')[0].value,
+          toTime: $('#view_1962-field_924-time-to')[0].value,
+          toDate: $('#view_1962-field_924-to')[0].value,
+        }
+      }
+    })
+  }
+})
+
+$(document).on('knack-modal-close.view_1962', function(event, modal) {
+  window.selectedTime = undefined
+})
+
 // Calendar appearance manipulation
 $(document).on('knack-view-render.view_1962', function(event, view) {
 
@@ -189,7 +215,11 @@ $(document).on('knack-view-render.view_1962', function(event, view) {
     view: view
   })
 
+  // Hide the requested callouts table
+$('#view_2325').css('display','none')
 })
+
+
 
 function processCalendarEvents(elements, view) {
   colourMultiPersonEvents(elements)

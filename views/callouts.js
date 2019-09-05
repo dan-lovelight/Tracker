@@ -77,11 +77,23 @@ $(document).on(hideTablesSchedulingScenes.join(' '), function(event, scene) {
 $(document).on(createCallOutForms.join(' '), function(event, view, data) {
   pimpTimePicker(view.key + '-field_924')
   addJobDetailsToCallOut(view)
+  setDateTimeFromCalendar(view)
 })
 
 // ***************************************************************************
 // ******************* WHEN A CALL EDIT FORM IS RENDERED *********************
 // ***************************************************************************
+
+function setDateTimeFromCalendar(view) {
+  if (window.selectedTime) {
+    // Set the date and time if the form has been loaded from the calendar
+    $(`#${view.key}-field_924`)[0].value = window.selectedTime.fromDate
+    $(`#${view.key}-field_924-time`)[0].value = window.selectedTime.fromTime
+    $(`#${view.key}-field_924-time-to`)[0].value = window.selectedTime.toTime
+    $(`#${view.key}-field_924-to`)[0].value = window.selectedTime.toDate
+  }
+  window.selectedTime = undefined
+}
 
 // Some details for a callout are taken directly from the associated job
 // These can be set by record rule, but that doesn't give the user a chance to review them
