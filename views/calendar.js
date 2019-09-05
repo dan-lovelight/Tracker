@@ -283,8 +283,9 @@ function addPopOvers(elements, view) {
       let startTime = `${eventDetails.field_924_raw.hours}:${eventDetails.field_924_raw.minutes}${eventDetails.field_924_raw.am_pm.toLowerCase()}`
       let endTime = `${eventDetails.field_924_raw.to.hours}:${eventDetails.field_924_raw.to.minutes}${eventDetails.field_924_raw.to.am_pm.toLowerCase()}`
       let installers = eventDetails.field_927
+      let suburb = eventDetails.field_981_raw.city
       let tooltipContents = `<div><strong>${eventName}</strong><hr>`
-      tooltipContents += `<div><table style="font-size: .9em;" align="center"><tr><td><strong>Start</strong></td><td>${startTime}</td></tr><tr><td><strong>End</strong></td><td>${endTime}</td></tr><tr><td><strong>Installers</strong></td><td>${installers}</td></tr></table></div></div>`
+      tooltipContents += `<div><table style="font-size: .9em;" align="center"><tr><td><strong>Start</strong></td><td>${startTime}</td></tr><tr><td><strong>End</strong></td><td>${endTime}</td></tr><tr><td><strong>Suburb</strong></td><td>${suburb}</td></tr><tr><td><strong>Installers</strong></td><td>${installers}</td></tr></table></div></div>`
       let tooltip = new Tooltip(element, {
         placement: 'right',
         title: tooltipContents,//,
