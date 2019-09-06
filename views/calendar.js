@@ -81,7 +81,7 @@ function getInstallerDetailsFromListView(view) {
     installerDetails.filterTitle = $(tableRow).find('.field_869 .kn-detail-body span span')[0].innerText.split(' ')[0]
     installerDetails.colour = $(tableRow).find('.field_1487 .kn-detail-body div')[0].style['background-color']
     installerDetails.installerId = $(tableRow)[0].id
-    installerDetails.phone = $(tableRow).find('.field_1083 .kn-detail-body span span')[0].innerText.replace('+61','0')
+    installerDetails.phone = $(tableRow).find('.field_1083 .kn-detail-body span span')[0].innerText ? $(tableRow).find('.field_1083 .kn-detail-body span span')[0].innerText .replace('+61','0') : ''
     installerList.push(installerDetails)
   })
 
