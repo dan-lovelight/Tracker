@@ -1,3 +1,74 @@
+// Scheduling calendar
+$(document).on('knack-view-render.view_1962', function(event, view) {
+
+  // Insert filters and other custom features
+  pimpSchedulingCalendar(view.key, 'view_1964')
+
+  // Apply updates to event tiles once they are available.
+  waitForAddedNode({
+    class: 'fc-event',
+    parent: document.querySelector('#view_1962'),
+    recursive: true,
+    done: processCalendarEvents,
+    view: view
+  })
+
+  // Hide the requested callouts table
+  $('#view_2325').hide() //.css('display', 'none')
+})
+
+// Scheduling calendar modals loaded
+$(document).on('knack-modal-render.view_1962', function(event, modal) {
+
+  // Detect add event modal. The add-event-modal class is added to a span element in the title of the modal.
+  if (modal.modal[0].innerHTML.indexOf('add-event-modal') > -1) {
+
+    const after = setInterval(async function() {
+      let visibleModal = $('.add-event-modal') //document.getElementById('kn-loading-spinner')
+      //let displayStyle = window.getComputedStyle(spinner, null)['display']
+      if (visibleModal.length > 0) {
+        // Execute after function
+        clearInterval(after)
+        $('#view_2325').clone().prependTo('#cal_entry_view').css('display', 'block')
+        $('#ui-datepicker-div').css('display', 'none')
+        window.selectedTime = {
+          fromDate: $('#view_1962-field_924')[0].value,
+          fromTime: $('#view_1962-field_924-time')[0].value,
+          toTime: $('#view_1962-field_924-time-to')[0].value,
+          toDate: $('#view_1962-field_924-to')[0].value,
+        }
+      }
+    })
+  }
+})
+
+// Scheduling calendar modals closed
+$(document).on('knack-modal-close.view_1962', function(event, modal) {
+  window.selectedTime = undefined
+})
+
+// Detect if the shift key is being held. This is used for applying multiple fitlers
+$(document).on('keyup keydown', function(e) {
+  window.shifted = e.ctrlKey
+})
+
+function pimpSchedulingCalendar(view, installerColourKeyList) {
+  let installersInCalendar = getInstallerDetailsFromListView(installerColourKeyList) // Get the installer data from the temporary key view
+  let eventColours = getInstallerColourFiltersFromListView(installerColourKeyList)
+  let newFilter = createFilterMenuNode(installersInCalendar, view) // Build the new filter
+  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
+  if (newFilter && $insertLocation[0]) $insertLocation[0].insertBefore(newFilter, $insertLocation[0].children[1]); // Add menu to page
+  let $menu = $('#' + view + ' div.kn-records-nav div.js-filter-menu')[0]
+  if ($menu) $menu.style = 'display:inline-block' // Make menus display next to each other
+  $('#' + installerColourKeyList).hide() // Hide the temporary key view
+  Knack.models[view].view.events.event_colors = eventColours
+
+  // Sometimes duplicate buttons and calendars are added when filtering, don't know why
+  if ($('#' + view + ' .fc-header').length > 1) $('#' + view + ' .fc-header')[1].remove()
+  if ($('#' + view + ' .fc-content').length > 1) $('#' + view + ' .fc-content')[1].remove()
+}
+
+
 // Create an array of installer objects from a list view on the page
 // That displays all the installers visiblie in the calendar on the page
 // Object contains details (name, colour etc) required to build the extra calendar filters
@@ -9,6 +80,8 @@ function getInstallerDetailsFromListView(view) {
     installerDetails.filterString = buildInstallerFilter(tableRow.id)
     installerDetails.filterTitle = $(tableRow).find('.field_869 .kn-detail-body span span')[0].innerText.split(' ')[0]
     installerDetails.colour = $(tableRow).find('.field_1487 .kn-detail-body div')[0].style['background-color']
+    installerDetails.installerId = $(tableRow)[0].id
+    installerDetails.phone = $(tableRow).find('.field_1083 .kn-detail-body span span')[0].innerText.replace('+61','0')
     installerList.push(installerDetails)
   })
 
@@ -43,14 +116,15 @@ function getInstallerColourFiltersFromListView(view) {
 // Take a single installer and return a filter string for the installer
 function buildInstallerFilter(installerId) {
   return filter = {
-    "match": "and",
-    "rules": [{
-      "field": "field_927",
-      "operator": "contains",
-      "value": installerId,
-      "field_name": "Installers"
-    }]
+    "field": "field_927",
+    "operator": "contains",
+    "value": installerId,
+    "field_name": "Installers"
   }
+  // return filter = {
+  //   "match": "and",
+  //   "rules": []
+  // }
 }
 
 // Add an extra filter menu to a calendar, based on the data passed in arrFilters
@@ -69,32 +143,73 @@ function createFilterMenuNode(arrExtraFilters, view) {
     return
   }
 
-  // Create the parent div for the filter
-  let filter = document.createElement('div')
+  let filter = document.createElement('div') // Create the parent div for the filter
+  let filterList = document.createElement('ul') // Add a list to hold the filter buttons
+  let phoneDisplay = document.createElement('div') // A div to display the selected installer's number
+
   filter.id = menuId
   filter.classList.add('js-filter-menu', 'tabs', 'is-toggle', 'is-flush')
   filter.style = 'display:inline-block; margin-left:10px'
 
-  // Add a list to hold the filter buttons
-  let filterList = document.createElement('ul')
-
   // For each extra filter, add it to the filter list
   arrExtraFilters.forEach(filter => {
-    let listItem = document.createElement('li')
-    listItem.addEventListener("click", async function() {
-      filterView(filter.filterString, view, filter.buttonId) // Apply filter to table when clicked
-      //afterCalendarLoad(filter,view)
-    });
 
+    let listItem = document.createElement('li')
     let anchor = document.createElement('a')
     let span = document.createElement('span')
-    span.innerText = filter.filterTitle
+
+    listItem.addEventListener("click", function() {
+
+      // If the appliedFilters variable (that keeps track of what's been applied between refreshses) doesn't exist, create it
+      if (!window.appliedFilters) window.appliedFilters = []
+
+      // Get the currently applied filters
+      let newFilter = Knack.models[view].view.filters
+
+      // Apply the new filter - check if shift is held or not
+      if (window.shifted) {
+        newFilter.match = 'or'
+        newFilter.rules.push(filter.filterString)
+        window.appliedFilters.push(filter.installerId)
+      } else {
+        newFilter.rules = [filter.filterString]
+        window.appliedFilters = [filter.installerId]
+      }
+
+      // Apply the new filter to the view
+      Knack.models[view].setFilters(JSON.stringify(newFilter))
+
+      //Refresh the view. Calling twice is necessary, don't know why
+      Knack.models[view].fetch()
+      Knack.models[view].fetch()
+    });
+
     if (filter.colour === '') {
       anchor.style = `border-color:black;`
       span.style = "color:black"
     } else {
       anchor.style = `border-color:${filter.colour};background-color:${pSBC(0.15, filter.colour)}`
       span.style = "color:white"
+    }
+
+    // Is this filter selected?
+    if (window.appliedFilters && window.appliedFilters.includes(filter.installerId)) {
+
+      // Indicate the selected state
+      listItem.className = "is-active"
+      span.innerHTML = `<strong>${filter.filterTitle}</strong>`
+
+      // Create the phone number display elementlet phoneDisplay = document.createElement('div')
+      if (phoneDisplay.innerText !== '') {
+        phoneDisplay.innerText += ` | ${filter.filterTitle}: ${filter.phone}`
+      } else {
+        phoneDisplay.innerText = `${filter.filterTitle}: ${filter.phone}`
+        phoneDisplay.id = 'installerPhone'
+        phoneDisplay.style = 'display:inline-block; margin-left:10px'
+      }
+
+    } else {
+      span.innerHTML = filter.filterTitle
     }
 
     anchor.appendChild(span)
@@ -104,122 +219,26 @@ function createFilterMenuNode(arrExtraFilters, view) {
 
   // Create full menu
   filter.appendChild(filterList)
+
+  // Add the phone number display
+  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
+  if ($insertLocation[0]) $insertLocation[0].insertBefore(phoneDisplay, $insertLocation[0].children[1]); // Add menu to page
+
   return filter
 }
 
-//
-async function filterView(filterString, view) {
-  Knack.models[view].setFilters(JSON.stringify(filterString)) // Turn the filter into a string (in case it's an object)
-  //Calling twice is necessary, don't know why
-  Knack.models[view].fetch()
-  Knack.models[view].fetch()
-}
-
-function afterCalendarLoad(filter, view) {
-  Knack.showSpinner
-  const after = setInterval(async function() {
-    let spinner = document.getElementById('kn-loading-spinner')
-    let displayStyle = window.getComputedStyle(spinner, null)['display']
-    if (displayStyle === 'none') {
-      // Execute after function
-      clearInterval(after)
-      displayInstallerPhone(filter, view)
+function waitForAddedNode(params) {
+  new MutationObserver(function(mutations) {
+    var el = document.getElementsByClassName(params.class);
+    if (el) {
+      //this.disconnect();
+      params.done(el, params.view);
     }
-  })
+  }).observe(params.parent || document, {
+    subtree: !!params.recursive,
+    childList: true,
+  });
 }
-
-function displayInstallerPhone(filter, view) {
-  let phoneDisplay = document.createElement('div')
-  phoneDisplay.innerText = filter.filterTitle
-  phoneDisplay.id = 'installerPhone'
-  phoneDisplay.style = 'display:inline-block; margin-left:10px'
-  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
-  if ($insertLocation[0]) $insertLocation[0].insertBefore(phoneDisplay, $insertLocation[0].children[1]); // Add menu to page
-}
-
-function pimpSchedulingCalendar(view, installerColourKeyList) {
-  let installersInCalendar = getInstallerDetailsFromListView(installerColourKeyList) // Get the installer data from the temporary key view
-  let eventColours = getInstallerColourFiltersFromListView(installerColourKeyList)
-  let newFilter = createFilterMenuNode(installersInCalendar, view) // Build the new filter
-  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
-  if (newFilter && $insertLocation[0]) $insertLocation[0].insertBefore(newFilter, $insertLocation[0].children[1]); // Add menu to page
-  let $menu = $('#' + view + ' div.kn-records-nav div.js-filter-menu')[0]
-  if ($menu) $menu.style = 'display:inline-block' // Make menus display next to each other
-  $('#' + installerColourKeyList).hide() // Remvoe the temporary key view
-  Knack.models[view].view.events.event_colors = eventColours
-
-  // Sometimes duplicate buttons and calendars are added when filtering, don't know why
-  if ($('#' + view + ' .fc-header').length > 1) $('#' + view + ' .fc-header')[1].remove()
-  if ($('#' + view + ' .fc-content').length > 1) $('#' + view + ' .fc-content')[1].remove()
-}
-
-// My calendar
-$(document).on('knack-view-render.view_1962', function(event, scene) {
-  pimpSchedulingCalendar(scene.key, 'view_1964')
-})
-
-// Vic calendar
-$(document).on('knack-view-render.view_1347', function(event, scene) {
-  pimpSchedulingCalendar(scene.key, 'view_1933')
-})
-
-// NSW calendar
-$(document).on('knack-view-render.view_2041', function(event, scene) {
-  pimpSchedulingCalendar(scene.key, 'view_2043')
-})
-
-// QLD calendar
-$(document).on('knack-view-render.view_2045', function(event, scene) {
-  pimpSchedulingCalendar(scene.key, 'view_2047')
-})
-
-// Schedulers requested bookings
-$(document).on('knack-scene-render.scene_203', function(event, scene) {
-  hideEmptyTables(scene)
-})
-
-$(document).on('knack-modal-render.view_1962', function(event, modal) {
-  if(modal.modal[0].innerHTML.indexOf('add-event-modal') > -1 ){
-
-    const after = setInterval(async function() {
-      let visibleModal = $('.add-event-modal') //document.getElementById('kn-loading-spinner')
-      //let displayStyle = window.getComputedStyle(spinner, null)['display']
-      if (visibleModal.length > 0) {
-        // Execute after function
-        clearInterval(after)
-        $('#view_2325').clone().prependTo('#cal_entry_view').css('display','block')
-        $('#ui-datepicker-div').css('display','none')
-        window.selectedTime = {
-          fromDate: $('#view_1962-field_924')[0].value,
-          fromTime: $('#view_1962-field_924-time')[0].value,
-          toTime: $('#view_1962-field_924-time-to')[0].value,
-          toDate: $('#view_1962-field_924-to')[0].value,
-        }
-      }
-    })
-  }
-})
-
-$(document).on('knack-modal-close.view_1962', function(event, modal) {
-  window.selectedTime = undefined
-})
-
-// Calendar appearance manipulation
-$(document).on('knack-view-render.view_1962', function(event, view) {
-
-  waitForAddedNode({
-    class: 'fc-event',
-    parent: document.querySelector('#view_1962'),
-    recursive: true,
-    done: processCalendarEvents,
-    view: view
-  })
-
-  // Hide the requested callouts table
-$('#view_2325').css('display','none')
-})
-
-
 
 function processCalendarEvents(elements, view) {
   colourMultiPersonEvents(elements)
@@ -283,34 +302,35 @@ function addPopOvers(elements, view) {
       let startTime = `${eventDetails.field_924_raw.hours}:${eventDetails.field_924_raw.minutes}${eventDetails.field_924_raw.am_pm.toLowerCase()}`
       let endTime = `${eventDetails.field_924_raw.to.hours}:${eventDetails.field_924_raw.to.minutes}${eventDetails.field_924_raw.to.am_pm.toLowerCase()}`
       let installers = eventDetails.field_927
-      let suburb = eventDetails.field_981_raw.city
+      let suburb = eventDetails.field_981_raw ? eventDetails.field_981_raw.city : ''
       let tooltipContents = `<div><strong>${eventName}</strong><hr>`
       tooltipContents += `<div><table style="font-size: .9em;" align="center"><tr><td><strong>Start</strong></td><td>${startTime}</td></tr><tr><td><strong>End</strong></td><td>${endTime}</td></tr><tr><td><strong>Suburb</strong></td><td>${suburb}</td></tr><tr><td><strong>Installers</strong></td><td>${installers}</td></tr></table></div></div>`
       let tooltip = new Tooltip(element, {
         placement: 'right',
-        title: tooltipContents,//,
+        title: tooltipContents, //,
         html: true,
       })
     }
   })
-
-  //   for (let event of elements){
-  //     let tooltip = new Tooltip(event, {
-  //     placement: 'right',
-  //     title: "Test"
-  // })
-  //   }
 }
 
-function waitForAddedNode(params) {
-  new MutationObserver(function(mutations) {
-    var el = document.getElementsByClassName(params.class);
-    if (el) {
-      //this.disconnect();
-      params.done(el, params.view);
-    }
-  }).observe(params.parent || document, {
-    subtree: !!params.recursive,
-    childList: true,
-  });
-}
+
+// Vic calendar
+$(document).on('knack-view-render.view_1347', function(event, scene) {
+  pimpSchedulingCalendar(scene.key, 'view_1933')
+})
+
+// NSW calendar
+$(document).on('knack-view-render.view_2041', function(event, scene) {
+  pimpSchedulingCalendar(scene.key, 'view_2043')
+})
+
+// QLD calendar
+$(document).on('knack-view-render.view_2045', function(event, scene) {
+  pimpSchedulingCalendar(scene.key, 'view_2047')
+})
+
+// Schedulers requested bookings
+$(document).on('knack-scene-render.scene_203', function(event, scene) {
+  hideEmptyTables(scene)
+})
