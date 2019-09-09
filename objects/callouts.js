@@ -345,7 +345,7 @@ function isEventCreationRequired(callout) {
 }
 
 function isEventDeletionRequired(callout) {
-  if (callout.field_1082.length > 0) return false // if it's not in the calendar, no need to delete
+  if (callout.field_1082.length <= 1) return false // if it's not in the calendar, no need to delete
   if (!isEventTypeInviteable(callout) || !isCalloutStatusInviteable(callout)) {
     // if it's not an inviteable type, need to delete it
     // if it's not an inviteable status, need to delete it
@@ -357,7 +357,7 @@ function isEventDeletionRequired(callout) {
 
 function isEventUpdateRequired(callout, previous, changes) {
   if (isEventCreationRequired(callout) || isEventDeletionRequired(callout)) return false // don't update if creating or deleting
-  if (callout.field_1082.length > 0) return false // if it's not in the calendar, no need to udpate
+  if (callout.field_1082.length <= 1) return false // if it's not in the calendar, no need to udpate
   if (isEventDataUpdated(callout, previous, changes)) {
     console.log('isEventUpdateRequired = true')
     return true
