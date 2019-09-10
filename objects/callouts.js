@@ -66,11 +66,13 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
 
     let names = await getCallOutName(callout, changes)
     let jobDetails = await getJobUpdates(callout, changes)
-    let reportSubmitter = isReportUpdated(changes) ? {'field_1632': Knack.getUserAttributes().name} : {}
+    let reportSubmitter = isReportUpdated(changes) ? {
+      'field_1632': Knack.getUserAttributes().name
+    } : {}
     let updateData = Object.assign({}, names, jobDetails, reportSubmitter)
 
     // Add 'Calendar update required' flag if required
-    // Remove this with calendar migration. The update and result will be availaibe in the same call, no need to set the flag in advance.
+    //*** Remove this with calendar migration. The update and result will be availaibe in the same call, no need to set the flag in advance.
     if (isGoogleCalendarActionRequired(callout, previous, changes)) updateData.field_1496 = 'Yes'
 
     // If there are changes, update the callout
@@ -267,7 +269,7 @@ async function applyCalendarUpdateFlag(callout) {
 
 // Create the display names for the call out
 // Returns a partial callout object with all the necessary fields populated
-async function getCallOutName(callout, changes) {
+async function getCallOutName(callout, changes, forceUpdate = false) {
 
   let nameUpdateField = [
     'field_1485', // callout Type
@@ -280,7 +282,7 @@ async function getCallOutName(callout, changes) {
   ]
 
   // Only continue if there have been report updates
-  if (changes) {
+  if (changes || forceUpdate) {
     if (nameUpdateField.filter(field => changes.includes(field)).length === 0) return {}
   }
 
@@ -369,10 +371,10 @@ async function getMultiInstallerIndicator(callout) {
 
 // Get all relevant data from job to update callout details
 // Returns a partial callout object with all the necgessary fields populated
-async function getJobUpdates(callOut, changes) {
+async function getJobUpdates(callOut, changes, forceUpdate = false) {
 
   // If changes supplied, return early if no changes to job
-  if (changes) {
+  if (changes || forceUpdate) {
     if (!isJobUpdated(changes)) return {}
   }
 
@@ -418,32 +420,63 @@ function getCalendarEventData(callout) {
 
 // Create parameters required to create / update a google calendar event
 async function buildGCalEventBody(callout) {
-  let attendees = await getAttendeesV2(callout)
-  attendees = attendees.map(attendee => {
-    let attendeeObj = {}
-    attendeeObj.email = attendee
-    return attendeeObj
-  })
-  return {
-    'start': {
-      'dateTime': callout.field_924_raw.timestamp,
-      'timeZone': moment.tz.guess()
-    },
-    'end': {
-      'dateTime': callout.field_924_raw.to.timestamp,
-      'timeZone': moment.tz.guess()
-    },
-    attendees: attendees,
-    'summary': callout.field_1488,
-    'location': callout.field_981.replace(/<\/?[^>]+(>|$)/g, ' '), // remove </br> from address string,
-    'source': {
-      'url': 'https://lovelight.knack.com/tracker#my-call-outs/call-out-details/' + callout.id,
-      'title': 'View Details on Tracker'
-    },
-    'description': `<strong>Jobs(s):</strong> ${callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join(', ') : undefined} \
-                  <strong>Installer(s):</strong> ${callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join(', ') : undefined} \
-                  <strong>Product(s):</strong> ${callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join(', ') : undefined} \
-                  <strong>Instructions:</strong> ${callout.field_929} |${callout.id}`,
+  try {
+
+    let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : ''
+    let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
+    let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
+
+    let description = `
+    <table>
+      <tr>
+        <td><strong>Jobs(s):</strong></td>
+        <td>${jobs}</td>
+      </tr>
+      <tr>
+        <td><strong>Installer(s):</strong></td>
+        <td>${installers}</td>
+      </tr>
+      <tr>
+        <td><strong>Product(s):</strong></td>
+        <td>${products}</td>
+      </tr>
+      <tr>
+        <td><strong>Instructions:</strong></td>
+        <td>${callout.field_929}</td>
+      </tr>
+      <tr>
+        <td><strong>Tracker Link:</strong></td>
+        <td><a href="https://lovelight.knack.com/tracker#my-call-outs/call-out-details/${callout.id}">Click Here</a></td>
+      </tr>
+      <tr>
+        <td><strong>Tracker Id:</strong></td>
+        <td>|${callout.id}</td>
+      </tr>
+    </table>
+    `
+
+    return {
+      'start': {
+        'dateTime': moment(callout.field_924_raw.timestamp, 'MM/DD/YYYY hh:m a').toISOString(),
+        'timeZone': moment.tz.guess()
+      },
+      'end': {
+        'dateTime': moment(callout.field_924_raw.to.timestamp, 'MM/DD/YYYY hh:m a').toISOString(),
+        'timeZone': moment.tz.guess()
+      },
+      attendees: await getEventAttendees(callout),
+      "conferenceData": null,
+      'summary': callout.field_1488,
+      'description': description,
+      'location': callout.field_981.replace(/<\/?[^>]+(>|$)/g, ' '), // remove </br> from address string,
+      'source': {
+        'url': 'https://lovelight.knack.com/tracker#my-call-outs/call-out-details/' + callout.id,
+        'title': 'View Details on Tracker'
+      },
+    }
+  } catch (err) {
+    Sentry.captureException(err)
+    throw new Error(err)
   }
 }
 
@@ -459,17 +492,6 @@ async function getAttendees(callout) {
   return attendees
 }
 
-async function getAttendeesV2(callout) {
-  let attendees = ['dan@lovelight.com.au']
-  // attendees.push(await getInstallerEmails(callout))
-  // attendees.push(await getSalesEmail(callout))
-  // attendees.push(await getOpsEmail(callout))
-  // attendees.push(await getOtherAttendeeEmails(callout))
-  //attendees = attendees.join(',').trim()
-  //if (attendees.length === 0) throw new Error("Can't create event without any attendees")
-  return attendees
-}
-
 // Returns a comma separated string of email addresses
 async function getInstallerEmails(callout) {
   let installersObj = new KnackObject(objects.installers)
@@ -482,7 +504,7 @@ async function getInstallerEmails(callout) {
 // Checks for inclusion and salesperson opt out
 // Returns an email address
 // ignorePrefs defaults to false, when true send email even if opted out
-async function getSalesEmail(callout, ignorePrefs) {
+async function getSalesEmail(callout, ignorePrefs = false) {
   if (!callout.field_985_raw || !callout.field_985_raw[0]) return // there is no salesperson on the callout
   if (!ignorePrefs && callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
   let salespeopleObj = new KnackObject(objects.salespeople)
@@ -510,6 +532,110 @@ function getOtherAttendeeEmails(callout) {
   return callout.field_1503.replace(/;/g, ',').replace(/ /g, ',')
 }
 
+// NEW FUNCTIONS
+
+// Returns an array of receipient objects
+async function getEventAttendees(callout) {
+
+  let params = {
+    'callout': callout
+  }
+
+  let installers = await getInstallerRecipients(params)
+  let sales = await getSalesRecipients(params)
+  let ops = await getOpsRecipients(params)
+  let other = await getOtherAttendeeRecipients(params)
+
+  let attendees = [].concat(installers, sales, ops, other)
+  if (attendees.length === 0) throw new Error("Can't create event without any attendees")
+  return attendees
+}
+
+// Returns an array of receipient objects
+// If ignorePrefs is true will return the email even if opted out
+async function getSalesRecipients({
+  callout,
+  optional = true,
+  ignorePrefs = false
+}) {
+
+  if (!callout.field_985_raw || !callout.field_985_raw[0]) return [] // there is no salesperson on the callout
+  if (!ignorePrefs && callout.field_1476.indexOf('Yes') === -1) return [] // scheduler has opted not to email them
+  let salespeopleObj = new KnackObject(objects.salespeople)
+  let salesperson = await salespeopleObj.get(callout.field_985_raw[0].id)
+  if (!ignorePrefs && salesperson.field_1596 === 'Yes') return [] // they've opted out of event emails
+
+  if (salesperson.field_957_raw) {
+
+    let recipient = {
+      'email': salesperson.field_957_raw.email,
+      'name': callout.field_985_raw[0].identifier,
+    }
+
+    if (optional) recipient.optional = true // Add optional property
+
+    return [recipient]
+  }
+  return []
+}
+
+// Returns an array of receipient objects
+// If ignorePrefs is true will return the email even if opted out
+async function getOpsRecipients({
+  callout,
+  optional = true,
+  ignorePrefs = false
+}) {
+
+  if (!callout.field_1474_raw || !callout.field_1474_raw[0]) return [] // there is no ops on the callout
+  if (!ignorePrefs && callout.field_1476.indexOf('Yes') === -1) return [] // scheduler has opted not to email them
+  let opspeopleObj = new KnackObject(objects.opspeople)
+  let opsperson = await opspeopleObj.get(callout.field_1474_raw[0].id)
+  if (!ignorePrefs && opsperson.field_1597 === 'Yes') return [] // they've opted out of event emails
+
+  if (opsperson.field_814_raw) {
+
+    let recipient = {
+      'email': opsperson.field_814_raw.email,
+      'name': callout.field_1474_raw[0].identifier,
+    }
+
+    if (optional) recipient.optional = true // Add optional property
+
+    return [recipient]
+  }
+  return []
+}
+
+// Returns an array of receipient objects
+async function getInstallerRecipients({
+  callout
+}) {
+  let installersObj = new KnackObject(objects.installers)
+  let installerIDs = getConnectionIDs(callout.field_927_raw)
+  let installerFilter = createFilterFromArrayOfIDs(installerIDs)
+  let installers = await installersObj.find(installerFilter)
+  return installers.map(installer => {
+    return {
+      'email': installer.field_870_raw.email,
+      'name': installer.field_869
+    }
+  })
+}
+
+// Returns an array of receipient object
+function getOtherAttendeeRecipients({
+  callout
+}) {
+  if (callout.field_1503 === '') return []
+  let attendees = callout.field_1503.split(',')
+  return attendees.map(email => {
+    return {
+      'email': email
+    }
+  })
+}
+
 // End Helper Functions
 
 // ----------------------------------------------------------
@@ -517,7 +643,7 @@ function getOtherAttendeeEmails(callout) {
 
 function isGoogleCalendarActionRequired(callout, previous, changes) {
   if (callout.field_1101 === 'Yes') return false // there's already an update in progress
-  if (isEventCreationRequired(callout) || isEventDeletionRequired(callout) || isEventUpdateRequired(callout, previous, changes)) return true
+  if (isEventCreationRequired(callout) || isEventCancellationRequired(callout) || isEventUpdateRequired(callout, previous, changes)) return true
   return false
 }
 
@@ -531,19 +657,19 @@ function isEventCreationRequired(callout) {
   return false // else return false
 }
 
-function isEventDeletionRequired(callout) {
+function isEventCancellationRequired(callout) {
   if (callout.field_1082.length <= 1) return false // if it's not in the calendar, no need to delete
   if (!isEventTypeInviteable(callout) || !isCalloutStatusInviteable(callout)) {
     // if it's not an inviteable type, need to delete it
     // if it's not an inviteable status, need to delete it
-    console.log('isEventDeletionRequired = true')
+    console.log('isEventCancellationRequired = true')
     return true
   }
   return false // else return false
 }
 
 function isEventUpdateRequired(callout, previous, changes) {
-  if (isEventCreationRequired(callout) || isEventDeletionRequired(callout)) return false // don't update if creating or deleting
+  if (isEventCreationRequired(callout) || isEventCancellationRequired(callout)) return false // don't update if creating or deleting
   if (callout.field_1082.length <= 1) return false // if it's not in the calendar, no need to udpate
   if (isEventDataUpdated(callout, previous, changes)) {
     console.log('isEventUpdateRequired = true')
@@ -701,37 +827,51 @@ async function handleInstallerReports(callout, previous, changes) {
   let installerEmail = isMutlipleInstallers ? getInstallerEmails(callout) : [installer.email]
 
   // Gather data for email.
-  let from = {'email':'noreply@lovelight.com.au', 'name':installer.name}
-  let reply_to = {'email': installer.email,'name':installer.name}
-  let to = [{'email':salesEmail}]
-  let cc = [{'email':opsEmail}]
-  installerEmail.forEach(installer => cc.push({'email':installer.email}))
+  let from = {
+    'email': 'noreply@lovelight.com.au',
+    'name': installer.name
+  }
+  let reply_to = {
+    'email': installer.email,
+    'name': installer.name
+  }
+  let to = [{
+    'email': salesEmail
+  }]
+  let cc = [{
+    'email': opsEmail
+  }]
+  installerEmail.forEach(installer => cc.push({
+    'email': installer.email
+  }))
 
   let data = {}
   data.personalizations = []
   data.personalizations.push({})
 
-  let data = {
-  "personalizations": [{
-    "to": "{{58792153__recipents}}",
-	"bcc": [{"email":"mysalesreports@lovelight.com.au"}],
-    "dynamic_template_data": {
-      "colourRoomName": "{{58790135__field_26}}",
-      "dataTableUrl":"{{58872748__url}}",
-      "yesterday":"{{58790550__yesterday}}",
-      "sevenDaysAgo":"{{58790550__sevenDaysAgo}}"
-    }
-  }],
-  "from": {
-    "email": "mysales@lovelight.com.au",
-	"name" : "Lovelight"
-  },
-  "template_id": "d-16efe526579444888d24254026961af1"
-}
+  let demodata = {
+    "personalizations": [{
+      "to": "{{58792153__recipents}}",
+      "bcc": [{
+        "email": "mysalesreports@lovelight.com.au"
+      }],
+      "dynamic_template_data": {
+        "colourRoomName": "{{58790135__field_26}}",
+        "dataTableUrl": "{{58872748__url}}",
+        "yesterday": "{{58790550__yesterday}}",
+        "sevenDaysAgo": "{{58790550__sevenDaysAgo}}"
+      }
+    }],
+    "from": {
+      "email": "mysales@lovelight.com.au",
+      "name": "Lovelight"
+    },
+    "template_id": "d-16efe526579444888d24254026961af1"
+  }
 
 }
 
-async function sendEmailViaSendGrid(params){
+async function sendEmailViaSendGrid(params) {
   let url = 'https://api.sendgrid.com/v3/mail/send'
   return fetch(url, params)
 }
