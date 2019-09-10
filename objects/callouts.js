@@ -79,8 +79,8 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
       callout = await calloutsObj.update(callout.id, updateData)
     }
 
-    handleCalendarUpdates(callout)
-    handleInstallerReports(callout, previous, changes)
+    handleCalendarUpdates(callout, previous, changes)
+    //handleInstallerReports(callout, previous, changes)
 
     // Update any connected portal records
     updateConnectedJobsInPortal(callout)
@@ -92,21 +92,51 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
 
   }
 }
+
+// Sometime there is a need to force an event update, even when there are no changes
+// Requried if there has been an error and the process needs to be run again
+async function forceCalloutUpdate(callout) {
+
+  try {
+    // If the event needs to be cancelled, do it
+    if (isEventCancellationRequired(callout)) return cancelEvent(callout)
+
+    // Otherwise gather data updates
+    let names = await getCallOutName(callout, [], true)
+    let jobDetails = await getJobUpdates(callout, [], true)
+    let updateData = Object.assign({}, names, jobDetails)
+
+    // Apply the updates
+    let calloutsObj = new KnackObject(objects.callouts)
+    callout = await calloutsObj.update(callout.id, updateData)
+
+    // If there is calendar event created yet, create it
+    if (isEventCreationRequired(callout)) return createEvent(callout)
+
+    // Or finally, update the event
+    return updateEvent(callout)
+  } catch (err) {
+    Sentry.captureException(err)
+    throw new Error(err)
+  }
+
+}
+
 // End Handlers
 
 // -------------------------------------------------------
 // Start Calendar Management Functions
 
 // Creates, updates or deletes synced calendar event if required
-async function handleCalendarUpdates(callout) {
+async function handleCalendarUpdates(callout, previous, changes) {
 
   let isEventFlagged = callout.field_1101 === 'Yes'
   let isCreate = isEventCreationRequired(callout)
-  let isUpdate = isEventDeletionRequired(callout)
-  let isCancel = isEventDeletionRequired(callout)
+  let isUpdate = isEventUpdateRequired(callout, previous, changes)
+  let isCancel = isEventCancellationRequired(callout)
 
   if (isEventFlagged) return // there's already an update in progress
-  if(!(isCreate || isUpdate || isCancel)) return // Exit if we somehow got here when a update is not required
+  if (!(isCreate || isUpdate || isCancel)) return // Exit if we somehow got here when a update is not required
 
   await applyCalendarUpdateFlag(callout) // Add flag to stop race conditions
 
