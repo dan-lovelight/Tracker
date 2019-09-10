@@ -19,6 +19,11 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 })
 // End Listner
 
+// Force and update when manually resyncing a callout
+$(document).on('knack-form-submit.view_1967', function(event, view, record) {
+  //forceCalloutUpdate(record)
+})
+
 // -------------------------------------------------------
 // Start Handlers
 
