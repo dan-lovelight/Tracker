@@ -144,28 +144,31 @@ async function handleCalendarUpdates(callout, previous, changes) {
   let eventData = getCalendarEventData(callout)
 
   if (isCancel) {
+    triggerZap('xp4tzz', eventData)
     cancelEvent(callout)
-    return triggerZap('xp4tzz', eventData)
+    return
   }
 
   // If creating or updating, will need attendees
   eventData.attendees = await getAttendees(callout)
 
   if (isCreate) {
+    triggerZap('xpuj8p', eventData)
     createEvent(callout)
-    return triggerZap('xpuj8p', eventData)
+    return
   }
 
   if (isUpdate) {
+    triggerZap('xnc85h', eventData)
     updateEvent(callout)
-    return triggerZap('xnc85h', eventData)
+    return
   }
 
 }
 
 async function createEvent(callout) {
   let calloutObj = new KnackObject(objects.callouts)
-  let queryParams = ['sendUpdates=all']
+  let queryParams = ['sendUpdates=none', 'conferenceDataVersion=1']
   let body = await buildGCalEventBody(callout)
   let params = {
     method: 'POST',
@@ -188,9 +191,10 @@ async function createEvent(callout) {
 }
 
 async function updateEvent(callout) {
+  if (callout.field_1638 <= 1) throw new Error("Can't update event without event Id")
   let calloutObj = new KnackObject(objects.callouts)
-  let eventId = callout.field_1082
-  let queryParams = ['sendUpdates=all']
+  let eventId = callout.field_1638
+  let queryParams = ['sendUpdates=none']
   let body = await buildGCalEventBody(callout)
   let params = {
     method: 'PATCH',
@@ -209,9 +213,10 @@ async function updateEvent(callout) {
 }
 
 async function cancelEvent(callout) {
+  if (callout.field_1638 <= 1) throw new Error("Can't cancel event without event Id")
   let calloutObj = new KnackObject(objects.callouts)
-  let eventId = callout.field_1082
-  let queryParams = ['sendUpdates=all']
+  let eventId = callout.field_1638
+  let queryParams = ['sendUpdates=none']
   let body = {
     'status': 'cancelled'
   }
@@ -235,9 +240,9 @@ async function cancelEvent(callout) {
   }
 }
 
-async function lovelightCalendarService(params, queryParams, eventId) {
-
-  let url = 'https://wk949u5xcb.execute-api.ap-southeast-2.amazonaws.com/prod/v1/calendar/events'
+async function lovelightCalendarService(params, queryParams, eventId, calendar = 'primary') {
+  let url = 'https://wk949u5xcb.execute-api.ap-southeast-2.amazonaws.com/prod/v1/calendar/'
+  url += calendar + '/events'
   url += eventId ? '/' + eventId : ''
   url += queryParams ? '?' + queryParams.join('&') : ''
 
