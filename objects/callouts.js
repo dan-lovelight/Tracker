@@ -810,63 +810,69 @@ function updateConnectedJobsInPortal(record) {
 
 async function handleInstallerReports(callout, previous, changes) {
 
-  //https://sendgrid.com/docs/API_Reference/api_v3.html
+  let TEMPLATE_ID = ''
 
   if (!isReportUpdated(changes)) return
+  let dynamic_template_data = generateReportTemplateData(callout, previous)
+  let email_body = generateReportEmailBody(callout, dynamic_template_data, TEMPLATE_ID)
+  return sendEmailViaSendGrid(email_body)
 
-  // Get details of person who submitted the report
+}
+
+async function generateReportTemplateData(callout, previous){
+
+    let dynamicData = {}
+    
+    let outcome
+    let calloutName
+    let calloutType
+    let jobs
+    let installers
+    let issues
+    let details
+    let installTimeRequired
+    let isPhotosUploaded
+    let isDocsUploaded
+    let serviceCallIssue
+    let isConsumables
+    let consumableDetails
+    let isFirstReport = previous.field_1546 === 'Pending'
+
+    dynamicData.subject = isFirstReport ?
+
+}
+
+async function generateReportEmailBody(callout, dynamic_template_data, template_id) {
+
   let user = Knack.getUserAttributes()
-  let installerObj = new KnackObject(objects.installers)
-  let installer = await installerObj.get(user.id)
-
-  let isFirstReport = previous.field_1546 === 'Pending'
-  let isMutlipleInstallers = callout.field_927_raw.length > 1
-
-  let salesEmail = await getSalesEmail(callout)
-  let opsEmail = await getOpsEmail(callout)
-  let installerEmail = isMutlipleInstallers ? getInstallerEmails(callout) : [installer.email]
+  let installers = await getInstallerRecipients(params)
+  let sales = await getSalesRecipients(params)
+  let ops = await getOpsRecipients(params)
+  let reports = [{'email':'reports@lovelight.com.au'}]
 
   // Gather data for email.
+  //https://sendgrid.com/docs/API_Reference/api_v3.html
+  let template_id = template_id
   let from = {
-    'email': 'noreply@lovelight.com.au',
-    'name': installer.name
+    'email': 'reports@lovelight.com.au',
+    'name': user.name
   }
   let reply_to = {
-    'email': installer.email,
-    'name': installer.name
+    'email': user.email,
+    'name': user.name
   }
-  let to = [{
-    'email': salesEmail
-  }]
-  let cc = [{
-    'email': opsEmail
-  }]
-  installerEmail.forEach(installer => cc.push({
-    'email': installer.email
-  }))
+  let to = sales
+  let cc = [].concat(installers,ops,reports)
 
-  let data = {}
-  data.personalizations = []
-  data.personalizations.push({})
-
-  let demodata = {
-    "personalizations": [{
-      "to": "{{58792153__recipents}}",
-      "bcc": [{
-        "email": "mysalesreports@lovelight.com.au"
-      }],
-      "dynamic_template_data": {
-        "colourRoomName": "{{58790135__field_26}}",
-        "dataTableUrl": "{{58872748__url}}",
-        "yesterday": "{{58790550__yesterday}}",
-        "sevenDaysAgo": "{{58790550__sevenDaysAgo}}"
-      }
-    }],
-    "from": {
-      "email": "mysales@lovelight.com.au",
-      "name": "Lovelight"
+  return body = {
+    'personalizations': {
+      'to':to,
+      'cc':cc,
+      'dynamic_template_data':dynamic_template_data,
     },
-    "template_id": "d-16efe526579444888d24254026961af1"
+    'from':from,
+    'reply_to':reply_to,
+    'template_id':template_id
   }
 
 }
