@@ -135,7 +135,7 @@ async function handleCalendarUpdates(callout, previous, changes) {
 
 async function createEvent(callout) {
   let calloutObj = new KnackObject(objects.callouts)
-  let queryParams = ['sendUpdates=none', 'conferenceDataVersion=1']
+  let queryParams = ['sendUpdates=all', 'conferenceDataVersion=1'] // conference data version removes the video conf details
   let body = await buildGCalEventBody(callout)
   let params = {
     method: 'POST',
@@ -160,7 +160,7 @@ async function updateEvent(callout) {
   if (callout.field_1082 <= 1) throw new Error("Can't update event without event Id")
   let calloutObj = new KnackObject(objects.callouts)
   let eventId = callout.field_1082
-  let queryParams = ['sendUpdates=none']
+  let queryParams = ['sendUpdates=all']
   let body = await buildGCalEventBody(callout)
   let params = {
     method: 'PATCH',
@@ -182,7 +182,7 @@ async function cancelEvent(callout) {
     if (callout.field_1082 <= 1) throw new Error("Can't cancel event without event Id")
     let calloutObj = new KnackObject(objects.callouts)
     let eventId = callout.field_1082
-    let queryParams = ['sendUpdates=none']
+    let queryParams = ['sendUpdates=all']
     let body = {
       'status': 'cancelled'
     }
