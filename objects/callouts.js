@@ -21,7 +21,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 
 // Force and update when manually resyncing a callout
 $(document).on('knack-form-submit.view_1967', function(event, view, record) {
-  //forceCalloutUpdate(record)
+  forceCalloutUpdate(record)
 })
 
 // -------------------------------------------------------
@@ -42,9 +42,6 @@ async function processNewCallOut(view, callout, action, fields) {
     let names = await getCallOutName(callout)
     let jobDetails = await getJobUpdates(callout)
     let updateData = Object.assign({}, createdBy, names, jobDetails)
-
-    // Add 'Calendar update required' flag if required
-    if (isEventCreationRequired(callout)) updateData.field_1496 = 'Yes'
 
     // Update the callout
     let calloutsObj = new KnackObject(objects.callouts)
@@ -71,10 +68,6 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
     } : {}
     let updateData = Object.assign({}, names, jobDetails, reportSubmitter)
 
-    // Add 'Calendar update required' flag if required
-    //*** Remove this with calendar migration. The update and result will be availaibe in the same call, no need to set the flag in advance.
-    if (isGoogleCalendarActionRequired(callout, previous, changes)) updateData.field_1496 = 'Yes'
-
     // If there are changes, update the callout
     if (!$.isEmptyObject(updateData)) {
       let calloutsObj = new KnackObject(objects.callouts)
@@ -83,22 +76,16 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
 
     handleCalendarUpdates(callout, previous, changes)
     handleInstallerReports(callout, previous, changes)
-
-    // Update any connected portal records
     updateConnectedJobsInPortal(callout)
 
   } catch (err) {
     Sentry.captureException(err)
-    throw new Error(err)
-  } finally {
-
   }
 }
 
 // Sometime there is a need to force an event update, even when there are no changes
 // Requried if there has been an error and the process needs to be run again
 async function forceCalloutUpdate(callout) {
-
   try {
     // If the event needs to be cancelled, do it
     if (isEventCancellationRequired(callout)) return cancelEvent(callout)
@@ -119,9 +106,7 @@ async function forceCalloutUpdate(callout) {
     return updateEvent(callout)
   } catch (err) {
     Sentry.captureException(err)
-    throw new Error(err)
   }
-
 }
 
 // End Handlers
@@ -140,32 +125,12 @@ async function handleCalendarUpdates(callout, previous, changes) {
   if (isEventFlagged) return // there's already an update in progress
   if (!(isCreate || isUpdate || isCancel)) return // Exit if we somehow got here when a update is not required
 
-  await applyCalendarUpdateFlag(callout) // Add flag to stop race conditions
+  // Add flag to stop race conditions
+  await applyCalendarUpdateFlag(callout)
 
-  // Get data that describes the event in a human readable way
-  let eventData = getCalendarEventData(callout)
-
-  if (isCancel) {
-    triggerZap('xp4tzz', eventData)
-    cancelEvent(callout)
-    return
-  }
-
-  // If creating or updating, will need attendees
-  eventData.attendees = await getAttendees(callout)
-
-  if (isCreate) {
-    triggerZap('xpuj8p', eventData)
-    createEvent(callout)
-    return
-  }
-
-  if (isUpdate) {
-    triggerZap('xnc85h', eventData)
-    updateEvent(callout)
-    return
-  }
-
+  if (isCancel) return cancelEvent(callout)
+  if (isCreate) return createEvent(callout)
+  if (isUpdate) return updateEvent(callout)
 }
 
 async function createEvent(callout) {
@@ -180,22 +145,21 @@ async function createEvent(callout) {
   try {
     let gCalEventDetails = await lovelightCalendarService(params, queryParams)
     calloutObj.update(callout.id, {
-      'field_1638': gCalEventDetails.id, // remove the event ID
+      'field_1082': gCalEventDetails.id, // remove the event ID
     })
     return gCalEventDetails
   } catch (err) {
-    // calloutObj.update(callout.id, {
-    //   'field_1496': 'yes', // flag that an update is still required
-    // })
-    alert(`There was an error creating ${callout.field_1488}.If it continues after a couple of attempts, let Dan know!`)
-    throw err
+    calloutObj.update(callout.id, {
+      'field_1496': 'yes', // flag that an update is still required
+    })
+    Sentry.captureException(err)
   }
 }
 
 async function updateEvent(callout) {
-  if (callout.field_1638 <= 1) throw new Error("Can't update event without event Id")
+  if (callout.field_1082 <= 1) throw new Error("Can't update event without event Id")
   let calloutObj = new KnackObject(objects.callouts)
-  let eventId = callout.field_1638
+  let eventId = callout.field_1082
   let queryParams = ['sendUpdates=none']
   let body = await buildGCalEventBody(callout)
   let params = {
@@ -206,60 +170,67 @@ async function updateEvent(callout) {
   try {
     return gCalEventDetails = await lovelightCalendarService(params, queryParams, eventId)
   } catch (err) {
-    // calloutObj.update(callout.id, {
-    //   'field_1496': 'yes', // flag that an update is still required
-    // })
-    alert(`There was an error updating ${callout.field_1488}.If it continues after a couple of attempts, let Dan know!`)
-    throw err
+    calloutObj.update(callout.id, {
+      'field_1496': 'yes', // flag that an update is still required
+    })
+    Sentry.captureException(err)
   }
 }
 
 async function cancelEvent(callout) {
-  if (callout.field_1638 <= 1) throw new Error("Can't cancel event without event Id")
-  let calloutObj = new KnackObject(objects.callouts)
-  let eventId = callout.field_1638
-  let queryParams = ['sendUpdates=none']
-  let body = {
-    'status': 'cancelled'
-  }
-  let params = {
-    method: 'PATCH',
-    headers: window.calendarHeaders,
-    body: JSON.stringify(body)
-  }
   try {
+    if (callout.field_1082 <= 1) throw new Error("Can't cancel event without event Id")
+    let calloutObj = new KnackObject(objects.callouts)
+    let eventId = callout.field_1082
+    let queryParams = ['sendUpdates=none']
+    let body = {
+      'status': 'cancelled'
+    }
+    let params = {
+      method: 'PATCH',
+      headers: window.calendarHeaders,
+      body: JSON.stringify(body)
+    }
+
     let gCalEventDetails = await lovelightCalendarService(params, queryParams, eventId)
     calloutObj.update(callout.id, {
-      'field_1638': '0', // remove the event ID
+      'field_1082': '0', // remove the event ID
     })
     return gCalEventDetails
   } catch (err) {
-    // calloutObj.update(callout.id, {
-    //   'field_1496': 'yes', // flag that an update is still required
-    // })
-    alert(`There was an error cancelling ${callout.field_1488}.If it continues after a couple of attempts, let Dan know!`)
-    throw err
+    calloutObj.update(callout.id, {
+      'field_1496': 'yes', // flag that an update is still required
+    })
+    Sentry.captureException(err)
   }
 }
 
 async function lovelightCalendarService(params, queryParams, eventId, calendar = 'primary') {
-  let url = 'https://wk949u5xcb.execute-api.ap-southeast-2.amazonaws.com/prod/v1/calendar/'
-  url += calendar + '/events'
-  url += eventId ? '/' + eventId : ''
-  url += queryParams ? '?' + queryParams.join('&') : ''
+  try {
+    let url = 'https://wk949u5xcb.execute-api.ap-southeast-2.amazonaws.com/prod/v1/calendar/'
+    url += calendar + '/events'
+    url += eventId ? '/' + eventId : ''
+    url += queryParams ? '?' + queryParams.join('&') : ''
 
-  let response = await fetch(url, params)
-  if (!response.ok) throw Error(response.statusText)
-  let json = await response.json()
-  return json
+    let response = await fetch(url, params)
+    if (!response.ok) throw Error(response.statusText)
+    let json = await response.json()
+    return json
+  } catch (err) {
+    Sentry.captureException(err)
+  }
 }
 
 // Applies a calendar flag to a Knack record to prevent race conditions
 async function applyCalendarUpdateFlag(callout) {
-  let calloutsObj = new KnackObject(objects.callouts)
-  let updateData = {}
-  updateData.field_1101 = 'Yes' // Add 'Calendar Update In Progress Flag' to avoid race conditions
-  await calloutsObj.update(callout.id, updateData)
+  try {
+    let calloutsObj = new KnackObject(objects.callouts)
+    let updateData = {}
+    updateData.field_1101 = 'Yes' // Add 'Calendar Update In Progress Flag' to avoid race conditions
+    await calloutsObj.update(callout.id, updateData)
+  } catch (err) {
+    Sentry.captureException(err)
+  }
 }
 
 // End Calendar Management Functions
@@ -402,22 +373,6 @@ async function getJobUpdates(callOut, changes, forceUpdate = false) {
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
 }
 
-// Gather key callout data with human readable names
-function getCalendarEventData(callout) {
-  return {
-    'id': callout.id,
-    'fromTime': callout.field_924_raw.timestamp,
-    'toTime': callout.field_924_raw.to.timestamp,
-    'jobs': callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join(', ') : undefined,
-    'address': callout.field_981.replace(/<\/?[^>]+(>|$)/g, ' '), // remove </br> from address string
-    'calendarID': callout.field_1082,
-    'installers': callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join(', ') : undefined,
-    'productToInstall': callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join(', ') : undefined,
-    'instructions': callout.field_929,
-    'displayName': callout.field_1488
-  }
-}
-
 // Create parameters required to create / update a google calendar event
 async function buildGCalEventBody(callout) {
   try {
@@ -479,60 +434,6 @@ async function buildGCalEventBody(callout) {
     throw new Error(err)
   }
 }
-
-// Returns a comma separated string of email addresses
-async function getAttendees(callout) {
-  let attendees = []
-  attendees = await getInstallerEmails(callout) // adds array of emails
-  attendees.push(await getSalesEmail(callout))
-  attendees.push(await getOpsEmail(callout))
-  attendees.push(await getOtherAttendeeEmails(callout))
-  attendees = attendees.join(',').trim()
-  if (attendees.replace(/,/g, ',').length === 0) throw new Error("Can't create event without any attendees")
-  return attendees
-}
-
-// Returns a comma separated string of email addresses
-async function getInstallerEmails(callout) {
-  let installersObj = new KnackObject(objects.installers)
-  let installerIDs = getConnectionIDs(callout.field_927_raw)
-  let installerFilter = createFilterFromArrayOfIDs(installerIDs)
-  let installers = await installersObj.find(installerFilter)
-  return installers.map(installer => installer.field_870_raw.email)
-}
-
-// Checks for inclusion and salesperson opt out
-// Returns an email address
-// ignorePrefs defaults to false, when true send email even if opted out
-async function getSalesEmail(callout, ignorePrefs = false) {
-  if (!callout.field_985_raw || !callout.field_985_raw[0]) return // there is no salesperson on the callout
-  if (!ignorePrefs && callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
-  let salespeopleObj = new KnackObject(objects.salespeople)
-  let salesperson = await salespeopleObj.get(callout.field_985_raw[0].id)
-  if (!ignorePrefs && salesperson.field_1596 === 'Yes') return '' // they've opted out of event emails
-  if (salesperson.field_957_raw) return salesperson.field_957_raw.email
-  return undefined
-}
-
-// Checks for inclusion and opsperson opt out
-// Returns an email address
-// ignorePrefs defaults to false, when true send email even if opted out
-async function getOpsEmail(callout, ignorePrefs) {
-  if (!callout.field_1474_raw || !callout.field_1474_raw[0]) return // there is no ops on the callout
-  if (!ignorePrefs && callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
-  let opspeopleObj = new KnackObject(objects.opspeople)
-  let opsperson = await opspeopleObj.get(callout.field_1474_raw[0].id)
-  if (!ignorePrefs && opsperson.field_1597 === 'Yes') return '' // they've opted out of event emails
-  if (opsperson.field_814_raw) return opsperson.field_814_raw.email
-  return undefined
-}
-
-// Returns a comma separated string of email addresses
-function getOtherAttendeeEmails(callout) {
-  return callout.field_1503.replace(/;/g, ',').replace(/ /g, ',')
-}
-
-// NEW FUNCTIONS
 
 // Returns an array of receipient objects
 async function getEventAttendees(callout) {
@@ -640,13 +541,6 @@ function getOtherAttendeeRecipients({
 
 // ----------------------------------------------------------
 // Start Boolean Helper Functions
-
-function isGoogleCalendarActionRequired(callout, previous, changes) {
-  if (callout.field_1101 === 'Yes') return false // there's already an update in progress
-  if (isEventCreationRequired(callout) || isEventCancellationRequired(callout) || isEventUpdateRequired(callout, previous, changes)) return true
-  return false
-}
-
 function isEventCreationRequired(callout) {
   if (callout.field_1082.length > 1) return false // if it's already in the calendar, don't create
   if (!isEventTypeInviteable(callout)) return false // if not an invitable type, no need to create
@@ -691,6 +585,7 @@ function isCalloutStatusInviteable(callout) {
 }
 
 function isEventDataUpdated(callout, previous, changes) {
+  if (isCalendarTypeUpdated(changes)) return true
   if (isJobUpdated(changes)) return true
   if (isScheduledDateUpdated(changes)) return true
   if (isAddressUpdated(changes)) return true
@@ -699,6 +594,11 @@ function isEventDataUpdated(callout, previous, changes) {
   if (isOtherAttendeesUpdated(changes)) return true
   if (isSalesUpdated(callout, previous, changes)) return true
   if (isOpsUpdated(callout, previous, changes)) return true
+  return false
+}
+
+function isCalendarTypeUpdated(changes){
+  if (changes.includes('field_1633')) return true
   return false
 }
 
@@ -820,113 +720,113 @@ async function handleInstallerReports(callout, previous, changes) {
 
 }
 
-async function generateReportTemplateData(callout, previous){
+async function generateReportTemplateData(callout, previous) {
 
-    let dynamicData = {}
+  let dynamicData = {}
 
-    let isFirstReport = previous.field_1546 === 'Pending'
-    let calloutType = callout.field_925
-    let division = callout.field_1495 // Customer, Commercial, Volume
+  let isFirstReport = previous.field_1546 === 'Pending'
+  let calloutType = callout.field_925
+  let division = callout.field_1495 // Customer, Commercial, Volume
 
-    let outcome = callout.field_1542 // No Issues, Follow Up Required
-    let calloutName = callout.field_1488
-    let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
-    let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
-    let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
-    let whatWentWrong = callout.field_1547
-    let reportDetails = callout.field_1545
-    let installTimeRequired = callout.field_1616
-    let photosUploaded = callout.field_1548 // Yes, No
-    let docsUploaded = callout.field_1549
-    let serviceCallIssue = callout.field_1582
-    let serviceChargeable = callout.field_1579 // Yes, No
-    let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
-    let consumablesSupplied = callout.field_1626 // Yes, No
-    let consumableDetails = callout.field_1627
+  let outcome = callout.field_1542 // No Issues, Follow Up Required
+  let calloutName = callout.field_1488
+  let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
+  let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
+  let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
+  let whatWentWrong = callout.field_1547
+  let reportDetails = callout.field_1545
+  let installTimeRequired = callout.field_1616
+  let photosUploaded = callout.field_1548 // Yes, No
+  let docsUploaded = callout.field_1549
+  let serviceCallIssue = callout.field_1582
+  let serviceChargeable = callout.field_1579 // Yes, No
+  let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
+  let consumablesSupplied = callout.field_1626 // Yes, No
+  let consumableDetails = callout.field_1627
 
-    let instructions = callout.field_929
+  let instructions = callout.field_929
 
-    dynamicData.id = callout.id
-    dynamicData.updatePrefix = isFirstReport ? `UPDATED ` : ''
-    dynamicData.outcome = outcome
-    dynamicData.calloutName = calloutName
+  dynamicData.id = callout.id
+  dynamicData.updatePrefix = isFirstReport ? `UPDATED ` : ''
+  dynamicData.outcome = outcome
+  dynamicData.calloutName = calloutName
 
-    let calloutDetailRows = []
+  let calloutDetailRows = []
 
-    // Callout Job Details
-    if(jobs) calloutDetailRows.push({
-      'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
-      'details': jobs
-    })
+  // Callout Job Details
+  if (jobs) calloutDetailRows.push({
+    'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
+    'details': jobs
+  })
 
-    // Installer Details
+  // Installer Details
+  calloutDetailRows.push({
+    'label': callout.field_927_raw && callout.field_927_raw.length > 1 ? 'Installers' : 'Installer',
+    'details': installers
+  })
+
+  // Service Call Details
+  if (calloutType === 'Service Call') {
+
+    // Reason for Service call
     calloutDetailRows.push({
-      'label':callout.field_927_raw && callout.field_927_raw.length > 1 ? 'Installers' : 'Installer',
-      'details': installers
+      'label': 'Service Call Reason',
+      'details': serviceCallIssue
     })
-
-    // Service Call Details
-    if(calloutType === 'Service Call') {
-
-      // Reason for Service call
-      calloutDetailRows.push({
-        'label':'Service Call Reason',
-        'details': serviceCallIssue
-      })
-      // Chargeable?
-      calloutDetailRows.push({
-        'label':'Chargeable?',
-        'details': serviceChargeable === 'Yes' ? 'Yes' : `No. ${notChargeableReason}`
-      })
-
-    }
-
-    // Products
-    if(callout.field_954_raw) calloutDetailRows.push({
-      'label':'Products',
-      'details': callout.field_954_raw.length <= 10 ? products : 'Many'
-    })
-
-    // Installer's instructions
+    // Chargeable?
     calloutDetailRows.push({
-      'label':'Instructions',
-      'details': instructions
+      'label': 'Chargeable?',
+      'details': serviceChargeable === 'Yes' ? 'Yes' : `No. ${notChargeableReason}`
     })
 
-    let calloutOutcomeRows = []
+  }
 
-    // Issues
-    if(outcome.indexOf('Follow')>-1) calloutOutcomeRows.push({
-      'label':'What went wrong',
-      'details': whatWentWrong
-    })
+  // Products
+  if (callout.field_954_raw) calloutDetailRows.push({
+    'label': 'Products',
+    'details': callout.field_954_raw.length <= 10 ? products : 'Many'
+  })
 
-    // Installer's report
-    calloutOutcomeRows.push({
-      'label':'Details',
-      'details': reportDetails
-    })
+  // Installer's instructions
+  calloutDetailRows.push({
+    'label': 'Instructions',
+    'details': instructions
+  })
 
-    // Service Call Details
-    if(calloutType === 'Service Call') calloutOutcomeRows.push({
-        'label':'Consumables Supplied',
-        'details': consumablesSupplied === 'Yes' ? consumableDetails : `None`
-      })
+  let calloutOutcomeRows = []
 
-    // Estimate Install Time
-    if(installTimeRequired.length > 0) calloutOutcomeRows.push({
-      'label':'Estimated Install Time',
-      'details': installTimeRequired
-    })
+  // Issues
+  if (outcome.indexOf('Follow') > -1) calloutOutcomeRows.push({
+    'label': 'What went wrong',
+    'details': whatWentWrong
+  })
 
-    // Docs & Photos
-    calloutOutcomeRows.push({
-      'label':'Photos or docs?',
-      'details': `Photos: ${photosUploaded}, Docs: ${docsUploaded}`
-    })
+  // Installer's report
+  calloutOutcomeRows.push({
+    'label': 'Details',
+    'details': reportDetails
+  })
+
+  // Service Call Details
+  if (calloutType === 'Service Call') calloutOutcomeRows.push({
+    'label': 'Consumables Supplied',
+    'details': consumablesSupplied === 'Yes' ? consumableDetails : `None`
+  })
+
+  // Estimate Install Time
+  if (installTimeRequired.length > 0) calloutOutcomeRows.push({
+    'label': 'Estimated Install Time',
+    'details': installTimeRequired
+  })
+
+  // Docs & Photos
+  calloutOutcomeRows.push({
+    'label': 'Photos or docs?',
+    'details': `Photos: ${photosUploaded}, Docs: ${docsUploaded}`
+  })
 
 
-    dynamicData.details = `
+  dynamicData.details = `
     <table>
     <tr><td colspan="2"><strong><u>calloutType</u></strong></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
@@ -939,17 +839,29 @@ async function generateReportTemplateData(callout, previous){
     ${calloutOutcomeRows.map(row => `<tr><td style="padding:10px;"><strong>${row.label}</strong></td><td style="padding:10px;">${row.details}</td></tr>`).join('')}
     </table>`
 
-    return dynamicData
+  return dynamicData
 
 }
 
 async function generateReportEmailBody(callout, dynamic_template_data, template_id) {
 
   let user = Knack.getUserAttributes()
-  let installers = await getInstallerRecipients({callout:callout})
-  let sales = await getSalesRecipients({callout:callout, optional:false, ignorePrefs:true})
-  let ops = await getOpsRecipients({callout:callout, optional:false, ignorePrefs:true})
-  let reports = [{'email':'reports@lovelight.com.au'}]
+  let installers = await getInstallerRecipients({
+    callout: callout
+  })
+  let sales = await getSalesRecipients({
+    callout: callout,
+    optional: false,
+    ignorePrefs: true
+  })
+  let ops = await getOpsRecipients({
+    callout: callout,
+    optional: false,
+    ignorePrefs: true
+  })
+  let reports = [{
+    'email': 'reports@lovelight.com.au'
+  }]
 
   // Gather data for email.
   //https://sendgrid.com/docs/API_Reference/api_v3.html
@@ -961,20 +873,22 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'email': user.email,
     'name': user.name
   }
-  let to = [{'email':'dan@lovelight.com.au'}] // sales
+  let to = [{
+    'email': 'dan@lovelight.com.au'
+  }] // sales
   console.log(sales)
-  let cc = [].concat(installers,ops,reports)
+  let cc = [].concat(installers, ops, reports)
   console.log(cc)
 
   return body = {
     'personalizations': [{
-      'to':to,
+      'to': to,
       //'cc':cc,
-      'dynamic_template_data':dynamic_template_data,
+      'dynamic_template_data': dynamic_template_data,
     }],
-    'from':from,
-    'reply_to':reply_to,
-    'template_id':template_id
+    'from': from,
+    'reply_to': reply_to,
+    'template_id': template_id
   }
 
 }
