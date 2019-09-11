@@ -847,7 +847,7 @@ async function generateReportTemplateData(callout, previous){
     let instructions = callout.field_929
 
     dynamicData.id = callout.id
-    dynamicData.updatePrefix = isFirstReport ? `UPDATED ` : ''
+    dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED'
     dynamicData.outcome = outcome
     dynamicData.calloutName = calloutName
 
@@ -882,7 +882,7 @@ async function generateReportTemplateData(callout, previous){
     }
 
     // Products
-    if(callout.field_954_raw) calloutDetailRows.push({
+    if(callout.field_954_raw && callout.field_954_raw.length > 0) calloutDetailRows.push({
       'label':'Products',
       'details': callout.field_954_raw.length <= 10 ? products : 'Many'
     })
@@ -928,15 +928,15 @@ async function generateReportTemplateData(callout, previous){
 
     dynamicData.details = `
     <table>
-    <tr><td colspan="2"><strong><u>calloutType</u></strong></td></tr>
+    <tr><td colspan="2"><strong><u>${calloutType}</u></strong></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
-    ${calloutDetailRows.map(row => `<tr><td style="padding:10px;" class="row-label"><strong>${row.label}</strong></td><td style="padding:10px;">${row.details}</td></tr>`).join('')}
+    ${calloutDetailRows.map(row => `<tr><td style="padding:5px;" class="row-label"><strong>${row.label}</strong></td><td style="padding:5px;">${row.details}</td></tr>`).join('')}
     <tr><td colspan="2">&nbsp;</td></tr>
     <tr><td colspan="2" style="padding: 0px 0px 2px" bgcolor="#000000"></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
     <tr><td colspan="2"><strong><u>Report</u></strong></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
-    ${calloutOutcomeRows.map(row => `<tr><td style="padding:10px;"><strong>${row.label}</strong></td><td style="padding:10px;">${row.details}</td></tr>`).join('')}
+    ${calloutOutcomeRows.map(row => `<tr><td style="padding:5px;"><strong>${row.label}</strong></td><td style="padding:5px;">${row.details}</td></tr>`).join('')}
     </table>`
 
     return dynamicData
