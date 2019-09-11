@@ -962,15 +962,20 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'name': user.name
   }
   let to = [{'email':'dan@lovelight.com.au'}] // sales
-  console.log(sales)
   let cc = [].concat(installers,ops,reports)
-  console.log(cc)
+
+  let priorityHeaders = {
+    "X-Priority": "1",
+    "Priority": "urgent",
+    "Importance": "high"
+  }
 
   return body = {
     'personalizations': [{
       'to':to,
       //'cc':cc,
       'dynamic_template_data':dynamic_template_data,
+      'headers': callout.field_1542 = 'No Issues' ? {} : priorityHeaders
     }],
     'from':from,
     'reply_to':reply_to,
