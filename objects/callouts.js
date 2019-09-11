@@ -508,7 +508,7 @@ async function getSalesEmail(callout, ignorePrefs = false) {
   if (!callout.field_985_raw || !callout.field_985_raw[0]) return // there is no salesperson on the callout
   if (!ignorePrefs && callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
   let salespeopleObj = new KnackObject(objects.salespeople)
-  let salesperson = salespeopleObj.get(callout.field_985_raw[0].id)
+  let salesperson = await salespeopleObj.get(callout.field_985_raw[0].id)
   if (!ignorePrefs && salesperson.field_1596 === 'Yes') return '' // they've opted out of event emails
   if (salesperson.field_957_raw) return salesperson.field_957_raw.email
   return undefined
@@ -521,7 +521,7 @@ async function getOpsEmail(callout, ignorePrefs) {
   if (!callout.field_1474_raw || !callout.field_1474_raw[0]) return // there is no ops on the callout
   if (!ignorePrefs && callout.field_1476.indexOf('Yes') === -1) return '' // we're not emailing them
   let opspeopleObj = new KnackObject(objects.opspeople)
-  let opsperson = opspeopleObj.get(callout.field_1474_raw[0].id)
+  let opsperson = await opspeopleObj.get(callout.field_1474_raw[0].id)
   if (!ignorePrefs && opsperson.field_1597 === 'Yes') return '' // they've opted out of event emails
   if (opsperson.field_814_raw) return opsperson.field_814_raw.email
   return undefined
