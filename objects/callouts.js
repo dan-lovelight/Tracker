@@ -82,7 +82,7 @@ async function processUpdatedCallOut(view, callout, action, fields, previous, ch
     }
 
     handleCalendarUpdates(callout, previous, changes)
-    //handleInstallerReports(callout, previous, changes)
+    handleInstallerReports(callout, previous, changes)
 
     // Update any connected portal records
     updateConnectedJobsInPortal(callout)
@@ -810,49 +810,149 @@ function updateConnectedJobsInPortal(record) {
 
 async function handleInstallerReports(callout, previous, changes) {
 
-  let TEMPLATE_ID = ''
+  let TEMPLATE_ID = 'd-0b432fc139d846d7a5b237dc975c4360'
 
   if (!isReportUpdated(changes)) return
-  let dynamic_template_data = generateReportTemplateData(callout, previous)
-  let email_body = generateReportEmailBody(callout, dynamic_template_data, TEMPLATE_ID)
-  return sendEmailViaSendGrid(email_body)
+  let dynamic_template_data = await generateReportTemplateData(callout, previous)
+  let email_body = await generateReportEmailBody(callout, dynamic_template_data, TEMPLATE_ID)
+  triggerZap('o3azzbk', email_body) // Because of CORS have to send via Zapier
+  return
 
 }
 
 async function generateReportTemplateData(callout, previous){
 
     let dynamicData = {}
-    
-    let outcome
-    let calloutName
-    let calloutType
-    let jobs
-    let installers
-    let issues
-    let details
-    let installTimeRequired
-    let isPhotosUploaded
-    let isDocsUploaded
-    let serviceCallIssue
-    let isConsumables
-    let consumableDetails
-    let isFirstReport = previous.field_1546 === 'Pending'
 
-    dynamicData.subject = isFirstReport ?
+    let isFirstReport = previous.field_1546 === 'Pending'
+    let calloutType = callout.field_925
+    let division = callout.field_1495 // Customer, Commercial, Volume
+
+    let outcome = callout.field_1542 // No Issues, Follow Up Required
+    let calloutName = callout.field_1488
+    let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
+    let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
+    let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
+    let whatWentWrong = callout.field_1547
+    let reportDetails = callout.field_1545
+    let installTimeRequired = callout.field_1616
+    let photosUploaded = callout.field_1548 // Yes, No
+    let docsUploaded = callout.field_1549
+    let serviceCallIssue = callout.field_1582
+    let serviceChargeable = callout.field_1579 // Yes, No
+    let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
+    let consumablesSupplied = callout.field_1626 // Yes, No
+    let consumableDetails = callout.field_1627
+
+    let instructions = callout.field_929
+
+    dynamicData.id = callout.id
+    dynamicData.updatePrefix = isFirstReport ? `UPDATED ` : ''
+    dynamicData.outcome = outcome
+    dynamicData.calloutName = calloutName
+
+    let calloutDetailRows = []
+
+    // Callout Job Details
+    if(jobs) calloutDetailRows.push({
+      'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
+      'details': jobs
+    })
+
+    // Installer Details
+    calloutDetailRows.push({
+      'label':callout.field_927_raw && callout.field_927_raw.length > 1 ? 'Installers' : 'Installer',
+      'details': installers
+    })
+
+    // Service Call Details
+    if(calloutType === 'Service Call') {
+
+      // Reason for Service call
+      calloutDetailRows.push({
+        'label':'Service Call Reason',
+        'details': serviceCallIssue
+      })
+      // Chargeable?
+      calloutDetailRows.push({
+        'label':'Chargeable?',
+        'details': serviceChargeable === 'Yes' ? 'Yes' : `No. ${notChargeableReason}`
+      })
+
+    }
+
+    // Products
+    if(callout.field_954_raw) calloutDetailRows.push({
+      'label':'Products',
+      'details': callout.field_954_raw.length <= 10 ? products : 'Many'
+    })
+
+    // Installer's instructions
+    calloutDetailRows.push({
+      'label':'Instructions',
+      'details': instructions
+    })
+
+    let calloutOutcomeRows = []
+
+    // Issues
+    if(outcome.indexOf('Follow')>-1) calloutOutcomeRows.push({
+      'label':'What went wrong',
+      'details': whatWentWrong
+    })
+
+    // Installer's report
+    calloutOutcomeRows.push({
+      'label':'Details',
+      'details': reportDetails
+    })
+
+    // Service Call Details
+    if(calloutType === 'Service Call') calloutOutcomeRows.push({
+        'label':'Consumables Supplied',
+        'details': consumablesSupplied === 'Yes' ? consumableDetails : `None`
+      })
+
+    // Estimate Install Time
+    if(installTimeRequired.length > 0) calloutOutcomeRows.push({
+      'label':'Estimated Install Time',
+      'details': installTimeRequired
+    })
+
+    // Docs & Photos
+    calloutOutcomeRows.push({
+      'label':'Photos or docs?',
+      'details': `Photos: ${photosUploaded}, Docs: ${docsUploaded}`
+    })
+
+
+    dynamicData.details = `
+    <table>
+    <tr><td colspan="2"><strong><u>calloutType</u></strong></td></tr>
+    <tr><td colspan="2">&nbsp;</td></tr>
+    ${calloutDetailRows.map(row => `<tr><td style="padding:10px;" class="row-label"><strong>${row.label}</strong></td><td style="padding:10px;">${row.details}</td></tr>`).join('')}
+    <tr><td colspan="2">&nbsp;</td></tr>
+    <tr><td colspan="2" style="padding: 0px 0px 2px" bgcolor="#000000"></td></tr>
+    <tr><td colspan="2">&nbsp;</td></tr>
+    <tr><td colspan="2"><strong><u>Report</u></strong></td></tr>
+    <tr><td colspan="2">&nbsp;</td></tr>
+    ${calloutOutcomeRows.map(row => `<tr><td style="padding:10px;"><strong>${row.label}</strong></td><td style="padding:10px;">${row.details}</td></tr>`).join('')}
+    </table>`
+
+    return dynamicData
 
 }
 
 async function generateReportEmailBody(callout, dynamic_template_data, template_id) {
 
   let user = Knack.getUserAttributes()
-  let installers = await getInstallerRecipients(params)
-  let sales = await getSalesRecipients(params)
-  let ops = await getOpsRecipients(params)
+  let installers = await getInstallerRecipients({callout:callout})
+  let sales = await getSalesRecipients({callout:callout, optional:false, ignorePrefs:true})
+  let ops = await getOpsRecipients({callout:callout, optional:false, ignorePrefs:true})
   let reports = [{'email':'reports@lovelight.com.au'}]
 
   // Gather data for email.
   //https://sendgrid.com/docs/API_Reference/api_v3.html
-  let template_id = template_id
   let from = {
     'email': 'reports@lovelight.com.au',
     'name': user.name
@@ -861,23 +961,20 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'email': user.email,
     'name': user.name
   }
-  let to = sales
+  let to = [{'email':'dan@lovelight.com.au'}] // sales
+  console.log(sales)
   let cc = [].concat(installers,ops,reports)
+  console.log(cc)
 
   return body = {
-    'personalizations': {
+    'personalizations': [{
       'to':to,
-      'cc':cc,
+      //'cc':cc,
       'dynamic_template_data':dynamic_template_data,
-    },
+    }],
     'from':from,
     'reply_to':reply_to,
     'template_id':template_id
   }
 
-}
-
-async function sendEmailViaSendGrid(params) {
-  let url = 'https://api.sendgrid.com/v3/mail/send'
-  return fetch(url, params)
 }
