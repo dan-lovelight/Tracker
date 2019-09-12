@@ -850,6 +850,7 @@ async function generateReportTemplateData(callout, previous){
     dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED'
     dynamicData.outcome = outcome
     dynamicData.calloutName = calloutName
+    dynamicData.reportDetails = reportDetails
 
     let calloutDetailRows = []
 
@@ -961,19 +962,19 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'email': user.email,
     'name': user.name
   }
-  let to = [{'email':'dan@lovelight.com.au'}] // sales
+  let to = sales
   let cc = [].concat(installers,ops,reports)
 
   let priorityHeaders = {
     "X-Priority": "1",
-    "Priority": "urgent",
-    "Importance": "high"
+    "X-MSMail-Priority": "High",
+    "Importance": "High"
   }
 
   return body = {
     'personalizations': [{
       'to':to,
-      //'cc':cc,
+      'cc':cc,
       'dynamic_template_data':dynamic_template_data,
       'headers': callout.field_1542 = 'No Issues' ? {} : priorityHeaders
     }],
