@@ -847,7 +847,7 @@ async function generateReportTemplateData(callout, previous){
     let instructions = callout.field_929
 
     dynamicData.id = callout.id
-    dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED'
+    dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED '
     dynamicData.outcome = outcome
     dynamicData.calloutName = calloutName
     dynamicData.reportDetails = reportDetails
