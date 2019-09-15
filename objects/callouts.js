@@ -962,8 +962,8 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'email': user.email,
     'name': user.name
   }
-  let to = sales
-  let cc = [].concat(installers,ops,reports)
+  let to = [].concat(sales,reports)
+  let cc = [].concat(installers,ops)
 
   let priorityHeaders = {
     "X-Priority": "1",
