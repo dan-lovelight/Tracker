@@ -60,7 +60,7 @@ function logMixpanelRecordAction(view, record, action, fields, recordBefore, cha
     let scene_id = view.scene ? view.scene.scene_id : ''
     let name = view.name ? view.name : ''
     let changesNames = changes.map(fieldKey => {
-      return fields[fieldKey].name
+      return fields[fieldKey] ? fields[fieldKey].name : undefined
     })
 
     let logData = {
