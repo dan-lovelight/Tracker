@@ -103,6 +103,7 @@ function processOpportunityChanges(record) {
   zapierData.salesPerson = salesPerson;
   zapierData.quotedBy = quotedBy;
   zapierData.company = company;
+  zapierData.salesPersonCredit = `${salesPerson} & ${quotedBy}`
 
   console.log(status, statusPrevious, statusChanged, value, salesPerson, quotedBy, company);
 
@@ -121,18 +122,13 @@ function processOpportunityChanges(record) {
 
       if (value >= saleNotificationValue) {
 
-        if (salesPerson.indexOf('Jeremy') === -1) {
-          zapierData.salesPersonCredit = salesPerson;
-        } else {
-          zapierData.salesPersonCredit = quotedBy
-        }
-
-        //console.log("value is >1000, credit to "+ zapierData.salesPersonCredit);
+        // If Jem is the sales person update the credit field to the ops person
+        if (salesPerson.indexOf('Jeremy') > -1) zapierData.salesPersonCredit = quotedBy
 
         //Send to Zapier for Slack update
         triggerZap('l5tx9j', zapierData, 'Sale!');
 
-      } //end value>1000
+      }
 
       //Notify QLD channel about all wins
       if (state == 'QLD' && value < saleNotificationValue) {
