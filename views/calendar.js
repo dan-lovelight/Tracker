@@ -20,25 +20,32 @@ $(document).on('knack-view-render.view_1962', function(event, view) {
 // Scheduling calendar modals loaded
 $(document).on('knack-modal-render.view_1962', function(event, modal) {
 
-  // Detect add event modal. The add-event-modal class is added to a span element in the title of the modal.
+  // There are multiple modals that can pop up from interaction with the calendar
+  // However there is no native way to identify them from each other
+  // To detect the add event modal, the class 'add-event-modal' has been manually added to the title in the builder
   if (modal.modal[0].innerHTML.indexOf('add-event-modal') > -1) {
 
     const after = setInterval(async function() {
-      let visibleModal = $('.add-event-modal') //document.getElementById('kn-loading-spinner')
-      //let displayStyle = window.getComputedStyle(spinner, null)['display']
+      let visibleModal = $('.add-event-modal')
       if (visibleModal.length > 0) {
         // Execute after function
         clearInterval(after)
+        // Add the requested callouts table
         $('#view_2325').clone().prependTo('#cal_entry_view').css('display', 'block')
+        // Hide the date picker that for some reason pops up
         $('#ui-datepicker-div').css('display', 'none')
-        window.selectedTime = {
-          fromDate: $('#view_1962-field_924')[0].value,
-          fromTime: $('#view_1962-field_924-time')[0].value,
-          toTime: $('#view_1962-field_924-time-to')[0].value,
-          toDate: $('#view_1962-field_924-to')[0].value,
-        }
       }
     })
+  }
+})
+
+// Get the date that has been selected
+$(document).on('knack-form-submit.view_1962', function(event, view, record) {
+  window.selectedTime = {
+    fromDate: record.field_924_raw.date_formatted,//$('#view_1962-field_924')[0].value,
+    fromTime: `${record.field_924_raw.hours}:${record.field_924_raw.minutes}${record.field_924_raw.am_pm}`,//$('#view_1962-field_924-time')[0].value,
+    toTime: `${record.field_924_raw.to.hours}:${record.field_924_raw.to.minutes}${record.field_924_raw.to.am_pm.toLowerCase()}`,//$('#view_1962-field_924-time-to')[0].value,
+    toDate: record.field_924_raw.to.date_formatted,//$('#view_1962-field_924-to')[0].value,
   }
 })
 
