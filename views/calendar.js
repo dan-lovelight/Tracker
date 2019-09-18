@@ -43,7 +43,7 @@ $(document).on('knack-modal-render.view_1962', function(event, modal) {
 $(document).on('knack-form-submit.view_1962', function(event, view, record) {
   window.selectedTime = {
     fromDate: record.field_924_raw.date_formatted,//$('#view_1962-field_924')[0].value,
-    fromTime: `${record.field_924_raw.hours}:${record.field_924_raw.minutes}${record.field_924_raw.am_pm}`,//$('#view_1962-field_924-time')[0].value,
+    fromTime: `${record.field_924_raw.hours}:${record.field_924_raw.minutes}${record.field_924_raw.am_pm.toLowerCase()}`,//$('#view_1962-field_924-time')[0].value,
     toTime: `${record.field_924_raw.to.hours}:${record.field_924_raw.to.minutes}${record.field_924_raw.to.am_pm.toLowerCase()}`,//$('#view_1962-field_924-time-to')[0].value,
     toDate: record.field_924_raw.to.date_formatted,//$('#view_1962-field_924-to')[0].value,
   }
