@@ -952,6 +952,9 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
   let ops = await getOpsRecipients({callout:callout, optional:false, ignorePrefs:true})
   let reports = [{'email':'reports@lovelight.com.au'}]
 
+  // SendGrid rejects requests if an email is duplicated
+  if(JSON.stringify(sales)==JSON.stringify(ops)) ops = []
+
   // Gather data for email.
   //https://sendgrid.com/docs/API_Reference/api_v3.html
   let from = {
