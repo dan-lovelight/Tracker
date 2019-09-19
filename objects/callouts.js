@@ -659,6 +659,7 @@ function isEventCreationRequired(callout) {
 
 function isEventCancellationRequired(callout) {
   if (callout.field_1082.length <= 1) return false // if it's not in the calendar, no need to delete
+  if (callout.field_1005 === 'Complete' || callout.field_1546 === 'Submitted') return false // don't cancel completed jobs or jobs with a submitted report
   if (!isEventTypeInviteable(callout) || !isCalloutStatusInviteable(callout)) {
     // if it's not an inviteable type, need to delete it
     // if it's not an inviteable status, need to delete it
