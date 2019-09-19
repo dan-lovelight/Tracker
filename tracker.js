@@ -154,7 +154,7 @@ const hideEmptyTablePages = [
   'knack-scene-render.scene_778', // My Jobs https://lovelight.knack.com/tracker#my-scheduling-jobs/my-jobs2/
   'knack-scene-render.scene_956', // My Remakes https://lovelight.knack.com/tracker#my-remakes/
   'knack-scene-render.scene_959', // Track Remakes https://lovelight.knack.com/tracker#my-remakes/track-remake/{}/
-  'knack-scene-render.scene_52', // View Job Details
+  //'knack-scene-render.scene_52', // View Job Details
 ]
 
 $(document).on(hideEmptyTablePages.join(' '), function(event, scene) {
