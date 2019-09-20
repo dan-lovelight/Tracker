@@ -61,7 +61,7 @@ function collapseTables(scene) {
 
       // Add listner to show it again
       $(viewId + ' .fa-chevron-right').parent().on('click', function() {
-        $(this).toggleClass('details-visible')
+        $(viewId + ' .fa-chevron-right').toggleClass('details-visible')
         $(viewId + ' .view-header').nextAll().slideToggle('fast')
       })
 
