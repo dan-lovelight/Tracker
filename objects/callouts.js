@@ -553,6 +553,7 @@ function isEventCreationRequired(callout) {
 
 function isEventCancellationRequired(callout) {
   if (callout.field_1082.length <= 1) return false // if it's not in the calendar, no need to delete
+  if (callout.field_1005 === 'Complete' || callout.field_1546 === 'Submitted') return false // don't cancel completed jobs or jobs with a submitted report
   if (!isEventTypeInviteable(callout) || !isCalloutStatusInviteable(callout)) {
     // if it's not an inviteable type, need to delete it
     // if it's not an inviteable status, need to delete it
@@ -728,21 +729,37 @@ async function generateReportTemplateData(callout, previous) {
   let calloutType = callout.field_925
   let division = callout.field_1495 // Customer, Commercial, Volume
 
-  let outcome = callout.field_1542 // No Issues, Follow Up Required
-  let calloutName = callout.field_1488
-  let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
-  let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
-  let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
-  let whatWentWrong = callout.field_1547
-  let reportDetails = callout.field_1545
-  let installTimeRequired = callout.field_1616
-  let photosUploaded = callout.field_1548 // Yes, No
-  let docsUploaded = callout.field_1549
-  let serviceCallIssue = callout.field_1582
-  let serviceChargeable = callout.field_1579 // Yes, No
-  let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
-  let consumablesSupplied = callout.field_1626 // Yes, No
-  let consumableDetails = callout.field_1627
+    let outcome = callout.field_1542 // No Issues, Follow Up Required
+    let calloutName = callout.field_1488
+    let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
+    let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
+    let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
+    let whatWentWrong = callout.field_1547
+    let reportDetails = callout.field_1545
+    let installTimeRequired = callout.field_1616
+    let photosUploaded = callout.field_1548 // Yes, No
+    let docsUploaded = callout.field_1549
+    let serviceCallIssue = callout.field_1582
+    let serviceChargeable = callout.field_1579 // Yes, No
+    let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
+    let consumablesSupplied = callout.field_1626 // Yes, No
+    let consumableDetails = callout.field_1627
+
+    let instructions = callout.field_929
+
+    dynamicData.id = callout.id
+    dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED '
+    dynamicData.outcome = outcome
+    dynamicData.calloutName = calloutName
+    dynamicData.reportDetails = reportDetails
+
+    let calloutDetailRows = []
+
+    // Callout Job Details
+    if(jobs) calloutDetailRows.push({
+      'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
+      'details': jobs
+    })
 
   let instructions = callout.field_929
 
@@ -782,8 +799,8 @@ async function generateReportTemplateData(callout, previous) {
   }
 
   // Products
-  if (callout.field_954_raw) calloutDetailRows.push({
-    'label': 'Products',
+  if(callout.field_954_raw && callout.field_954_raw.length > 0) calloutDetailRows.push({
+    'label':'Products',
     'details': callout.field_954_raw.length <= 10 ? products : 'Many'
   })
 
@@ -828,15 +845,15 @@ async function generateReportTemplateData(callout, previous) {
 
   dynamicData.details = `
     <table>
-    <tr><td colspan="2"><strong><u>calloutType</u></strong></td></tr>
+    <tr><td colspan="2"><strong><u>${calloutType}</u></strong></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
-    ${calloutDetailRows.map(row => `<tr><td style="padding:10px;" class="row-label"><strong>${row.label}</strong></td><td style="padding:10px;">${row.details}</td></tr>`).join('')}
+    ${calloutDetailRows.map(row => `<tr><td style="padding:5px;" class="row-label"><strong>${row.label}</strong></td><td style="padding:5px;">${row.details}</td></tr>`).join('')}
     <tr><td colspan="2">&nbsp;</td></tr>
     <tr><td colspan="2" style="padding: 0px 0px 2px" bgcolor="#000000"></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
     <tr><td colspan="2"><strong><u>Report</u></strong></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
-    ${calloutOutcomeRows.map(row => `<tr><td style="padding:10px;"><strong>${row.label}</strong></td><td style="padding:10px;">${row.details}</td></tr>`).join('')}
+    ${calloutOutcomeRows.map(row => `<tr><td style="padding:5px;"><strong>${row.label}</strong></td><td style="padding:5px;">${row.details}</td></tr>`).join('')}
     </table>`
 
   return dynamicData
@@ -863,6 +880,9 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'email': 'reports@lovelight.com.au'
   }]
 
+  // SendGrid rejects requests if an email is duplicated
+  if(JSON.stringify(sales)===JSON.stringify(ops)) ops = []
+
   // Gather data for email.
   //https://sendgrid.com/docs/API_Reference/api_v3.html
   let from = {
@@ -873,18 +893,21 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'email': user.email,
     'name': user.name
   }
-  let to = [{
-    'email': 'dan@lovelight.com.au'
-  }] // sales
-  console.log(sales)
-  let cc = [].concat(installers, ops, reports)
-  console.log(cc)
+  let to = [].concat(sales,reports)
+  let cc = [].concat(installers,ops)
+
+  let priorityHeaders = {
+    "X-Priority": "1",
+    "X-MSMail-Priority": "High",
+    "Importance": "High"
+  }
 
   return body = {
     'personalizations': [{
-      'to': to,
-      //'cc':cc,
-      'dynamic_template_data': dynamic_template_data,
+      'to':to,
+      'cc':cc,
+      'dynamic_template_data':dynamic_template_data,
+      'headers': callout.field_1542 = 'No Issues' ? {} : priorityHeaders
     }],
     'from': from,
     'reply_to': reply_to,
