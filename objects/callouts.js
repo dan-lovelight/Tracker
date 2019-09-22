@@ -598,7 +598,7 @@ function isEventDataUpdated(callout, previous, changes) {
   return false
 }
 
-function isCalendarTypeUpdated(changes){
+function isCalendarTypeUpdated(changes) {
   if (changes.includes('field_1633')) return true
   return false
 }
@@ -729,39 +729,37 @@ async function generateReportTemplateData(callout, previous) {
   let calloutType = callout.field_925
   let division = callout.field_1495 // Customer, Commercial, Volume
 
-    let outcome = callout.field_1542 // No Issues, Follow Up Required
-    let calloutName = callout.field_1488
-    let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
-    let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
-    let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
-    let whatWentWrong = callout.field_1547
-    let reportDetails = callout.field_1545
-    let installTimeRequired = callout.field_1616
-    let photosUploaded = callout.field_1548 // Yes, No
-    let docsUploaded = callout.field_1549
-    let serviceCallIssue = callout.field_1582
-    let serviceChargeable = callout.field_1579 // Yes, No
-    let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
-    let consumablesSupplied = callout.field_1626 // Yes, No
-    let consumableDetails = callout.field_1627
-
-    let instructions = callout.field_929
-
-    dynamicData.id = callout.id
-    dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED '
-    dynamicData.outcome = outcome
-    dynamicData.calloutName = calloutName
-    dynamicData.reportDetails = reportDetails
-
-    let calloutDetailRows = []
-
-    // Callout Job Details
-    if(jobs) calloutDetailRows.push({
-      'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
-      'details': jobs
-    })
+  let outcome = callout.field_1542 // No Issues, Follow Up Required
+  let calloutName = callout.field_1488
+  let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
+  let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
+  let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
+  let whatWentWrong = callout.field_1547
+  let reportDetails = callout.field_1545
+  let installTimeRequired = callout.field_1616
+  let photosUploaded = callout.field_1548 // Yes, No
+  let docsUploaded = callout.field_1549
+  let serviceCallIssue = callout.field_1582
+  let serviceChargeable = callout.field_1579 // Yes, No
+  let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
+  let consumablesSupplied = callout.field_1626 // Yes, No
+  let consumableDetails = callout.field_1627
 
   let instructions = callout.field_929
+
+  dynamicData.id = callout.id
+  dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED '
+  dynamicData.outcome = outcome
+  dynamicData.calloutName = calloutName
+  dynamicData.reportDetails = reportDetails
+
+  let calloutDetailRows = []
+
+  // Callout Job Details
+  if (jobs) calloutDetailRows.push({
+    'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
+    'details': jobs
+  })
 
   dynamicData.id = callout.id
   dynamicData.updatePrefix = isFirstReport ? `UPDATED ` : ''
@@ -799,8 +797,8 @@ async function generateReportTemplateData(callout, previous) {
   }
 
   // Products
-  if(callout.field_954_raw && callout.field_954_raw.length > 0) calloutDetailRows.push({
-    'label':'Products',
+  if (callout.field_954_raw && callout.field_954_raw.length > 0) calloutDetailRows.push({
+    'label': 'Products',
     'details': callout.field_954_raw.length <= 10 ? products : 'Many'
   })
 
@@ -881,7 +879,7 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
   }]
 
   // SendGrid rejects requests if an email is duplicated
-  if(JSON.stringify(sales)===JSON.stringify(ops)) ops = []
+  if (JSON.stringify(sales) === JSON.stringify(ops)) ops = []
 
   // Gather data for email.
   //https://sendgrid.com/docs/API_Reference/api_v3.html
@@ -893,8 +891,8 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     'email': user.email,
     'name': user.name
   }
-  let to = [].concat(sales,reports)
-  let cc = [].concat(installers,ops)
+  let to = [].concat(sales, reports)
+  let cc = [].concat(installers, ops)
 
   let priorityHeaders = {
     "X-Priority": "1",
@@ -904,9 +902,9 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
 
   return body = {
     'personalizations': [{
-      'to':to,
-      'cc':cc,
-      'dynamic_template_data':dynamic_template_data,
+      'to': to,
+      'cc': cc,
+      'dynamic_template_data': dynamic_template_data,
       'headers': callout.field_1542 = 'No Issues' ? {} : priorityHeaders
     }],
     'from': from,
