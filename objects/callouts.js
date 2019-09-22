@@ -153,6 +153,8 @@ async function createEvent(callout) {
       'field_1496': 'yes', // flag that an update is still required
     })
     Sentry.captureException(err)
+  } finally {
+    removeCalendarUpdateFlag(callout)
   }
 }
 
@@ -174,6 +176,8 @@ async function updateEvent(callout) {
       'field_1496': 'yes', // flag that an update is still required
     })
     Sentry.captureException(err)
+  } finally {
+    removeCalendarUpdateFlag(callout)
   }
 }
 
@@ -202,6 +206,8 @@ async function cancelEvent(callout) {
       'field_1496': 'yes', // flag that an update is still required
     })
     Sentry.captureException(err)
+  } finally {
+    removeCalendarUpdateFlag(callout)
   }
 }
 
@@ -227,6 +233,18 @@ async function applyCalendarUpdateFlag(callout) {
     let calloutsObj = new KnackObject(objects.callouts)
     let updateData = {}
     updateData.field_1101 = 'Yes' // Add 'Calendar Update In Progress Flag' to avoid race conditions
+    await calloutsObj.update(callout.id, updateData)
+  } catch (err) {
+    Sentry.captureException(err)
+  }
+}
+
+// Applies a calendar flag to a Knack record to prevent race conditions
+async function removeCalendarUpdateFlag(callout) {
+  try {
+    let calloutsObj = new KnackObject(objects.callouts)
+    let updateData = {}
+    updateData.field_1101 = 'No' // Remove 'Calendar Update In Progress Flag' to avoid race conditions
     await calloutsObj.update(callout.id, updateData)
   } catch (err) {
     Sentry.captureException(err)
@@ -752,19 +770,6 @@ async function generateReportTemplateData(callout, previous) {
   dynamicData.outcome = outcome
   dynamicData.calloutName = calloutName
   dynamicData.reportDetails = reportDetails
-
-  let calloutDetailRows = []
-
-  // Callout Job Details
-  if (jobs) calloutDetailRows.push({
-    'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
-    'details': jobs
-  })
-
-  dynamicData.id = callout.id
-  dynamicData.updatePrefix = isFirstReport ? `UPDATED ` : ''
-  dynamicData.outcome = outcome
-  dynamicData.calloutName = calloutName
 
   let calloutDetailRows = []
 
