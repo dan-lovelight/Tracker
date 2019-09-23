@@ -7,7 +7,7 @@
 //Add Invoice
 //https://lovelight.knack.com/tracker#jobs/view-job-details/{}/add-invoice/{}/
 //https://builder.knack.com/lovelight/tracker#pages/scene_68/views/view_127
-$(document).on('knack-record-create.view_127', function(event, view, record) {
+$(document).on('knack-record-create.view_127 knack-record-create.view_2342', function(event, view, record) {
   processNewInvoiceRecord(record);
 });
 
