@@ -81,6 +81,20 @@ $(document).on(createCallOutForms.join(' '), function(event, view, data) {
 })
 
 // ***************************************************************************
+// ******************* REQUEST JOB MEASURE OR INSTALL *********************
+// ***************************************************************************
+
+$(document).on('knack-view-render.view_2107', function(event, view, data) {
+  addJobDetailsToCallOut(view)
+  // wait for the scene to be fully rendered
+  $(document).on('knack-scene-render.' + view.scene.key, function(){
+    positionDocumentTableAndForm(view)
+  })
+
+})
+
+
+// ***************************************************************************
 // ******************* WHEN A CALL EDIT FORM IS RENDERED *********************
 // ***************************************************************************
 
@@ -172,6 +186,53 @@ function addJobDetailsToCallOut(view) {
   }
 }
 
+function positionDocumentTableAndForm(view){
+  // Get an array of document tables in the same scene as the view
+  let docsTable = view.scene.views.filter(view => view.source.object === 'object_22' && view.type ==='table')
+  // If there is only one, let's put it where it needs to be
+  if (docsTable.length === 1){
+    // Add the docs table
+    $('#' + docsTable[0].key).insertBefore('#' + view.key + ' .is-primary').css('display', 'block')
+  }
+
+  let docsForm = view.scene.views.filter(view => view.source.object === 'object_22' && view.type ==='form')
+
+  if (docsForm.length === 1){
+    // Add the docs form
+    let formId = '#' + docsForm[0].key
+    // Move the upload form into the callout form
+    $(formId).insertBefore('#' + view.key + ' .is-primary').css('display', 'block')
+    // Move the submit button into the third column (relies of form having 3 columns)
+    $('#' + docsForm[0].key + ' > form > ul > li:nth-child(3)').append($(formId + ' .kn-submit'))
+    // Format the submit button
+    $(formId + ' .kn-submit').addClass('pull-right').css({
+      'margin-top': '21px',
+      'margin-right': '10px'
+    })
+    $(formId + ' button').removeClass('is-primary').addClass('is-secondary')
+
+    //Hide the upload form
+    $(formId).hide()
+
+    // Add a link to show the upload form
+    if($('#show-upload').length ===0) $('#' + docsTable[0].key).append(`<a id="show-upload" class="pull-right">Upload another</a>`)
+
+    // Add listener to show the upload form
+    $('#show-upload').on('click',function(){
+      $(this).hide()
+      $(formId).show()
+    })
+
+  }
+
+
+}
+
+
+// <div class="kn-primary pull-right" style="
+//     margin-top: 21px;
+//     margin-right: 10px;
+// ">
 // ***************************************************************************
 // ******************* SERVICE CALLS *********************
 // ***************************************************************************
