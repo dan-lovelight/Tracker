@@ -68,3 +68,47 @@ function collapseTables(scene) {
     }
   })
 }
+
+
+// `<div id="jobs-menu" style="padding-top:1px">
+//   <div class="kn-navigation-bar pull-right">
+//     <nav class="tabs is-boxed">
+//       <ul>
+//         <li class="kn-dropdown-menu">
+//           <a>
+//             <span>Options</span>
+//             <span class="kn-dropdown-icon fa fa-caret-down"></span>
+//           </a>
+//           <ul id="job-menu-options" class="kn-dropdown-menu-list" style="min-width: 81px;">
+//             <li><a href="#" data-kn-slug="#"><span><i class="fa fa-circle-o-notch"></i>&nbsp;&nbsp;Option 1</span></a></li>
+//           </ul>
+//         </li>
+//       </ul>
+//     </nav>
+//   </div>
+// </div>`
+
+// <div id="jobs-menu" style="padding-top:1px">
+//   <div class="kn-navigation-bar pull-right">
+//     <nav class="tabs is-boxed">
+//       <ul>
+//         <li class="kn-dropdown-menu">
+//           <a>
+//             <span>Options&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+//             <span class="kn-dropdown-icon fa fa-caret-down"></span>
+//           </a>
+//           <ul class="kn-dropdown-menu-list" style="min-width: 81px;">
+//             <li><a href="#" data-kn-slug="#"><span><img src="https://freeicons.io/laravel/public/uploads/icons/png/18487936531552562368-256.png">&nbsp;&nbsp;View Client In Zendesk</span></a></li>
+//           <li><a href="#custom" data-kn-slug="#custom"><span><i class="fa fa-home"></i>&nbsp;&nbsp;Custom</span></a></li></ul>
+//         </li>
+//       </ul>
+//     </nav>
+//   </div>
+// </div>
+
+// <span class="job-status-wrapper"><div id="job-status">
+//   <div id="job-status">
+//     <div style="vertical-align: middle;display: table-cell"> <img src="https://img.icons8.com/ios/2x/ruler.png" width="30" height="30"> </div>
+//     <div style="vertical-align: middle;display: table-cell"> &nbsp;Measured </div>
+//   </div>
+// </span>
