@@ -145,7 +145,8 @@ async function createEvent(callout) {
   try {
     let gCalEventDetails = await lovelightCalendarService(params, queryParams)
     calloutObj.update(callout.id, {
-      'field_1082': gCalEventDetails.id, // remove the event ID
+      'field_1082': gCalEventDetails.id, // record the event idea
+      'field_1496': 'no', // flag that everything worked
     })
     return gCalEventDetails
   } catch (err) {
@@ -170,7 +171,11 @@ async function updateEvent(callout) {
     body: JSON.stringify(body)
   }
   try {
-    return gCalEventDetails = await lovelightCalendarService(params, queryParams, eventId)
+    let gCalEventDetails = await lovelightCalendarService(params, queryParams, eventId)
+    calloutObj.update(callout.id, {
+      'field_1496': 'no', // flag that everything worked
+    })
+    return gCalEventDetails
   } catch (err) {
     calloutObj.update(callout.id, {
       'field_1496': 'yes', // flag that an update is still required
