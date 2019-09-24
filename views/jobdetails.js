@@ -15,40 +15,82 @@ $(document).on('knack-scene-render.scene_52', function(event, scene) {
   })
 
   // collapseTables(scene)
-  formatHeading('view_2339')
-  // attacheOptionsMenu('view_2339')
+  formatHeading()
+  addChangeStatusButtonToMenu()
+  addZendeskButtonToMenu()
+  addOptionsButtonToMenu()
 
 })
 
-function formatHeading(viewKey){
-  // Move the status into the heading
-  $('.job-status-wrapper').appendTo($('#' + viewKey + ' .kn-detail-body'))
-  // Remove the second table column
-  $('#' + viewKey + ' .kn-details-group > div:nth-child(2)').remove()
+function addChangeStatusButtonToMenu() { // Hide the report form
+  let changeStatusView = '#view_234'
+  let mainMenuView = '#view_2106'
+
+
+  // Add submit button to menu
+  $(mainMenuView + " > div.control").append(`<a class="added-button kn-link kn-button" id="status-toggle"><span class="icon is-small"><i class="fa fa-exchange"></i></span><span>Change Status</span></a>`)
+
+  // Add click listener to button
+  $("#status-toggle").click(function() {
+    // Toggle visibility of report form
+    $(changeStatusView).toggle()
+  })
+
+  // Format button in menu
+  $(changeStatusView).css({
+    "margin-bottom": "2em"
+  })
+
+  let notification = `<div class="kn-notification is-warning"><p>For install and measure request, please use the buttons above (which will also update the status)</p></div>`
+  $(changeStatusView + '  > form > ul > li').prepend(notification)
+  $(changeStatusView).hide()
 }
 
-function attacheOptionsMenu(viewKey){
+function addZendeskButtonToMenu(){
+  let zdLink = $('.field_1599 a')[0].href
+  let mainMenuView = '#view_2106'
+  let button = `<a class="added-button kn-link kn-button" href="${zdLink}" target="_blank"><span><img src="https://freeicons.io/laravel/public/uploads/icons/png/18487936531552562368-256.png">&nbsp;Zendesk</span></a>`
+  $(mainMenuView + " > div.control").append(button)
+  $('.field_1599').remove()
+}
+
+function formatHeading() {
+  let $headerView = $('#view_2339')
+  let $jobStatus = $('.job-status-wrapper')
+  let $jobTeam = $('#view_1055 div.field_1592 > div > span')
+  // Move the status into the heading
+  $headerView.find('.kn-detail-body').append($jobStatus)
+  $headerView.find('.kn-detail-body').append($jobTeam)
+  $jobTeam.addClass('pull-right').attr("id","job-team")
+  // Remove the second table column
+  $headerView.find('.kn-details-group > div:nth-child(2)').remove()
+  // Move the team field into the heading
+}
+
+function addOptionsButtonToMenu() {
+  let mainMenuView = '#view_2106'
+  let moreOptionsItemsView = '#view_1042'
+  let $menuOptions = $(moreOptionsItemsView + ' a')
   let menu = `
-  <div id="jobs-menu">
-    <div class="kn-navigation-bar pull-right">
+    <div class="kn-navigation-bar pull-right" id="jobs-menu">
       <nav class="tabs is-boxed">
         <ul>
           <li class="kn-dropdown-menu">
             <a>
-              <span>Options&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+              <span class="icon is-small"><i class="fa fa-gears"></i></span>
+              <span>&nbsp;More Options&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
               <span class="kn-dropdown-icon fa fa-caret-down"></span>
             </a>
             <ul class="kn-dropdown-menu-list" style="min-width: 81px;">
-              <li><a href="#" data-kn-slug="#"><span><img src="https://freeicons.io/laravel/public/uploads/icons/png/18487936531552562368-256.png">&nbsp;&nbsp;View Client In Zendesk</span></a></li>
-              <li><a href="#custom" data-kn-slug="#custom"><span><i class="fa fa-home"></i>&nbsp;&nbsp;Custom</span></a></li>
+            ${$menuOptions.map(function() { return '<li>' + this.outerHTML + '</li>'}).get().join('')}
             </ul>
           </li>
         </ul>
       </nav>
-    </div>
-  </div>`
-
-  $('#' + viewKey + ' .kn-details-group').append(menu)
+    </div>`
+  $(mainMenuView + " > div.control").append(menu)
+  $(moreOptionsItemsView).remove()
+  //$('#' + viewKey + ' .kn-details-group').append(menu)
 }
 
 function collapseTables(scene) {
@@ -58,20 +100,20 @@ function collapseTables(scene) {
   scene.views.map(function(view, index, views) {
     let viewId = '#' + view.key
     // exit if the table doesn't exist (already removed)
-    if($(viewId).length===0) return
+    if ($(viewId).length === 0) return
     // If the view has row data (ie it's a table) AND that data is 0...
     if (view.type === 'table' && Knack.models[view.key]) {
       // If first table, add a hide all/none option
-      if(firstTable){
+      if (firstTable) {
         let toggleAll = `<div class="toggle-tables"><a id="show-all">show all</a> | <a id="hide-all">hide all</a></div>`
         $(viewId).before(toggleAll)
-        $('#show-all').on('click',function(){
-            $('.fa-chevron-right').addClass('details-visible')
-            $('.fa-chevron-right').closest('.view-header').nextAll().slideDown('fast')
+        $('#show-all').on('click', function() {
+          $('.fa-chevron-right').addClass('details-visible')
+          $('.fa-chevron-right').closest('.view-header').nextAll().slideDown('fast')
         })
-        $('#hide-all').on('click',function(){
-            $('.fa-chevron-right').removeClass('details-visible')
-            $('.fa-chevron-right').closest('.view-header').nextAll().slideUp('fast')
+        $('#hide-all').on('click', function() {
+          $('.fa-chevron-right').removeClass('details-visible')
+          $('.fa-chevron-right').closest('.view-header').nextAll().slideUp('fast')
         })
         firstTable = false
       }
