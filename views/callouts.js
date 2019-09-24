@@ -84,7 +84,7 @@ $(document).on(createCallOutForms.join(' '), function(event, view, data) {
 // ******************* REQUEST JOB MEASURE OR INSTALL *********************
 // ***************************************************************************
 
-$(document).on('knack-view-render.view_2107', function(event, view, data) {
+$(document).on('knack-view-render.view_2107 knack-view-render.view_2346', function(event, view, data) {
   addJobDetailsToCallOut(view)
   // wait for the scene to be fully rendered
   $(document).on('knack-scene-render.' + view.scene.key, function(){
@@ -198,18 +198,14 @@ function positionDocumentTableAndForm(view){
   let docsForm = view.scene.views.filter(view => view.source.object === 'object_22' && view.type ==='form')
 
   if (docsForm.length === 1){
+
     // Add the docs form
     let formId = '#' + docsForm[0].key
     // Move the upload form into the callout form
     $(formId).insertBefore('#' + view.key + ' .is-primary').css('display', 'block')
-    // Move the submit button into the third column (relies of form having 3 columns)
-    $('#' + docsForm[0].key + ' > form > ul > li:nth-child(3)').append($(formId + ' .kn-submit'))
+
     // Format the submit button
-    $(formId + ' .kn-submit').addClass('pull-right').css({
-      'margin-top': '21px',
-      'margin-right': '10px'
-    })
-    $(formId + ' button').removeClass('is-primary').addClass('is-secondary')
+    formatSubmitButton(formId)
 
     //Hide the upload form
     $(formId).hide()
@@ -223,10 +219,31 @@ function positionDocumentTableAndForm(view){
       $(formId).show()
     })
 
+    // Add listner to apply formats after a document is uploaded
+    $(document).on('knack-view-render.' + docsForm[0].key, function(event, view, data) {
+      // Format the submit button
+      formatSubmitButton(formId)
+    })
+
   }
+  function formatSubmitButton(formId){
 
+    // Move the submit button into the third column (relies of form having 3 columns)
+    // The DOM changes after a submission, need to test for two different selectors
+    let $buttonPosition = $('#' + docsForm[0].key + ' > form > ul > li:nth-child(3)')
+    if($buttonPosition.length === 0) $buttonPosition = $('#' + docsForm[0].key + ' > ul > li:nth-child(3)')
+    $buttonPosition.prepend($(formId + ' .kn-submit'))
 
+    // Format the button
+    $(formId + ' .kn-submit').addClass('pull-right').css({
+      'margin-top': '21px',
+      'margin-right': '10px'
+    })
+    $(formId + ' button').removeClass('is-primary').addClass('is-secondary')
+  }
 }
+
+
 
 
 // <div class="kn-primary pull-right" style="
