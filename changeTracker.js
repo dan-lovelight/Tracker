@@ -10,8 +10,15 @@
 // .onCreate(callback)
 // .onUpdate(callback)
 // .onDelete(callback)
-// All three of these functions return 5 arguements to the callback:
-// callback(view, record, user, previousRecord, changes)
+// All three of these functions return the following object
+// params = {
+//   view: view the triggered the update,
+//   record: record after the update,
+//   action: type of change - Create, Update or Delete,
+//   fields: array of the objects field names,
+//   previous: record before the change,
+//   changes: array of changed fields (excluding _raw)
+// }
 
 class KnackObject {
   constructor(objectKey, view) {
@@ -119,7 +126,7 @@ class KnackObject {
 
   }
 
-  onChange(callback){
+  onChange(callback) {
     this.onCreate(callback)
     this.onUpdate(callback)
     this.onDelete(callback)
@@ -137,7 +144,15 @@ class KnackObject {
 
     // Listen for new records
     $(document).on(`knack-record-create.${this.view.key}`, function(event, view, record) {
-      callback(view, record, 'Create', self.fields, {}, [])
+      let params = {
+        view: view,
+        record: record,
+        action: 'Create',
+        fields: self.fields,
+        previous: {},
+        changes: []
+      }
+      callback(params)
     })
 
   }
@@ -168,7 +183,7 @@ class KnackObject {
         // Get the data in the table
         let dataInTable = Knack.views[this.view.key].model.data.models
         // Check if this is a search view. Data is stored differently if it is
-        if (this.view.filter_type){
+        if (this.view.filter_type) {
           if (this.view.filter_type === 'search') {
             // Get the search results instead
             dataInTable = Knack.views[this.view.key].model.results_model.data.models
@@ -219,7 +234,7 @@ class KnackObject {
     async function interceptActionLinks() {
       // Collect all the listeners attached to the action links
       let clickListeners = []
-      $actionLinks.each(function(){
+      $actionLinks.each(function() {
         clickListeners.push($._data($(this)[0]).events.click[0])
       })
       // Detatch the click event
@@ -255,7 +270,17 @@ class KnackObject {
         if (recordBefore[key] !== record[key] && key.indexOf('raw') < 0) changes.push(key)
       })
       // Pass to callback if there are changes
-      if (changes.length > 0) callback(self.view, record, 'Update', self.fields, recordBefore, changes)
+      if (changes.length > 0) {
+        let params = {
+          view: self.view,
+          record: record,
+          action: 'Update',
+          fields: self.fields,
+          previous: recordBefore,
+          changes: changes
+        }
+        callback(params)
+      }
     }
 
   }
@@ -313,7 +338,15 @@ class KnackObject {
 
       function waitForRecord() {
         if (record) {
-          callback(self.view, record, 'Delete', self.fields, {}, [])
+          let params = {
+            view: self.view,
+            record: record,
+            action: 'Delete',
+            fields: self.fields,
+            previous: {},
+            changes: []
+          }
+          callback(params)
         } else {
           console.log('had to wait')
           setTimeout(waitForRecord, 250);
@@ -324,16 +357,16 @@ class KnackObject {
 
   static objects(objectKey) {
     let objectsModel = Knack.objects.models
-    let requestedObjects =  objectsModel.reduce((objects, object) =>{
+    let requestedObjects = objectsModel.reduce((objects, object) => {
       // if no key is provided, return everything
-      if(objectKey === undefined || objectKey === object.attributes.key){
+      if (objectKey === undefined || objectKey === object.attributes.key) {
         objects.push({
           'name': object.attributes.name,
           'key': object.attributes.key,
         })
       }
-        return objects
-    },[])
+      return objects
+    }, [])
 
     return requestedObjects
   }
@@ -345,14 +378,15 @@ class KnackObject {
   }
 
   _hashCode(string) {
-  var hash = 0, i, chr;
-  if (string.length === 0) return hash;
-  for (i = 0; i < string.length; i++) {
-    chr   = string.charCodeAt(i);
-    hash  = ((hash << 5) - hash) + chr;
-    hash |= 0; // Convert to 32bit integer
-  }
-  return hash;
+    var hash = 0,
+      i, chr;
+    if (string.length === 0) return hash;
+    for (i = 0; i < string.length; i++) {
+      chr = string.charCodeAt(i);
+      hash = ((hash << 5) - hash) + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
   }
   // for each callback function, important to only apply the listener once
   // this checks via a record kept on the KnackObject prototype
