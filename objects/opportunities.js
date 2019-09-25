@@ -1,54 +1,34 @@
-$(document).on('knack-cell-update.view_1564', function(event, view, data) {
-  console.log('caught 1564')
-})
-
-$(document).on('knack-view-render.any', function(event, view, data) {
+function globalOpportunityChange({record, changes}) {
   try {
-    let opportunity
-    let user = Knack.getUserAttributes()
+    let data = {}
+    let isStatusUpdated = changes.includes('field_127')
+    let isQuoteStatusUpdated = changes.includes('field_1606')
 
-    if (view.source) {
-      if (view.source.object) {
-        if (view.source.object === 'object_17') {
-          opportunity = new KnackObject(view.source.object, view)
-          opportunity.onChange(globalOpportunityChange)
-        }
+    // Record the status change date
+    if (isStatusUpdated) {
+      data.field_1609 = {
+        "date": moment().format("DD/MM/YYYY"),
+      }
+      // Has status become 'To Quote'?
+      if (record.field_127 !== "Pending Review" && record.field_127 === "To Quote") {
+        // User can set quote status during transition from Pending Review back to Quote
+        data.field_1606 = "Open" // Set the 'Quote Status' to Open
       }
     }
-
-    function globalOpportunityChange(view, record, action, fields, recordBefore, changes) {
-      let data = {}
-      let isStatusUpdated = changes.includes('field_127')
-      let isQuoteStatusUpdated = changes.includes('field_1606')
-
-      // Record the status change date
-      if (isStatusUpdated) {
-        data.field_1609 = {
-          "date": moment().format("DD/MM/YYYY"),
-        }
-        // Has status become 'To Quote'?
-        if(record.field_127 !== "Pending Review" && record.field_127 === "To Quote") {
-          // User can set quote status during transition from Pending Review back to Quote
-          data.field_1606 = "Open" // Set the 'Quote Status' to Open
-        }
-      }
-      // Record the date the quoted status changed (eg Open/Pending)
-      if (isQuoteStatusUpdated) {
-        data.field_1610 = {
-          "date": moment().format("DD/MM/YYYY"),
-        }
-      }
-      // Update the record if a change has taken place
-      if (isQuoteStatusUpdated || isStatusUpdated) {
-        opportunity.update(record.id, data)
+    // Record the date the quoted status changed (eg Open/Pending)
+    if (isQuoteStatusUpdated) {
+      data.field_1610 = {
+        "date": moment().format("DD/MM/YYYY"),
       }
     }
-
+    // Update the record if a change has taken place
+    if (isQuoteStatusUpdated || isStatusUpdated) {
+      opportunity.update(record.id, data)
+    }
   } catch (error) {
-    updateLog(`Opportunity error: \`\`\`${error.message}\n${error.stack}\`\`\``)
+    Sentry.captureException(err)
   }
-})
-
+}
 
 const opportunityUpdatedEvents = [
   'knack-record-create.view_934', //https://builder.knack.com/lovelight/tracker#pages/scene_413/views/view_934

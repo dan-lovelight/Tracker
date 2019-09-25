@@ -5,15 +5,71 @@ const objects = {
   'invoices': 'object_19',
   'orders': 'object_19',
   'opportunities': 'object_17',
-  'users' : 'object_8',
+  'users': 'object_8',
   'contacts': 'object_13',
   'salespeople': 'object_82',
   'opspeople': 'object_68',
 
 }
 
+// -------------------------------------------------------
+// Start Listener
 $(document).on('knack-view-render.any', function(event, view, data) {
 
+  // Add global listeners
+  try {
+    if (view.source) {
+      if (view.source.object) {
+
+        // Add listeners to everything for tracking
+        let changeLogger = new KnackObject(view.source.object, view)
+        changeLogger.onChange(logMixpanelRecordAction)
+
+        // Add callout listeners
+        if (view.source.object === objects.callouts) {
+          let calloutsObj = new KnackObject(view.source.object, view)
+          calloutsObj.onCreate(processNewCallOut)
+          calloutsObj.onUpdate(processUpdatedCallOut)
+          //calloutsObj.onDelete(processDeletedCallOut)
+        }
+
+        // Add job listeners
+        // if (view.source.object === objects.jobs) {
+        //   let jobsObj = new KnackObject(view.source.object, view)
+        //   jobsObj.onCreate(processNewJob)
+        //   jobsObj.onUpdate(processUpdatedJob)
+        //   jobsObj.onDelete(processDeletedJob)
+        // }
+
+        // Add opportunity listeners
+        if (view.source.object === object.opportunities) {
+          let opportunityObj = new KnackObject(view.source.object, view)
+          opportunityObj.onChange(globalOpportunityChange)
+        }
+
+        // Add order listeners
+        // if (view.source.object === objects.orders) {
+        //   let ordersObj = new KnackObject(view.source.object, view)
+        //   ordersObj.onCreate(processNewOrder)
+        //   ordersObj.onUpdate(processUpdatedOrder)
+        //   ordersObj.onDelete(processDeletedOrder)
+        // }
+
+        // Add invoice listeners
+        // if (view.source.object === objects.invoices) {
+        //   let invoiceObj = new KnackObject(view.source.object, view)
+        //   invoiceObj.onCreate(processNewInvoice)
+        //   invoiceObj.onUpdate(processUpdatedInvoice)
+        //   invoiceObj.onDelete(processDeletedInvoice)
+        // }
+
+      }
+    }
+  } catch (err) {
+    Sentry.captureException(err)
+  }
+
+  // Change submit buttons to 'save'
   var $submitButtonArray = $(".kn-submit input[type=submit]");
   $submitButtonArray.each(function(index) {
     var $submitButton = $(this);
@@ -21,29 +77,22 @@ $(document).on('knack-view-render.any', function(event, view, data) {
       $submitButton.attr("value", "Save");
     }
   });
-});
 
-$(document).on('knack-view-render.any', function(event, view, data) {
-  try {
-    let changeLogger
-    let user = Knack.getUserAttributes()
-    let url = 'https://lovelight.knack.com/tracker#'
-    if (view.source) {
-      if (view.source.object) {
-        changeLogger = new KnackObject(view.source.object, view)
-        changeLogger.onChange(logMixpanelRecordAction)
-      }
-    }
-  } catch (error) {
-    updateLog(`Logging error: \`\`\`${error.message}\n${error.stack}\`\`\``)
-  }
+
 })
+// End Listner
 
 $(document).on('knack-scene-render.any', function(event, scene) {
+  // Capture data
   logMixPanelPageLoad(scene)
+  // Change back links
+  $(".kn-back-link a").html("<i class='fa fa-chevron-circle-left'></i> Previous");
+
+  addLinksToMainMenu()
+  formatAddressInput()
 })
 
-function logMixPanelPageLoad(scene){
+function logMixPanelPageLoad(scene) {
 
   let logData = {
     user: Knack.getUserAttributes().name,
@@ -54,43 +103,36 @@ function logMixPanelPageLoad(scene){
   mixpanel.track(`Page Loaded`, logData)
 }
 
-function logMixpanelRecordAction(view, record, action, fields, recordBefore, changes) {
+function logMixpanelRecordAction({view, record, action, fields, changes}) {
 
-    let slug = view.scene ? view.scene.slug : ''
-    let scene_id = view.scene ? view.scene.scene_id : ''
-    let name = view.name ? view.name : ''
-    let changesNames = changes.map(fieldKey => {
-      return fields[fieldKey] ? fields[fieldKey].name : undefined
-    })
+  let slug = view.scene ? view.scene.slug : ''
+  let scene_id = view.scene ? view.scene.scene_id : ''
+  let name = view.name ? view.name : ''
+  let changesNames = changes.map(fieldKey => {
+    return fields[fieldKey] ? fields[fieldKey].name : undefined
+  })
 
-    let logData = {
-      user: Knack.getUserAttributes().name,
-      objectId: view.source.object,
-      objectName: KnackObject.objects(view.source.object)[0].name,
-      recordId: record.id,
-      changesIds: changes,
-      changesNames: changesNames,
-      viewId: view.key,
-      viewName: name,
-      slug: slug,
-      sceneId: scene_id,
-      url: `https://lovelight.knack.com/tracker#${slug}/${scene_id}`
-    }
-    mixpanel.track(`Record ${action}d`, logData)
+  let logData = {
+    user: Knack.getUserAttributes().name,
+    objectId: view.source.object,
+    objectName: KnackObject.objects(view.source.object)[0].name,
+    recordId: record.id,
+    changesIds: changes,
+    changesNames: changesNames,
+    viewId: view.key,
+    viewName: name,
+    slug: slug,
+    sceneId: scene_id,
+    url: `https://lovelight.knack.com/tracker#${slug}/${scene_id}`
+  }
+  mixpanel.track(`Record ${action}d`, logData)
 }
-
-$(document).on('knack-scene-render.any', function(event, scene) {
-  $(".kn-back-link a").html("<i class='fa fa-chevron-circle-left'></i> Previous");
-});
-
 
 //***************************************************************************
 //******************* ADD LINKS TO MENU *************************************
 //***************************************************************************
 
-$(document).on('knack-scene-render.any', function(event, scene) {
-
-  let userRoles = Knack.getUserRoles()
+function addLinksToMainMenu() {
 
   // Logged in users who are staff...
   if (Knack.getUserRoles('object_11')) {
@@ -120,8 +162,11 @@ $(document).on('knack-scene-render.any', function(event, scene) {
     $("li > a > span:contains('Templates')").parent().css('background-color', '#217346');
 
   }
+}
 
-  //Change the way address input fields dispaly
+// Standard address input is confusing - lable position not clear, US terms
+// This removes all labels and addes place holder text to fields instead.
+function formatAddressInput() {
   $('.kn-input-address .control > label').remove()
   $('.kn-input-address .input[name="street"]').each((index, input) => {
     $(input)[0].placeholder = 'Street'
@@ -138,8 +183,7 @@ $(document).on('knack-scene-render.any', function(event, scene) {
   $('.kn-input-address .input[name="zip"]').each((index, input) => {
     $(input)[0].placeholder = 'Postcode'
   })
-
-});
+}
 
 //***************************************************************************
 //******************* HIDE EMPTY TABLES *************************************

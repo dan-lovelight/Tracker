@@ -1,34 +1,10 @@
-// -------------------------------------------------------
-// Start Listener
-$(document).on('knack-view-render.any', function(event, view, data) {
-  let calloutsObj
-  // If a view is displaying callouts, add listners
-  try {
-    if (view.source) {
-      if (view.source.object) {
-        if (view.source.object === objects.callouts) {
-          calloutsObj = new KnackObject(view.source.object, view)
-          calloutsObj.onCreate(processNewCallOut)
-          calloutsObj.onUpdate(processUpdatedCallOut)
-        }
-      }
-    }
-  } catch (err) {
-    Sentry.captureException(err)
-  }
-})
-// End Listner
-
 // Force and update when manually resyncing a callout
 $(document).on('knack-form-submit.view_1967', function(event, view, record) {
   forceCalloutUpdate(record)
 })
 
-// -------------------------------------------------------
-// Start Handlers
-
 // Process newly created callouts
-async function processNewCallOut(view, callout, action, fields) {
+async function processNewCallOut({record:callout}) {
   try {
     // Set processing flag
     window.callOutProcessing = true
@@ -58,9 +34,8 @@ async function processNewCallOut(view, callout, action, fields) {
 }
 
 // Process updated callouts
-async function processUpdatedCallOut(view, callout, action, fields, previous, changes) {
+async function processUpdatedCallOut({record:callout, changes, previous}) {
   try {
-
     let names = await getCallOutName(callout, changes)
     let jobDetails = await getJobUpdates(callout, changes)
     let reportSubmitter = isReportUpdated(changes) ? {
