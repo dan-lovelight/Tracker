@@ -97,6 +97,7 @@ $(document).on('knack-scene-render.scene_713', function(event, scene) {
   const jobsReadyToInstall = JSON.parse(JSON.stringify(Knack.views.view_2231.model.data.models)) //Book for Install (Jobs)
   jobsReadyToInstall.concat(JSON.parse(JSON.stringify(Knack.views.view_2230.model.data.models))) // Return Visit required (Jobs)
   const completeJobInstalls = JSON.parse(JSON.stringify(Knack.views.view_2327.model.data.models)) // Installed (jobs)
+  const orderedJobs = JSON.parse(JSON.stringify(Knack.views.view_2239.model.data.models)) // Installed (jobs)
 
   let uniqueCompletedInstalls = new Set()
   let duplicateCompletedInstalls = new Set()
@@ -149,9 +150,21 @@ $(document).on('knack-scene-render.scene_713', function(event, scene) {
 
   // Get an array of job ids for all uniquly represented installed jobs
   const uniqueCompletedInstallJobIds = uniqueCompletedInstalls.map(callout => callout.field_928_raw[0].id)
+
   // Check if installed jobs in the job table are also in the installed callouts table. If so, hide them
   if (completeJobInstalls) completeJobInstalls.forEach(job => {
     if (uniqueCompletedInstallJobIds.includes(job.id)) $('#view_2327 #' + job.id).remove()
+  })
+  
+  // get a list of job ids in ordered status
+  const orderedJobIds = orderedJobs.map(job => job.id)
+
+  // Hide installed jobs if they've been moved back to ordered status
+  uniqueCompletedInstalls.forEach(callout =>  {
+    if(orderedJobIds.includes(callout.field_928_raw[0].id)){
+      let calloutRow = document.getElementById(callout.id)
+      if (calloutRow) calloutRow.remove()
+    }
   })
 
   // Hide completed installs if there's another one already scheduled
