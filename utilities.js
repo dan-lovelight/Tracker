@@ -439,3 +439,23 @@ function getInlineUserInput(title, defaultValue, selector, callback) {
     // need to consider error handling here
   })
 }
+
+// Accepts an array of record objects and attempts to create a job activty record for each
+// Object should look like
+// {
+//  field_1655 : 'Created by name'
+//  field_579 = ['jobId']
+//  field_1659 = ['activityRecordType'] // Job Created
+//  field_576 = 'Details of the change'
+// }
+async function addJobActivityRecords(records) {
+  if (!isItAnArray(records) || records.length === 0) throw Error('Job Activities Records must be in an array')
+  try { // Create the records
+    let recordsObj = new KnackObject(objects.activityRecords)
+    for (let i = 0; i < records.length; i++) {
+      await recordsObj.create(records[i])
+    }
+  } catch (err) {
+    Sentry.captureException(err)
+  }
+}
