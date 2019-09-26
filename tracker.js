@@ -9,6 +9,8 @@ const objects = {
   'contacts': 'object_13',
   'salespeople': 'object_82',
   'opspeople': 'object_68',
+  'documents': 'object_22',
+  'activityRecords': 'object_53'
 
 }
 
@@ -34,15 +36,15 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         }
 
         // Add job listeners
-        // if (view.source.object === objects.jobs) {
-        //   let jobsObj = new KnackObject(view.source.object, view)
-        //   jobsObj.onCreate(processNewJob)
-        //   jobsObj.onUpdate(processUpdatedJob)
+        if (view.source.object === objects.jobs) {
+          let jobsObj = new KnackObject(view.source.object, view)
+          jobsObj.onCreate(processNewJob)
+          jobsObj.onUpdate(processUpdatedJob)
         //   jobsObj.onDelete(processDeletedJob)
-        // }
+        }
 
         // Add opportunity listeners
-        if (view.source.object === object.opportunities) {
+        if (view.source.object === objects.opportunities) {
           let opportunityObj = new KnackObject(view.source.object, view)
           opportunityObj.onChange(globalOpportunityChange)
         }
