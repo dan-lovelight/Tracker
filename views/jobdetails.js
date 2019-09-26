@@ -46,11 +46,13 @@ function addChangeStatusButtonToMenu() { // Hide the report form
   $(changeStatusView).hide()
 }
 
-function addZendeskButtonToMenu(){
-  let zdLink = $('.field_1599 a')[0].href
-  let mainMenuView = '#view_2106'
-  let button = `<a class="added-button kn-link kn-button" href="${zdLink}" target="_blank"><span><img src="https://freeicons.io/laravel/public/uploads/icons/png/18487936531552562368-256.png">&nbsp;Zendesk</span></a>`
-  $(mainMenuView + " > div.control").append(button)
+function addZendeskButtonToMenu() {
+  if ($('.field_1599 a').length > 0) {
+    let zdLink = $('.field_1599 a')[0].href
+    let mainMenuView = '#view_2106'
+    let button = `<a class="added-button kn-link kn-button" href="${zdLink}" target="_blank"><span><img src="https://freeicons.io/laravel/public/uploads/icons/png/18487936531552562368-256.png">&nbsp;Zendesk</span></a>`
+    $(mainMenuView + " > div.control").append(button)
+  }
   $('.field_1599').remove()
 }
 
@@ -61,7 +63,7 @@ function formatHeading() {
   // Move the status into the heading
   $headerView.find('.kn-detail-body').append($jobStatus)
   $headerView.find('.kn-detail-body').append($jobTeam)
-  $jobTeam.addClass('pull-right').attr("id","job-team")
+  $jobTeam.addClass('pull-right').attr("id", "job-team")
   // Remove the second table column
   $headerView.find('.kn-details-group > div:nth-child(2)').remove()
   // Move the team field into the heading
