@@ -131,7 +131,8 @@ function logMixpanelRecordAction({view, record, action, fields, changes}) {
     viewName: name,
     slug: slug,
     sceneId: scene_id,
-    url: `https://lovelight.knack.com/tracker#${slug}/${scene_id}`
+    url: `https://lovelight.knack.com/tracker#${slug}/${scene_id}`,
+    release: window.release || ''
   }
   mixpanel.track(`Record ${action}d`, logData)
 }
