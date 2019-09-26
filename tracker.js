@@ -43,6 +43,12 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         //   jobsObj.onDelete(processDeletedJob)
         }
 
+        // Add note listeners
+        if (view.source.object === objects.activityRecords) {
+          let notesObj = new KnackObject(view.source.object, view)
+          notesObj.onCreate(processNewJobNote)
+        }
+
         // Add opportunity listeners
         if (view.source.object === objects.opportunities) {
           let opportunityObj = new KnackObject(view.source.object, view)
