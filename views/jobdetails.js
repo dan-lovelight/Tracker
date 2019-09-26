@@ -53,7 +53,7 @@ function addZendeskButtonToMenu() {
     let button = `<a class="added-button kn-link kn-button" href="${zdLink}" target="_blank"><span><img src="https://freeicons.io/laravel/public/uploads/icons/png/18487936531552562368-256.png">&nbsp;Zendesk</span></a>`
     $(mainMenuView + " > div.control").append(button)
   }
-  $('.field_1599').remove()
+  $('.field_1599').hide()
 }
 
 function formatHeading() {
@@ -91,7 +91,7 @@ function addOptionsButtonToMenu() {
       </nav>
     </div>`
   $(mainMenuView + " > div.control").append(menu)
-  $(moreOptionsItemsView).remove()
+  $(moreOptionsItemsView).hide()
   //$('#' + viewKey + ' .kn-details-group').append(menu)
 }
 
