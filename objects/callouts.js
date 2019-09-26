@@ -700,9 +700,12 @@ function updateConnectedJobsInPortal(record) {
   // Proceed if the callout type is measure or an install
   if (changeDetails !== undefined) {
     record.field_928_raw.forEach(job => {
-      let measureDate = changeDetails[1] = 'Measure' ? record.field_939 : ''
-      let installDate = changeDetails[1] = 'Install' ? record.field_939 : ''
-      changeStatusInPortal(job.id, changeDetails[0], measureDate, installDate)
+      let portalData = {
+        jobId: job.id,
+        newPortalState: changeDetails[0],
+        date: record.field_939 || ''
+      }
+      changeStatusInPortal(portalData)
     })
   }
 }

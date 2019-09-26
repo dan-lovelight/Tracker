@@ -75,7 +75,14 @@ async function processOrderChanges(record) {
   if (isJustReceived) {
     updatedOrder.field_22 = today; //set to order received date to today
     sendOrderReceivedNotifications(record)
-    if (record.field_591 === 'Apartments') changeStatusInPortal(record.field_10_raw[0].id, 'order_received', '', '')
+    if (record.field_591 === 'Apartments') {
+      let portalData = {
+        jobId: record.field_10_raw[0].id,
+        newPortalState: 'order_received',
+        date: ''
+      }
+      changeStatusInPortal(portalData)
+    }
   }
 
   //Was this record stocktake today?
