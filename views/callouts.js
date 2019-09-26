@@ -89,10 +89,10 @@ $(document).on('knack-view-render.view_2107 knack-view-render.view_2346', functi
   // wait for the scene to be fully rendered
   $(document).on('knack-scene-render.' + view.scene.key, function(){
     positionDocumentTableAndForm(view)
+    addRequiredDocumentsNotification(view)
   })
 
 })
-
 
 // ***************************************************************************
 // ******************* WHEN A CALL EDIT FORM IS RENDERED *********************
@@ -243,7 +243,38 @@ function positionDocumentTableAndForm(view){
   }
 }
 
+function addRequiredDocumentsNotification(view) {
+  let prompt = ''
+  // Measure request
+  if(view.key === 'view_2107') {
+    prompt = `
+    <div style="color: red;">
+      <ul>
+        <strong>
+          <li>Check Measure Sheet?</li>
+          <li>Plans?</li>
+        </strong>
+      </ul>
+    </div>`
+  }
 
+  // Install request
+  if(view.key === 'view_2346') {
+    prompt = `
+    <div style="color: red;">
+      <ul>
+        <strong>
+          <li>Completed Measure Sheet?</li>
+          <li>Order Forms?</li>
+          <li>Plans?</li>
+        </strong>
+      </ul>
+    </div>`
+  }
+
+  $('.kn-records-nav').prepend(prompt)
+
+}
 
 
 // <div class="kn-primary pull-right" style="
