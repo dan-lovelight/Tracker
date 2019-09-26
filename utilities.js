@@ -459,3 +459,30 @@ async function addJobActivityRecords(records) {
     Sentry.captureException(err)
   }
 }
+
+// Send required data to Zapier to update portal
+function changeStatusInPortal({
+  jobId,
+  newPortalState,
+  date
+}) {
+  let data = {
+    'jobId': jobId,
+    'changeStateTo': newPortalState,
+    'measure_booked_date': date,
+    'date_of_install': date
+  }
+  triggerZap('vdv8sq', data, 'Portal state changed')
+  Swal.fire({
+    position: 'top-end',
+    type: 'success',
+    title: '<span style="font-size:16px;">Portal status updated</span>',
+    showConfirmButton: false,
+    showCloseButton: true,
+    timer: 2000,
+    backdrop: false,
+    width: 300,
+    padding: 10,
+    background: '#e5ffe5'
+  })
+}
