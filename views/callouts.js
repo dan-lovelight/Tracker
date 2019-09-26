@@ -255,7 +255,7 @@ function positionDocumentTableAndForm(view){
 // ***************************************************************************
 
 // Add a new service call
-$(document).on('knack-view-render.view_2314 knack-view-render.view_2316', function(event, view, data) {
+$(document).on('knack-view-render.view_2316 knack-view-render.view_2366', function(event, view, data) {
   addJobDetailsToCallOut(view)
 
   // Add a listner for changes in invoicing time
