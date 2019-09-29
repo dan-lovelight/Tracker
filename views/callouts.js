@@ -248,7 +248,7 @@ function addRequiredDocumentsNotification(view) {
   // Measure request
   if(view.key === 'view_2107') {
     prompt = `
-    <div style="color: red;">
+    <div style="color: red;" id="docs-prompt">
       <ul>
         <strong>
           <li>Check Measure Sheet?</li>
@@ -261,7 +261,7 @@ function addRequiredDocumentsNotification(view) {
   // Install request
   if(view.key === 'view_2346') {
     prompt = `
-    <div style="color: red;">
+    <div style="color: red;" id="docs-prompt">
       <ul>
         <strong>
           <li>Completed Measure Sheet?</li>
@@ -272,7 +272,8 @@ function addRequiredDocumentsNotification(view) {
     </div>`
   }
 
-  $('.kn-records-nav').prepend(prompt)
+  // Avoid applying multiple times
+  if($('#docs-prompt').length===0) $('.kn-description').append(prompt)
 
 }
 
