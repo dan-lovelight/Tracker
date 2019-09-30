@@ -23,7 +23,8 @@ function globalOpportunityChange({record, changes}) {
     }
     // Update the record if a change has taken place
     if (isQuoteStatusUpdated || isStatusUpdated) {
-      opportunity.update(record.id, data)
+      let opportunityObj = new KnackObject(objects.opportunities)
+      opportunityObj.update(record.id, data)
     }
   } catch (err) {
     Sentry.captureException(err)
