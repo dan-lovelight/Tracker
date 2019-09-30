@@ -355,10 +355,10 @@ async function triggerZap(endPoint, dataObject, logEntry) {
 // Adds a text box under a contact object to expose email and phone
 // Allows editing in conjunction with popover function
 async function displayContactDetails(contactId, field) {
-  if(!contactId) return
+  if (!contactId) return
   let $siteContactDetails = $('#site-contact-details')
   if ($siteContactDetails.length === 0) {
-    $('#connection-picker-chosen-'+ field).append('<div id="site-contact-details">Loading...</div>')
+    $('#connection-picker-chosen-' + field).append('<div id="site-contact-details">Loading...</div>')
     $siteContactDetails = $('#site-contact-details')
   } else if ($siteContactDetails[0].innerText.indexOf('Loading') > -1) {
     return
@@ -485,4 +485,78 @@ function changeStatusInPortal({
     padding: 10,
     background: '#e5ffe5'
   })
+}
+
+function makeFieldsRequired(view, fields = []) {
+
+  let $view = $('#' + view.key)
+
+  // Add the required asterix
+  fields.forEach(field => {
+    let $field = $('#kn-input-' + field)
+    $field.find('label').append('<span class="kn-required">&nbsp;*</span>')
+  })
+
+  // Get the submit function for later
+  let submitFunction = $._data($view[0]).events.submit[0].handler
+
+  // Replace the submit button
+  let $submitButton = $(`#${view.key} > form > div`)
+  let newButtonHTML = `
+  <div class="kn-submit" id="new-submit">
+    <div class="kn-button is-primary" type="submit">
+      ${$submitButton[0].innerText}
+    </div>
+  </div>`
+  $submitButton.after(newButtonHTML).remove()
+  let $newButton = $('#new-submit')
+
+  // Replace the submit event with our own click event
+  $newButton.on('click', function(event) {
+    Knack.showSpinner()
+    let isRequiredEntered = true
+    let warningMessage = []
+
+    // Remove any previous warnings
+    $('.is-error-message').remove()
+
+    // Check that a value has been supplied
+    fields.forEach(field => {
+      let $input = $(`#${view.key}-${field}`)
+      let $connectionInput = $(`#${view.key}_${field}_chzn`)
+      let value = $input[0].value
+
+      if (value === '' && $input.closest('.kn-input').is(":visible")) {
+        isRequiredEntered = false
+        warningMessage.push(`<p><strong>${$('#kn-input-'+ field + ' label > span')[0].innerText} is required.</strong></p>`)
+
+        if ($connectionInput.length > 0) {
+          $connectionInput.find('a').addClass('input-error') // single selection
+          $connectionInput.find('ul').addClass('input-error') // multi selection
+        } else {
+          $input.addClass('input-error') //.addClass('is-error')
+        }
+
+      }
+
+    })
+
+    if (isRequiredEntered) {
+      // call the original function
+      submitFunction(event)
+      //clickFunction(event)
+    } else {
+      let warning =
+        `<div class="kn-message is-error is-error-message">
+        <span class="kn-message-body">
+          ${warningMessage.join('')}
+        </span>
+      </div>`
+
+      if ($('.is-error-message').length === 0) $('#' + view.key + ' form').prepend(warning)
+
+    }
+    Knack.hideSpinner()
+  })
+
 }
