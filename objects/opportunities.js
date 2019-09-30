@@ -25,7 +25,7 @@ function globalOpportunityChange({record, changes}) {
     if (isQuoteStatusUpdated || isStatusUpdated) {
       opportunity.update(record.id, data)
     }
-  } catch (error) {
+  } catch (err) {
     Sentry.captureException(err)
   }
 }
