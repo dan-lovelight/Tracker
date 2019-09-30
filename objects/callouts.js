@@ -686,7 +686,7 @@ function updateConnectedJobsInPortal(record) {
   if (record.field_1635 === 'No') return // record wasn't created by the portal
 
   let isConnectedToJob = record.field_928.length > 0
-  let isConfirmed = record.field_1005 !== 'Tentative'
+  let isConfirmed = record.field_1005 === 'Scheduled'
   let isCommercial = record.field_1495.indexOf('Commercial') > -1
   let isCancelled = record.field_1005 === 'Cancelled'
 
