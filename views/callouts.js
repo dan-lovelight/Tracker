@@ -289,6 +289,7 @@ function addRequiredDocumentsNotification(view) {
 // Add a new service call
 $(document).on('knack-view-render.view_2316 knack-view-render.view_2366', function(event, view, data) {
   addJobDetailsToCallOut(view)
+  makeFieldsRequired(view,['field_1025', 'field_928'])
 
   // Add a listner for changes in invoicing time
   let $invoiceTime = $('#' + view.key + '-field_1625')
