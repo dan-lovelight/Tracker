@@ -522,23 +522,24 @@ function makeFieldsRequired(view, fields = []) {
 
     // Check that a value has been supplied
     fields.forEach(field => {
-      let $input = $(`#${view.key}-${field}`)
-      let $connectionInput = $(`#${view.key}_${field}_chzn`)
-      let value = $input[0].value
+      if ($(`#kn-input-${field}`).length > 0) {
 
-      if (value === '' && $input.closest('.kn-input').is(":visible")) {
-        isRequiredEntered = false
-        warningMessage.push(`<p><strong>${$('#kn-input-'+ field + ' label > span')[0].innerText} is required.</strong></p>`)
+        let $input = $(`#${view.key}-${field}`)
+        let $connectionInput = $(`#${view.key}_${field}_chzn`)
+        let value = $input[0].value
 
-        if ($connectionInput.length > 0) {
-          $connectionInput.find('a').addClass('input-error') // single selection
-          $connectionInput.find('ul').addClass('input-error') // multi selection
-        } else {
-          $input.addClass('input-error') //.addClass('is-error')
+        if (value === '' && $input.closest('.kn-input').is(":visible")) {
+          isRequiredEntered = false
+          warningMessage.push(`<p><strong>${$('#kn-input-'+ field + ' label > span')[0].innerText} is required.</strong></p>`)
+
+          if ($connectionInput.length > 0) {
+            $connectionInput.find('a').addClass('input-error') // single selection
+            $connectionInput.find('ul').addClass('input-error') // multi selection
+          } else {
+            $input.addClass('input-error') //.addClass('is-error')
+          }
         }
-
       }
-
     })
 
     if (isRequiredEntered) {
