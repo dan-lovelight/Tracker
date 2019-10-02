@@ -194,7 +194,7 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     }
 
     // Insert the notes if there are any
-    if (notes.length > 0) addJobActivityRecords(notes)
+    if (notes.length > 0) addActivityRecords(notes)
   } catch (err) {
     Sentry.captureException(err)
   }

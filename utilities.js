@@ -445,11 +445,11 @@ function getInlineUserInput(title, defaultValue, selector, callback) {
 // {
 //  field_1655 : 'Created by name'
 //  field_579 = ['jobId']
-//  field_1659 = ['activityRecordType'] // Job Created
+//  field_1659 = ['activityRecordType'] // eg Job Created uuid
 //  field_576 = 'Details of the change'
 // }
-async function addJobActivityRecords(records) {
-  if (!isItAnArray(records) || records.length === 0) throw Error('Job Activities Records must be in an array')
+async function addActivityRecords(records) {
+  if (!isItAnArray(records) || records.length === 0) throw Error('Activities Records must be in an array')
   try { // Create the records
     let recordsObj = new KnackObject(objects.activityRecords)
     for (let i = 0; i < records.length; i++) {
