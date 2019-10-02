@@ -246,7 +246,7 @@ function addJobToJobRec(job) {
     'ownerName': job.field_1276_raw[0].identifier,
     'ownerEmail': job.field_715,
     'url': 'https://lovelight.knack.com/tracker#jobs/view-job-details/' + job.id,
-    'value': job.field_130_raw.replace(/,/g, ''),
+    'value': job.field_130_raw ? job.field_130_raw.replace(/,/g, '') : 0,
     'client': job.field_1332
   }
 
