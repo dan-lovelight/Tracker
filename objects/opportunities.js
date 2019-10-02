@@ -1,4 +1,4 @@
-function globalOpportunityChange({record, changes}) {
+function globalOpportunityChange({record, changes, action, view, previous}) {
   try {
     let data = {}
     let isStatusUpdated = changes.includes('field_127')
@@ -21,11 +21,21 @@ function globalOpportunityChange({record, changes}) {
         "date": moment().format("DD/MM/YYYY"),
       }
     }
-    // Update the record if a change has taken place
-    if (isQuoteStatusUpdated || isStatusUpdated) {
+
+    // Process notes if these have been added
+    if (record.field_1665.length>0){
+      data.field_126 = record.field_1665 //copy this note to the last note field
+      data.field_1665 = '' // clear the note
+      let isNewOpp = action === 'Create' ? true : false
+      handleOppNotes(record, isNewOpp, view, previous, changes)
+    }
+
+    // Update the opportunity
+    if (!$.isEmptyObject(data)) {
       let opportunityObj = new KnackObject(objects.opportunities)
       opportunityObj.update(record.id, data)
     }
+
   } catch (err) {
     Sentry.captureException(err)
   }
@@ -130,4 +140,84 @@ function processOpportunityChanges(record) {
     updateRecordPromise('object_17', record.id, updateOpp)
 
   } //end status changed
+}
+
+function handleOppNotes(opportunity, isNewOpp, view, previous, changes) {
+  try {
+    let user = Knack.getUserAttributes()
+    let isThereANote = isOppNoteAdded(opportunity)
+    let isStatusUpdated = isOppStatusUpdated(changes)
+    let isValueUpdated = isOppValueUpdated(changes)
+    let notes = []
+    let data = {}
+
+    data.field_1655 = user.name // Create by
+    data.field_1663 = [opportunity.id]
+
+    if (isNewOpp) {
+      // Insert opportunity created record
+      data.field_1659 = ['5d95285fd76c0c0010a707d3'] // Opp Created
+      data.field_576 = `Opportunity created from ${view.name} form`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (isThereANote) {
+      // Insert a note record
+      data.field_1659 = ['5d8c078bdb00f0001095e39d'] // Note
+      data.field_576 = opportunity.field_1665 // Note details
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (isStatusUpdated) {
+
+      if(opportunity.field_127 === 'Won' || opportunity.field_127 === 'Won as SWP'){
+
+        data.field_1659 = ['5d9528dad76c0c0010a70955'] // Opportunity Won
+        data.field_576 = `Opportunity Won! ${opportunity.field_139} days from quote to close.`
+        notes.push(JSON.parse(JSON.stringify(data)))
+
+      } else if(opportunity.field_127 === 'Lost'){
+
+        data.field_1659 = ['5d9528bfe83dee00109dd2bd'] // Opportunity Lost
+        data.field_576 = `Opportunity Lost. ${opportunity.field_139} days from quote to close.`
+        notes.push(JSON.parse(JSON.stringify(data)))
+
+      } else {
+          // Insert a status change record
+          data.field_1659 = ['5d8c0d5622d07d0010b41b9e'] // Status Change
+          data.field_576 = `Status changed from ${previous.field_127} to ${opportunity.field_127}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+      }
+
+    }
+
+    if (isValueUpdated) {
+      // Insert a value change record
+      data.field_1659 = ['5d8c0e42ca31bf0010deb365'] // Value Change
+      data.field_887 = 'Value Changed' // Delete this field once migration is complete
+      data.field_576 = `Opportunity value changed from ${previous.field_128} to ${opportunity.field_128}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    // Insert the notes if there are any
+    if (notes.length > 0) addActivityRecords(notes)
+  } catch (err) {
+    Sentry.captureException(err)
+  }
+
+}
+
+function isOppStatusUpdated(changes) {
+  if (changes.includes('field_127')) return true
+  return false
+}
+
+function isOppValueUpdated(changes) {
+  if (changes.includes('field_128')) return true
+  return false
+}
+
+function isOppNoteAdded(opportunity) {
+  if (opportunity.field_1665.length > 0) return true
+  return false
 }
