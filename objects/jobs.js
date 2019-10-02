@@ -146,7 +146,7 @@ function getStatusChangeDetails(changes) {
 function handleJobNotes(job, isNewJob, view, previous, changes) {
   try {
     let user = Knack.getUserAttributes()
-    let isThereANote = isNoteAdded(job)
+    let isThereANote = isJobNoteAdded(job)
     let isStatusUpdated = isJobStatusUpdated(changes)
     let isValueUpdated = isJobValueUpdated(changes)
     let notes = []
@@ -205,7 +205,7 @@ function isJobValueUpdated(changes) {
   return false
 }
 
-function isNoteAdded(job) {
+function isJobNoteAdded(job) {
   if (job.field_1652.length > 0) return true
   return false
 }
