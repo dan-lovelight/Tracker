@@ -158,7 +158,6 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     if (isNewJob) {
       // Insert job created record
       data.field_1659 = ['5d8c093bfc02f50011364c1e'] // Job Created
-      data.field_887 = 'Job Created' // Delete this field once migration is complete
       data.field_576 = `Job created from ${view.name} form`
       notes.push(JSON.parse(JSON.stringify(data)))
     }
@@ -166,7 +165,6 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     if (isThereANote) {
       // Insert a note record
       data.field_1659 = ['5d8c078bdb00f0001095e39d'] // Note
-      data.field_887 = 'Note' // Delete this field once migration is complete
       data.field_576 = job.field_1652 // Note details
       notes.push(JSON.parse(JSON.stringify(data)))
     }
@@ -174,7 +172,6 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     if (isStatusUpdated) {
       // Insert a status change record
       data.field_1659 = ['5d8c0d5622d07d0010b41b9e'] // Status Change
-      data.field_887 = 'Status Changed' // Delete this field once migration is complete
       data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${job.field_245_raw[0].identifier.split(' - ')[1]}`
       notes.push(JSON.parse(JSON.stringify(data)))
     }
@@ -182,7 +179,6 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     if (isValueUpdated) {
       // Insert a value change record
       data.field_1659 = ['5d8c0e42ca31bf0010deb365'] // Value Change
-      data.field_887 = 'Value Changed' // Delete this field once migration is complete
       data.field_576 = `Job value changed from ${previous.field_130} to ${job.field_130}`
       notes.push(JSON.parse(JSON.stringify(data)))
     }
