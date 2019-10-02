@@ -64,8 +64,10 @@ async function processUpdatedJob({
   }
 }
 
-async function processNewJobNote({record:note}){
-  try{
+async function processNewJobNote({
+  record: note
+}) {
+  try {
     let user = Knack.getUserAttributes()
     let data = {}
     data.field_1655 = user.name // created by
@@ -170,10 +172,18 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     }
 
     if (isStatusUpdated) {
-      // Insert a status change record
-      data.field_1659 = ['5d8c0d5622d07d0010b41b9e'] // Status Change
-      data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${job.field_245_raw[0].identifier.split(' - ')[1]}`
-      notes.push(JSON.parse(JSON.stringify(data)))
+      let status = job.field_field_245
+      if (status.indexOf('Complete') > -1) {
+        // Insert a job completed record
+        data.field_1659 = ['5d9435e24dbdf0001041faec'] // Job Completed
+        data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${job.field_245_raw[0].identifier.split(' - ')[1]}`
+        notes.push(JSON.parse(JSON.stringify(data)))
+      } else {
+        // Insert a status change record
+        data.field_1659 = ['5d8c0d5622d07d0010b41b9e'] // Status Change
+        data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${job.field_245_raw[0].identifier.split(' - ')[1]}`
+        notes.push(JSON.parse(JSON.stringify(data)))
+      }
     }
 
     if (isValueUpdated) {
