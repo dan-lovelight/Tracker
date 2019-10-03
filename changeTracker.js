@@ -147,7 +147,12 @@ class KnackObject {
       let params = {
         view: view,
         record: record,
-        action: 'Create',
+        action: {
+          description: 'Create',
+          isCreate: true,
+          isUpdate: false,
+          isDelete: false
+        },
         fields: self.fields,
         previous: {},
         changes: []
@@ -274,7 +279,12 @@ class KnackObject {
         let params = {
           view: self.view,
           record: record,
-          action: 'Update',
+          action: {
+            description: 'Update',
+            isCreate: false,
+            isUpdate: true,
+            isDelete: false
+          },
           fields: self.fields,
           previous: recordBefore,
           changes: changes
@@ -341,7 +351,12 @@ class KnackObject {
           let params = {
             view: self.view,
             record: record,
-            action: 'Delete',
+            action: {
+              description: 'Delete',
+              isCreate: false,
+              isUpdate: false,
+              isDelete: true
+            },
             fields: self.fields,
             previous: {},
             changes: []
