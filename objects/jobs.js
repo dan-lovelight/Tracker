@@ -172,7 +172,7 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     }
 
     if (isStatusUpdated) {
-      let status = job.field_field_245
+      let status = job.field_245
       if (status.indexOf('Complete') > -1) {
         // Insert a job completed record
         data.field_1659 = ['5d9435e24dbdf0001041faec'] // Job Completed
