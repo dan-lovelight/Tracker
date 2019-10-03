@@ -1,145 +1,132 @@
-function globalOpportunityChange({record, changes, action, view, previous}) {
+function globalOpportunityChange({record:opportunity, changes, action, view, previous}) {
   try {
-    let data = {}
-    let isStatusUpdated = changes.includes('field_127')
-    let isQuoteStatusUpdated = changes.includes('field_1606')
 
-    // Record the status change date
-    if (isStatusUpdated) {
-      data.field_1609 = {
-        "date": moment().format("DD/MM/YYYY"),
-      }
-      // Has status become 'To Quote'?
-      if (record.field_127 !== "Pending Review" && record.field_127 === "To Quote") {
-        // User can set quote status during transition from Pending Review back to Quote
-        data.field_1606 = "Open" // Set the 'Quote Status' to Open
-      }
-    }
-    // Record the date the quoted status changed (eg Open/Pending)
-    if (isQuoteStatusUpdated) {
-      data.field_1610 = {
-        "date": moment().format("DD/MM/YYYY"),
-      }
-    }
+    let statusUpdates = getOppStatusChangeDetails(opportunity, changes)
+    let noteUpdates = getOppNoteUdpates(opportunity)
 
-    // Process notes if these have been added
-    if (record.field_1665.length>0){
-      data.field_126 = record.field_1665 //copy this note to the last note field
-      data.field_1665 = '' // clear the note
-      let isNewOpp = action === 'Create' ? true : false
-      handleOppNotes(record, isNewOpp, view, previous, changes)
-    }
+    // Consolidate the data
+    let updateData = Object.assign({}, statusUpdates, noteUpdates)
 
     // Update the opportunity
-    if (!$.isEmptyObject(data)) {
+    if (!$.isEmptyObject(updateData)) {
       let opportunityObj = new KnackObject(objects.opportunities)
-      opportunityObj.update(record.id, data)
+      opportunityObj.update(opportunity.id, updateData)
     }
+
+    handleOppNotes(opportunity, action.isCreate, view, previous, changes)
+    handleSlackNotifications(opportunity, changes, previous, action)
 
   } catch (err) {
     Sentry.captureException(err)
   }
 }
 
-const opportunityUpdatedEvents = [
-  'knack-record-create.view_934', //https://builder.knack.com/lovelight/tracker#pages/scene_413/views/view_934
-  'knack-record-create.view_1542', //https://builder.knack.com/lovelight/tracker#pages/scene_691/views/view_1542, //https://lovelight.knack.com/tracker#opportunities/new-quote-request/
-  'knack-form-submit.view_1069', //https://builder.knack.com/lovelight/tracker#pages/scene_475/views/view_1069
-  'knack-form-submit.view_87', //https://builder.knack.com/lovelight/tracker#pages/scene_49/views/view_87
-  'knack-form-submit.view_949', //https://builder.knack.com/lovelight/tracker#pages/scene_414/views/view_949
-  'knack-form-submit.view_950', //https://builder.knack.com/lovelight/tracker#pages/scene_415/views/view_950
-  'knack-form-submit.view_1023', //https://builder.knack.com/lovelight/tracker#pages/scene_455/views/view_1023
-  'knack-form-submit.view_1024', //https://builder.knack.com/lovelight/tracker#pages/scene_456/views/view_1024
-  'knack-form-submit.view_1661', //https://builder.knack.com/lovelight/tracker#pages/scene_456/views/view_1661
-]
-
-$(document).on(opportunityUpdatedEvents.join(' '), function(event, view, record) {
-  processOpportunityChanges(record);
-});
-
-//https://builder.knack.com/lovelight/tracker#pages/scene_691/views/view_1542
-//https://lovelight.knack.com/tracker#opportunities/new-quote-request/
-$(document).on('knack-record-create.view_1542', function(event, view, record) {
-  triggerZap('lq798w', record, 'new quote request')
-});
-
-function processOpportunityChanges(record) {
-
-  //Set variables
-  var quotedNotificationValue = 50000;
-  var saleNotificationValue = 10000;
-
-  //Gather required data & variables
-
-  //If we have to update the opportuinty, we'll need this:
-  var updateOpp = {};
-  updateOpp.field_258 = record.field_127; //set's the previous status field to the current status, removing the 'has chagned' flag
-
-  //Set general variables to use in code below and make it more readable
-  var status = record.field_127;
-  var statusPrevious = record.field_258;
-  var statusChanged = record.field_259;
-  var value = record.field_128.length > 0 ? parseInt(record.field_128_raw.replace(/\,/g, '')) : undefined;
-  var salesPerson = record.field_1274.length > 0 ? record.field_1274_raw["0"].identifier : undefined;
-  var quotedBy = record.field_1275.length > 0 ? record.field_1275_raw["0"].identifier : salesPerson;
-  var company = record.field_1460.length > 0 ? record.field_1460_raw["0"].identifier : undefined;
-  var state = record.field_117;
-
-  //If we need to trigger zaps, they'll need this information
-  var zapierData = {};
-  zapierData.status = status;
-  zapierData.opportunity = record.field_123_raw;
-  zapierData.value = value;
-  zapierData.value_formatted = record.field_128_raw ? record.field_128_raw.split(".")[0] : value
-  zapierData.salesPerson = salesPerson;
-  zapierData.quotedBy = quotedBy;
-  zapierData.company = company;
-  zapierData.salesPersonCredit = `${salesPerson} & ${quotedBy}`
-
-  console.log(status, statusPrevious, statusChanged, value, salesPerson, quotedBy, company);
-
-  if (statusChanged == 'Yes') {
-
-    //Has this opportunity just been quoted?
-    if (status == 'Open' && statusPrevious !== 'Lost' && statusPrevious !== 'Won' && value >= quotedNotificationValue && typeof quotedBy !== 'undefined') {
-      //Send to Zapier for Slack update
-      triggerZap('l5tgdk', zapierData, 'Quote!');
+function getOppStatusChangeDetails(opportunity, changes){
+  let data = {}
+  let isStatusUpdated = isOppStatusUpdated(changes)
+  let isQuoteStatusUpdated = changes.includes('field_1606')
+  // Record the status change date
+  if (isStatusUpdated) {
+    data.field_1609 = {
+      "date": moment().format("DD/MM/YYYY"),
+    }
+    // Has status become 'To Quote'?
+    if (opportunity.field_127 === "To Quote") {
+      // User can set quote status during transition from Pending Review back to Quote
+      data.field_1606 = "Open" // Set the 'Quote Status' to Open
     }
 
-    if (status == 'Won') {
-      //Add closed date to opportunity update object
-      updateOpp.field_132 = moment().format("DD/MM/YYYY h:mm a");
-      //console.log("status Changed to won "+ updateOpp.field_132);
+    if (opportunity.field_127 === 'Won'){
+      // Record the won date
+      data.field_132 = moment().format("DD/MM/YYYY h:mm a");
+    }
 
-      if (value >= saleNotificationValue) {
+  }
+  // Record the date the quoted status changed (eg Open/Pending)
+  if (isQuoteStatusUpdated) {
+    data.field_1610 = {
+      "date": moment().format("DD/MM/YYYY"),
+    }
+  }
 
-        // If Jem is the sales person update the credit field to the ops person
-        if (salesPerson.indexOf('Jeremy') > -1) zapierData.salesPersonCredit = quotedBy
+  return data
 
-        //Send to Zapier for Slack update
-        triggerZap('l5tx9j', zapierData, 'Sale!');
+}
 
+function getOppNoteUdpates(opportunity){
+  let data = {}
+  // Process notes if these have been added
+  if (isOppNoteAdded(opportunity)){
+    data.field_126 = opportunity.field_1665 //copy this note to the last note field
+    data.field_1665 = '' // clear the note
+  }
+  return data
+}
+
+function handleSlackNotifications(opportunity, changes, previous, action){
+
+  // Trigger zap for new quote requests (create's ticket in ZD)
+  if(action.isCreate && opportunity.field_127==='To Quote') triggerZap('lq798w', opportunity, 'new quote request')
+
+  // Only continue if status is updated
+  if(!isOppStatusUpdated(changes)) return
+
+  //Set variables
+  const QUOTE_NOTIFICATION_VALUE = 50000;
+  const SALE_NOTIFICATION_VALUE = 10000;
+
+  let value = opportunity.field_128.length > 0 ? parseInt(opportunity.field_128_raw.replace(/\,/g, '')) : undefined;
+  let salesPerson = opportunity.field_1274.length > 0 ? opportunity.field_1274_raw["0"].identifier : undefined;
+  let quotedBy = opportunity.field_1275.length > 0 ? opportunity.field_1275_raw["0"].identifier : salesPerson;
+
+  let data = {
+    status:opportunity.field_127,
+    opportunity:opportunity.field_123_raw,
+    value:value,
+    value_formatted:opportunity.field_128_raw ? opportunity.field_128_raw.split(".")[0] : value,
+    salesPerson:salesPerson,
+    quotedBy:quotedBy,
+    company:opportunity.field_1460.length > 0 ? opportunity.field_1460_raw["0"].identifier : undefined,
+    salesPersonCredit: `${salesPerson} & ${quotedBy}`
+  }
+
+  // Has just changed to open
+  if(opportunity.field_127 === 'Open') {
+    // Was previously being quoted
+    if(previous.field_127 === 'To Quote' || previous.field_127 === 'Pending Review'){
+      //Meets our quote notification criteria
+      if(value >= QUOTE_NOTIFICATION_VALUE && typeof quotedBy !== 'undefined'){
+        // Send quote notification
+        triggerZap('l5tgdk', data, 'Quote!')
       }
+    }
+  }
 
-      //Notify QLD channel about all wins
-      if (state == 'QLD' && value < saleNotificationValue) {
-        zapierData.salesPersonCredit = salesPerson;
-        triggerZap('e337ri', zapierData, 'QLD Sale!');
-      }
+  // Has just changed to won
+  if(opportunity.field_127 === 'Won') {
 
-      //Does this opportunity have a company?
-      if (typeof company !== 'undefined') {
+    //Meets our sale notification criteria
+    if(value >= SALE_NOTIFICATION_VALUE && typeof salesPerson !== 'undefined'){
 
-        //console.log("there is a company");
-        triggerZap('l5hoyo', zapierData, 'Opportunity has a company');
+      // Jem doesn't want any credit...
+      if(salesPerson.indexOf('Jeremy') > -1) data.salesPersonCredit = quotedBy
 
-      } //end company
-    } //end won
+      // Send sale notification
+      triggerZap('l5tx9j', zapierData, 'Sale!')
 
-    //The status has changed. Set previous status to current status to reset the flag
-    updateRecordPromise('object_17', record.id, updateOpp)
+    }
 
-  } //end status changed
+    //Notify QLD channel about all wins
+    if (record.field_117 == 'QLD' && value < SALE_NOTIFICATION_VALUE) {
+      data.salesPersonCredit = salesPerson;
+      triggerZap('e337ri', zapierData, 'QLD Sale!');
+    }
+
+    // Send notification of B2B sales
+    if (typeof company !== 'undefined') triggerZap('l5hoyo', zapierData, 'Opportunity has a company');
+
+  }
+
 }
 
 function handleOppNotes(opportunity, isNewOpp, view, previous, changes) {
