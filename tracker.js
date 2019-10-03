@@ -91,13 +91,12 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 // End Listner
 
 $(document).on('knack-scene-render.any', function(event, scene) {
-  // Capture data
-  logMixPanelPageLoad(scene)
-  // Change back links
-  $(".kn-back-link a").html("<i class='fa fa-chevron-circle-left'></i> Previous");
 
+  logMixPanelPageLoad(scene) // Capture data
+  $(".kn-back-link a").html("<i class='fa fa-chevron-circle-left'></i> Previous"); // Change back links
   addLinksToMainMenu()
   formatAddressInput()
+
 })
 
 function logMixPanelPageLoad(scene) {
@@ -134,7 +133,7 @@ function logMixpanelRecordAction({view, record, action, fields, changes}) {
     url: `https://lovelight.knack.com/tracker#${slug}/${scene_id}`,
     release: window.release || ''
   }
-  mixpanel.track(`Record ${action}d`, logData)
+  mixpanel.track(`Record ${action.description}d`, logData)
 }
 
 //***************************************************************************
