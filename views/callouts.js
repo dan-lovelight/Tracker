@@ -86,6 +86,7 @@ $(document).on(createCallOutForms.join(' '), function(event, view, data) {
 
 $(document).on('knack-view-render.view_2107 knack-view-render.view_2346', function(event, view, data) {
   addJobDetailsToCallOut(view)
+  makeFieldsRequired(view,['field_1025']) // site contact
   // wait for the scene to be fully rendered
   $(document).on('knack-scene-render.' + view.scene.key, function(){
     positionDocumentTableAndForm(view)
@@ -189,10 +190,13 @@ function addJobDetailsToCallOut(view) {
 function positionDocumentTableAndForm(view){
   // Get an array of document tables in the same scene as the view
   let docsTable = view.scene.views.filter(view => view.source.object === 'object_22' && view.type ==='table')
+  // Get the submit button. Need to use last because the make required function adds a duplicate button
+  let $submitButton = $('#' + view.key + ' .is-primary').last()
   // If there is only one, let's put it where it needs to be
   if (docsTable.length === 1){
+
     // Add the docs table
-    $('#' + docsTable[0].key).insertBefore('#' + view.key + ' .is-primary').css('display', 'block')
+    $('#' + docsTable[0].key).insertBefore($submitButton).css('display', 'block')
   }
 
   let docsForm = view.scene.views.filter(view => view.source.object === 'object_22' && view.type ==='form')
@@ -201,11 +205,12 @@ function positionDocumentTableAndForm(view){
 
     // Add the docs form
     let formId = '#' + docsForm[0].key
-    // Move the upload form into the callout form
-    $(formId).insertBefore('#' + view.key + ' .is-primary').css('display', 'block')
 
     // Format the submit button
     formatSubmitButton(formId)
+
+    // Move the upload form into the callout form
+    $(formId).insertBefore($submitButton).css('display', 'block')
 
     //Hide the upload form
     $(formId).hide()
@@ -232,7 +237,7 @@ function positionDocumentTableAndForm(view){
     // The DOM changes after a submission, need to test for two different selectors
     let $buttonPosition = $('#' + docsForm[0].key + ' > form > ul > li:nth-child(3)')
     if($buttonPosition.length === 0) $buttonPosition = $('#' + docsForm[0].key + ' > ul > li:nth-child(3)')
-    $buttonPosition.prepend($(formId + ' .kn-submit'))
+    $(formId + ' .kn-submit').detach().prependTo($buttonPosition)
 
     // Format the button
     $(formId + ' .kn-submit').addClass('pull-right').css({

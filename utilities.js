@@ -500,8 +500,8 @@ function makeFieldsRequired(view, fields = []) {
   // Replace the submit button
   let $submitButton = $(`#${view.key} > form > div`)
   let newButtonHTML = `
-  <div class="kn-submit" id="new-submit">
-    <div class="kn-button is-primary" type="submit">
+  <div class="kn-submit">
+    <div class="kn-button is-primary" type="submit" id="new-submit">
       ${$submitButton[0].innerText}
     </div>
   </div>`
