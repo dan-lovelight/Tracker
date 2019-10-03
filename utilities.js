@@ -497,9 +497,6 @@ function makeFieldsRequired(view, fields = []) {
     $field.find('label').append('<span class="kn-required">&nbsp;*</span>')
   })
 
-  // Get the submit function for later
-  let submitFunction = $._data($view[0]).events.submit[0].handler
-
   // Replace the submit button
   let $submitButton = $(`#${view.key} > form > div`)
   let newButtonHTML = `
@@ -508,7 +505,7 @@ function makeFieldsRequired(view, fields = []) {
       ${$submitButton[0].innerText}
     </div>
   </div>`
-  $submitButton.after(newButtonHTML).remove()
+  $submitButton.after(newButtonHTML).hide()
   let $newButton = $('#new-submit')
 
   // Replace the submit event with our own click event
@@ -544,8 +541,8 @@ function makeFieldsRequired(view, fields = []) {
 
     if (isRequiredEntered) {
       // call the original function
-      submitFunction(event)
-      //clickFunction(event)
+      $submitButton.trigger('submit')
+
     } else {
       let warning =
         `<div class="kn-message is-error is-error-message">
