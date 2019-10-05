@@ -47,7 +47,7 @@ async function processUpdatedJob({
     data.field_1652 = '' // Remove notes, these have been copied to an activity record
 
     // Consolidate the data
-    let updateData = Object.assign({}, statusUpdates)
+    let updateData = Object.assign({}, data, statusUpdates)
 
     // Update the job
     if (!$.isEmptyObject(updateData)) {
