@@ -19,6 +19,7 @@
 //   previous: record before the change,
 //   changes: array of changed fields (excluding _raw)
 // }
+// On create returns an empty array of changes and an empty object for previous
 
 class KnackObject {
   constructor(objectKey, view) {
