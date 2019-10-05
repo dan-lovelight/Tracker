@@ -52,7 +52,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         // Add opportunity listeners
         if (view.source.object === objects.opportunities) {
           let opportunityObj = new KnackObject(view.source.object, view)
-          opportunityObj.onChange(globalOpportunityChange)
+          opportunityObj.onChange(processOpportunityChange)
         }
 
         // Add order listeners

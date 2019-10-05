@@ -1,4 +1,4 @@
-function globalOpportunityChange({record:opportunity, changes, action, view, previous}) {
+function processOpportunityChange({record:opportunity, changes, action, view, previous}) {
   try {
 
     let statusUpdates = getOppStatusChangeDetails(opportunity, changes)
