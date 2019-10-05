@@ -14,7 +14,12 @@
 // params = {
 //   view: view the triggered the update,
 //   record: record after the update,
-//   action: type of change - Create, Update or Delete,
+//   action: {
+//   description: 'Create', 'Update' or 'Delete',
+//   isCreate: true,
+//   isUpdate: false,
+//   isDelete: false
+// }
 //   fields: array of the objects field names,
 //   previous: record before the change,
 //   changes: array of changed fields (excluding _raw)
