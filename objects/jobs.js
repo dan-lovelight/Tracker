@@ -178,6 +178,13 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
         data.field_1659 = ['5d9435e24dbdf0001041faec'] // Job Completed
         data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${job.field_245_raw[0].identifier.split(' - ')[1]}`
         notes.push(JSON.parse(JSON.stringify(data)))
+
+      } else if (status.indexOf('Cancelled') > -1) {
+        // Insert a job cancelled record
+        data.field_1659 = ['5d94360307205f001028211c'] // Job Cancelled
+        data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${job.field_245_raw[0].identifier.split(' - ')[1]}`
+        notes.push(JSON.parse(JSON.stringify(data)))
+
       } else {
         // Insert a status change record
         data.field_1659 = ['5d8c0d5622d07d0010b41b9e'] // Status Change
