@@ -66,19 +66,6 @@ function isToFromDateFieldType(fieldValue) {
   return fieldValue.toString().match(dateRegex)
 }
 
-function isObjectUpdated(object, arrayOfFieldPairs) {
-  return arrayOfFieldPairs.some((fieldPair) => {
-    return JSON.stringify(object[fieldPair[0]]) !== JSON.stringify(object[fieldPair[1]])
-  })
-}
-
-// Compares two fields, a 'live' field and a 'previous' value field
-// If live field is not blank, and the previous field is, assumed that just updated
-// fieldPair is array: [liveField, previousField]
-function isFieldJustAdded(object, fieldPairArray) {
-  return object[fieldPairArray[0]].length > 0 && object[fieldPairArray[1]].length === 0
-}
-
 // ---------------------- DATA MANAGEMENT ------------
 
 //Return array of callOut IDs for any connection field
