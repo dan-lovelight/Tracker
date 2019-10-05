@@ -2,8 +2,7 @@ async function processOrderChange({
   record: order,
   action,
   changes,
-  previous,
-  view
+  previous
 }) {
 
   try {
@@ -24,6 +23,7 @@ async function processOrderChange({
     // Important as the status may have changed (eg bay entered)
     handleOrderNotifications(order, previous, changes)
     handleOrderPortalStatusChange(order, previous, changes)
+    handleOrderNotes(order, previous, changes, action)
 
   } catch (err) {
     if (!Sentry) throw err
@@ -148,4 +148,38 @@ async function handleOrderNotifications(order, previous, changes) {
 
   // Send email to salesperson
   triggerZap('eak2n4', zapData, 'order received notification sent');
+}
+
+function handleOrderNotes(order, previous, changes, action){
+  try {
+    let user = Knack.getUserAttributes()
+    let isOrderReceived = isOrderJustReceived(order, previous, changes, action)
+    let notes = []
+    let data = {}
+
+    data.field_1655 = user.name // Created by
+    data.field_579 = [order.field_10_raw[0].id]
+
+    if (isOrderReceived) {
+      // Insert job created record
+      data.field_1659 = ['5d8c26b5cb58ff00136ee634'] // Order received
+      data.field_576 = `${order.field_17} ${order.field_1446_raw[0].identifier} ${order.field_11_raw[0].identifier} received into bay ${order.field_90_raw.map(bay => bay.identifier).join(', ')}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (action.isCreate) {
+      // Insert order created record
+      data.field_1659 = ['5d8c268e171d2c0011558768'] // Order created
+      data.field_576 = `New order sent to ${order.field_1446_raw[0].identifier}: ${order.field_17} ${order.field_11_raw[0].identifier}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    // Insert the notes if there are any
+    if (notes.length > 0) addActivityRecords(notes)
+
+  } catch (err) {
+    if (!Sentry) throw err
+    Sentry.captureException(err)
+  }
+
 }
