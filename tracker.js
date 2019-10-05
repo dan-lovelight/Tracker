@@ -56,12 +56,10 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         }
 
         // Add order listeners
-        // if (view.source.object === objects.orders) {
-        //   let ordersObj = new KnackObject(view.source.object, view)
-        //   ordersObj.onCreate(processNewOrder)
-        //   ordersObj.onUpdate(processUpdatedOrder)
-        //   ordersObj.onDelete(processDeletedOrder)
-        // }
+        if (view.source.object === objects.orders) {
+          let ordersObj = new KnackObject(view.source.object, view)
+          ordersObj.onChange(processOrderChange)
+        }
 
         // Add invoice listeners
         // if (view.source.object === objects.invoices) {
