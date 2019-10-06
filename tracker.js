@@ -98,12 +98,14 @@ $(document).on('knack-scene-render.any', function(event, scene) {
 })
 
 function logMixPanelPageLoad(scene) {
-
+  let user = Knack.getUserAttributes()
   let logData = {
-    user: Knack.getUserAttributes().name,
+    user: user.name,
     sceneName: scene.name,
     slug: scene.slug,
-    url: `https://lovelight.knack.com/tracker#${scene.slug}`
+    url: `https://lovelight.knack.com/tracker#${scene.slug}`,
+    release: window.release || '',
+    installer: user.roles.includes('object_71') && !user.roles.includes('object_11') // Installer but not Staff
   }
   mixpanel.track(`Page Loaded`, logData)
 }
@@ -129,7 +131,8 @@ function logMixpanelRecordAction({view, record, action, fields, changes}) {
     slug: slug,
     sceneId: scene_id,
     url: `https://lovelight.knack.com/tracker#${slug}/${scene_id}`,
-    release: window.release || ''
+    release: window.release || '',
+    installer: user.roles.includes('object_71') && !user.roles.includes('object_11') // Installer but not Staff
   }
   mixpanel.track(`Record ${action.description}d`, logData)
 }
