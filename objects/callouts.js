@@ -4,7 +4,9 @@ $(document).on('knack-form-submit.view_1967', function(event, view, record) {
 })
 
 // Process newly created callouts
-async function processNewCallOut({record:callout}) {
+async function processNewCallOut({
+  record: callout
+}) {
   try {
     // Set processing flag
     window.callOutProcessing = true
@@ -34,7 +36,11 @@ async function processNewCallOut({record:callout}) {
 }
 
 // Process updated callouts
-async function processUpdatedCallOut({record:callout, changes, previous}) {
+async function processUpdatedCallOut({
+  record: callout,
+  changes,
+  previous
+}) {
   try {
     let names = await getCallOutName(callout, changes)
     let jobDetails = await getJobUpdates(callout, changes)
@@ -711,125 +717,130 @@ function updateConnectedJobsInPortal(record) {
 }
 
 async function handleInstallerReports(callout, previous, changes) {
+  try {
+    let TEMPLATE_ID = 'd-0b432fc139d846d7a5b237dc975c4360'
 
-  let TEMPLATE_ID = 'd-0b432fc139d846d7a5b237dc975c4360'
+    if (!isReportUpdated(changes)) return
+    let dynamic_template_data = await generateReportTemplateData(callout, previous)
+    let email_body = await generateReportEmailBody(callout, dynamic_template_data, TEMPLATE_ID)
+    triggerZap('o3azzbk', email_body) // Because of CORS have to send via Zapier
+    return
 
-  if (!isReportUpdated(changes)) return
-  let dynamic_template_data = await generateReportTemplateData(callout, previous)
-  let email_body = await generateReportEmailBody(callout, dynamic_template_data, TEMPLATE_ID)
-  triggerZap('o3azzbk', email_body) // Because of CORS have to send via Zapier
-  return
-
+  } catch (err) {
+    if (!Sentry) throw err
+    Sentry.captureException(err)
+  }
 }
 
 async function generateReportTemplateData(callout, previous) {
 
-  let dynamicData = {}
+  try {
+    let dynamicData = {}
 
-  let isFirstReport = previous.field_1546 === 'Pending'
-  let calloutType = callout.field_925
-  let division = callout.field_1495 // Customer, Commercial, Volume
+    let isFirstReport = previous.field_1546 === 'Pending'
+    let calloutType = callout.field_925
+    let division = callout.field_1495 // Customer, Commercial, Volume
 
-  let outcome = callout.field_1542 // No Issues, Follow Up Required
-  let calloutName = callout.field_1488
-  let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
-  let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
-  let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
-  let whatWentWrong = callout.field_1547
-  let reportDetails = callout.field_1545
-  let installTimeRequired = callout.field_1616
-  let photosUploaded = callout.field_1548 // Yes, No
-  let docsUploaded = callout.field_1549
-  let serviceCallIssue = callout.field_1582
-  let serviceChargeable = callout.field_1579 // Yes, No
-  let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
-  let consumablesSupplied = callout.field_1626 // Yes, No
-  let consumableDetails = callout.field_1627
+    let outcome = callout.field_1542 // No Issues, Follow Up Required
+    let calloutName = callout.field_1488
+    let jobs = callout.field_928.length > 0 ? getConnectionIdentifiers(callout.field_928_raw).join('<br>') : undefined
+    let installers = callout.field_927.length > 0 ? getConnectionIdentifiers(callout.field_927_raw).join('<br>') : ''
+    let products = callout.field_954.length > 0 ? getConnectionIdentifiers(callout.field_954_raw).join('<br>') : ''
+    let whatWentWrong = callout.field_1547
+    let reportDetails = callout.field_1545
+    let installTimeRequired = callout.field_1616
+    let photosUploaded = callout.field_1548 // Yes, No
+    let docsUploaded = callout.field_1549
+    let serviceCallIssue = callout.field_1582
+    let serviceChargeable = callout.field_1579 // Yes, No
+    let notChargeableReason = callout.field_1623 === 'Other' ? callout.field_1624 : callout.field_1623
+    let consumablesSupplied = callout.field_1626 // Yes, No
+    let consumableDetails = callout.field_1627
 
-  let instructions = callout.field_929
+    let instructions = callout.field_929
 
-  dynamicData.id = callout.id
-  dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED '
-  dynamicData.outcome = outcome
-  dynamicData.calloutName = calloutName
-  dynamicData.reportDetails = reportDetails
+    dynamicData.id = callout.id
+    dynamicData.updatePrefix = isFirstReport ? '' : 'UPDATED '
+    dynamicData.outcome = outcome
+    dynamicData.calloutName = calloutName
+    dynamicData.reportDetails = reportDetails
 
-  let calloutDetailRows = []
+    let calloutDetailRows = []
 
-  // Callout Job Details
-  if (jobs) calloutDetailRows.push({
-    'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
-    'details': jobs
-  })
-
-  // Installer Details
-  calloutDetailRows.push({
-    'label': callout.field_927_raw && callout.field_927_raw.length > 1 ? 'Installers' : 'Installer',
-    'details': installers
-  })
-
-  // Service Call Details
-  if (calloutType === 'Service Call') {
-
-    // Reason for Service call
-    calloutDetailRows.push({
-      'label': 'Service Call Reason',
-      'details': serviceCallIssue
-    })
-    // Chargeable?
-    calloutDetailRows.push({
-      'label': 'Chargeable?',
-      'details': serviceChargeable === 'Yes' ? 'Yes' : `No. ${notChargeableReason}`
+    // Callout Job Details
+    if (jobs) calloutDetailRows.push({
+      'label': callout.field_928_raw && callout.field_928_raw.length > 1 ? 'Jobs' : 'Job',
+      'details': jobs
     })
 
-  }
+    // Installer Details
+    calloutDetailRows.push({
+      'label': callout.field_927_raw && callout.field_927_raw.length > 1 ? 'Installers' : 'Installer',
+      'details': installers
+    })
 
-  // Products
-  if (callout.field_954_raw && callout.field_954_raw.length > 0) calloutDetailRows.push({
-    'label': 'Products',
-    'details': callout.field_954_raw.length <= 10 ? products : 'Many'
-  })
+    // Service Call Details
+    if (calloutType === 'Service Call') {
 
-  // Installer's instructions
-  calloutDetailRows.push({
-    'label': 'Instructions',
-    'details': instructions
-  })
+      // Reason for Service call
+      calloutDetailRows.push({
+        'label': 'Service Call Reason',
+        'details': serviceCallIssue
+      })
+      // Chargeable?
+      calloutDetailRows.push({
+        'label': 'Chargeable?',
+        'details': serviceChargeable === 'Yes' ? 'Yes' : `No. ${notChargeableReason}`
+      })
 
-  let calloutOutcomeRows = []
+    }
 
-  // Issues
-  if (outcome.indexOf('Follow') > -1) calloutOutcomeRows.push({
-    'label': 'What went wrong',
-    'details': whatWentWrong
-  })
+    // Products
+    if (callout.field_954_raw && callout.field_954_raw.length > 0) calloutDetailRows.push({
+      'label': 'Products',
+      'details': callout.field_954_raw.length <= 10 ? products : 'Many'
+    })
 
-  // Installer's report
-  calloutOutcomeRows.push({
-    'label': 'Details',
-    'details': reportDetails
-  })
+    // Installer's instructions
+    calloutDetailRows.push({
+      'label': 'Instructions',
+      'details': instructions
+    })
 
-  // Service Call Details
-  if (calloutType === 'Service Call') calloutOutcomeRows.push({
-    'label': 'Consumables Supplied',
-    'details': consumablesSupplied === 'Yes' ? consumableDetails : `None`
-  })
+    let calloutOutcomeRows = []
 
-  // Estimate Install Time
-  if (installTimeRequired.length > 0) calloutOutcomeRows.push({
-    'label': 'Estimated Install Time',
-    'details': installTimeRequired
-  })
+    // Issues
+    if (outcome.indexOf('Follow') > -1) calloutOutcomeRows.push({
+      'label': 'What went wrong',
+      'details': whatWentWrong
+    })
 
-  // Docs & Photos
-  calloutOutcomeRows.push({
-    'label': 'Photos or docs?',
-    'details': `Photos: ${photosUploaded}, Docs: ${docsUploaded}`
-  })
+    // Installer's report
+    calloutOutcomeRows.push({
+      'label': 'Details',
+      'details': reportDetails
+    })
+
+    // Service Call Details
+    if (calloutType === 'Service Call') calloutOutcomeRows.push({
+      'label': 'Consumables Supplied',
+      'details': consumablesSupplied === 'Yes' ? consumableDetails : `None`
+    })
+
+    // Estimate Install Time
+    if (installTimeRequired.length > 0) calloutOutcomeRows.push({
+      'label': 'Estimated Install Time',
+      'details': installTimeRequired
+    })
+
+    // Docs & Photos
+    calloutOutcomeRows.push({
+      'label': 'Photos or docs?',
+      'details': `Photos: ${photosUploaded}, Docs: ${docsUploaded}`
+    })
 
 
-  dynamicData.details = `
+    dynamicData.details = `
     <table>
     <tr><td colspan="2"><strong><u>${calloutType}</u></strong></td></tr>
     <tr><td colspan="2">&nbsp;</td></tr>
@@ -842,62 +853,72 @@ async function generateReportTemplateData(callout, previous) {
     ${calloutOutcomeRows.map(row => `<tr><td style="padding:5px;"><strong>${row.label}</strong></td><td style="padding:5px;">${row.details}</td></tr>`).join('')}
     </table>`
 
-  return dynamicData
+    return dynamicData
+
+  } catch (err) {
+    if (!Sentry) throw err
+    Sentry.captureException(err)
+  }
 
 }
 
 async function generateReportEmailBody(callout, dynamic_template_data, template_id) {
 
-  let user = Knack.getUserAttributes()
-  let installers = await getInstallerRecipients({
-    callout: callout
-  })
-  let sales = await getSalesRecipients({
-    callout: callout,
-    optional: false,
-    ignorePrefs: true
-  })
-  let ops = await getOpsRecipients({
-    callout: callout,
-    optional: false,
-    ignorePrefs: true
-  })
-  let reports = [{
-    'email': 'reports@lovelight.com.au'
-  }]
+  try {
+    let user = Knack.getUserAttributes()
+    let installers = await getInstallerRecipients({
+      callout: callout
+    })
+    let sales = await getSalesRecipients({
+      callout: callout,
+      optional: false,
+      ignorePrefs: true
+    })
+    let ops = await getOpsRecipients({
+      callout: callout,
+      optional: false,
+      ignorePrefs: true
+    })
+    let reports = [{
+      'email': 'reports@lovelight.com.au'
+    }]
 
-  // SendGrid rejects requests if an email is duplicated
-  if (JSON.stringify(sales) === JSON.stringify(ops)) ops = []
+    // SendGrid rejects requests if an email is duplicated
+    if (JSON.stringify(sales) === JSON.stringify(ops)) ops = []
 
-  // Gather data for email.
-  //https://sendgrid.com/docs/API_Reference/api_v3.html
-  let from = {
-    'email': 'reports@lovelight.com.au',
-    'name': user.name
+    // Gather data for email.
+    //https://sendgrid.com/docs/API_Reference/api_v3.html
+    let from = {
+      'email': 'reports@lovelight.com.au',
+      'name': user.name
+    }
+    let reply_to = {
+      'email': user.email,
+      'name': user.name
+    }
+    let to = [].concat(sales, reports)
+    let cc = [].concat(installers, ops)
+
+    let priorityHeaders = {
+      "X-Priority": "1",
+      "X-MSMail-Priority": "High",
+      "Importance": "High"
+    }
+
+    return body = {
+      'personalizations': [{
+        'to': to,
+        'cc': cc,
+        'dynamic_template_data': dynamic_template_data,
+        'headers': callout.field_1542 = 'No Issues' ? {} : priorityHeaders
+      }],
+      'from': from,
+      'reply_to': reply_to,
+      'template_id': template_id
+    }
+
+  } catch (err) {
+    if (!Sentry) throw err
+    Sentry.captureException(err)
   }
-  let reply_to = {
-    'email': user.email,
-    'name': user.name
-  }
-  let to = [].concat(sales, reports)
-  let cc = [].concat(installers, ops)
-
-  let priorityHeaders = {
-    "X-Priority": "1",
-    "X-MSMail-Priority": "High",
-    "Importance": "High"
-  }
-
-  return body = {
-    'personalizations': [{
-      'to': to,
-      'cc': cc,
-      'dynamic_template_data': dynamic_template_data,
-      'headers': callout.field_1542 = 'No Issues' ? {} : priorityHeaders
-    }],
-    'from': from,
-    'reply_to': reply_to,
-    'template_id': template_id
-  }
-
 }
