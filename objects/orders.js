@@ -38,12 +38,12 @@ function isOrderStatusUpdated(changes) {
 }
 
 function isOrderStatusOrdered(order) {
-  if (order.field_442_raw[0].identifier.includes("Ordered")) return true
+  if (order.field_442_raw && order.field_442_raw[0].identifier.includes("Ordered")) return true
   return false
 }
 
 function isOrderStatusWarehouse(order) {
-  if (order.field_442_raw[0].identifier.includes("In Warehouse")) return true
+  if (order.field_442_raw && order.field_442_raw[0].identifier.includes("In Warehouse")) return true
   return false
 }
 
