@@ -66,6 +66,23 @@ function isToFromDateFieldType(fieldValue) {
   return fieldValue.toString().match(dateRegex)
 }
 
+function hasNumber(myString) {
+  return /\d/.test(myString);
+}
+
+function formatAsDollars(value){
+
+  //Create formatter
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  })
+
+  return formatter.format(value)
+
+}
+
 // ---------------------- DATA MANAGEMENT ------------
 
 //Return array of callOut IDs for any connection field
