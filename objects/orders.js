@@ -163,7 +163,13 @@ function handleOrderNotes(order, previous, changes, action){
     if (isOrderReceived) {
       // Insert job created record
       data.field_1659 = ['5d8c26b5cb58ff00136ee634'] // Order received
-      data.field_576 = `${order.field_17} ${order.field_1446_raw[0].identifier} ${order.field_11_raw[0].identifier} received into bay ${order.field_90_raw.map(bay => bay.identifier).join(', ')}`
+      let receivedInfo = ''
+      if(order.field_90_raw) {
+        receivedInfo = `received into bay ${order.field_90_raw.map(bay => bay.identifier).join(', ')}`
+      } else {
+        receivedInfo = 'received'
+      }
+      data.field_576 = `${order.field_17} ${order.field_1446_raw[0].identifier} ${order.field_11_raw[0].identifier} ${receivedInfo}`
       notes.push(JSON.parse(JSON.stringify(data)))
     }
 
