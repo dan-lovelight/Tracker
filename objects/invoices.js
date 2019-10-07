@@ -1,9 +1,9 @@
-$(document).on('knack-form-submit.view_1751', function(event,view, record){
+$(document).on('knack-form-submit.view_1751', function(event, view, record) {
   handleSendingInvoices(record)
 })
 
 async function processNewInvoice({
-  record: invoice
+  record: invoice, action
 }) {
 
   try {
@@ -40,6 +40,8 @@ async function processNewInvoice({
       invoice = await invoiceObj.update(invoice.id, updateData)
     }
 
+    handleInvoiceNotes(invoice, {}, [], action)
+
   } catch (err) {
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
@@ -47,47 +49,28 @@ async function processNewInvoice({
 
 }
 
-async function handleSendingInvoices(invoice) {
+async function processUpdatedInvoice({
+  record: invoice,
+  changes,
+  previous,
+  action
+}) {
   try {
-
-    let dueDate = getInvoiceDueDate(invoice)
-    let description = await getInvoiceDescription(invoice)
-    let xeroAccount = getXeroAccountNumber(invoice.field_434, invoice.field_698)
-
-    let salesId
-    if(invoice.field_1280_raw){
-      salesId = invoice.field_1280_raw[0].id
-    } else {
-      let jobId = invoice.field_155_raw[0].id;
-      let jobObj = new KnackObject(objects.jobs)
-      let job = await jobObj.get(jobId)
-      salesId = job.field_1276_raw[0].id
-    }
-
-    let salesObj = new KnackObject(objects.salespeople)
-    let salesperson = await salesObj.get(salesId)
-
-    let data = {};
-
-    data.invoiceID = invoice.id;
-    data.invoiceContactID = invoice.field_1396_raw[0].id;
-    data.invoiceContactName = invoice.field_1398;
-    data.dueDate = dueDate.date;
-    data.dueDateFormatted = dueDate.utc;
-    data.reference = invoice.field_155_raw[0].identifier;
-    data.description = description;
-    data.invoiceValue = parseFloat(invoice.field_154_raw.replace(/\,/g, '')).toFixed(2);
-    data.accountCode = xeroAccount;
-    data.state = invoice.field_434;
-    data.salesPerson = salesperson.field_957_raw.email;
-
-    return triggerZap('cmjwd2', data, 'Create Invoice');
-
+    handleInvoiceNotes(invoice, previous, changes, action)
   } catch (err) {
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
+}
 
+function isInvoiceJustSent(invoice, changes) {
+  if (changes.includes('field_153') && invoice.field_153 === 'Sent') return true
+  return false
+}
+
+function isInvoiceIssueDateUpdated(changes) {
+  if (changes.includes('field_157')) return true
+  return false
 }
 
 function getInvoiceDueDate(invoice) {
@@ -161,7 +144,7 @@ async function getInvoiceDescription(invoice) {
 
     return description
 
-  } catch (err){
+  } catch (err) {
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
@@ -281,6 +264,95 @@ function getXeroAccountNumber(state, division) {
   let accountName = state + ' - ' + division
   let accountNumber = XERO_ACCOUNTS.find(xeroAccountNumber => xeroAccountNumber.account == accountName).number;
   return accountNumber
+}
+
+async function handleSendingInvoices(invoice) {
+  try {
+
+    let dueDate = getInvoiceDueDate(invoice)
+    let description = await getInvoiceDescription(invoice)
+    let xeroAccount = getXeroAccountNumber(invoice.field_434, invoice.field_698)
+
+    let salesId
+    if (invoice.field_1280_raw) {
+      salesId = invoice.field_1280_raw[0].id
+    } else {
+      let jobId = invoice.field_155_raw[0].id;
+      let jobObj = new KnackObject(objects.jobs)
+      let job = await jobObj.get(jobId)
+      salesId = job.field_1276_raw[0].id
+    }
+
+    let salesObj = new KnackObject(objects.salespeople)
+    let salesperson = await salesObj.get(salesId)
+
+    let data = {};
+
+    data.invoiceID = invoice.id;
+    data.invoiceContactID = invoice.field_1396_raw[0].id;
+    data.invoiceContactName = invoice.field_1398;
+    data.dueDate = dueDate.date;
+    data.dueDateFormatted = dueDate.utc;
+    data.reference = invoice.field_155_raw[0].identifier;
+    data.description = description;
+    data.invoiceValue = parseFloat(invoice.field_154_raw.replace(/\,/g, '')).toFixed(2);
+    data.accountCode = xeroAccount;
+    data.state = invoice.field_434;
+    data.salesPerson = salesperson.field_957_raw.email;
+
+    return triggerZap('cmjwd2', data, 'Create Invoice');
+
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
+
+}
+
+async function handleInvoiceNotes(invoice, previous, changes, action) {
+  try {
+    let user = Knack.getUserAttributes()
+    let isJustSent = isInvoiceJustSent(invoice, changes)
+    let isDateChanged = isInvoiceIssueDateUpdated(changes)
+    let notes = []
+    let data = {}
+
+    data.field_1655 = user.name // Created by
+    data.field_579 = [invoice.field_155_raw[0].id] // Job
+
+    if (isJustSent) {
+      // Insert job created record
+      data.field_1659 = ['5d8c29fb80c33d0010c00a80'] // Invoice Sent
+      let contactsObj = new KnackObject(objects.contacts)
+      let invoiceContact = await contactsObj.get(invoice.field_1396_raw[0].id)
+      let contactEmail = invoiceContact.field_76_raw ? invoiceContact.field_76_raw.email : 'no contact email'
+      let dueDate = getInvoiceDueDate(invoice)
+      data.field_576 = `Invoice for ${invoice.field_154} sent to ${invoice.field_1398} (${contactEmail}), due ${dueDate.date}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (action.isCreate) {
+      // Insert order created record
+      data.field_1659 = ['5d8c27aecb58ff00136ee71e'] // Invoice created
+      data.field_576 = `${invoice.field_156} invoice scheduled for ${invoice.field_157_raw.date_formatted}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (isDateChanged) {
+      // Insert order created record
+      data.field_1659 = ['5d8c27aecb58ff00136ee71e'] // Invoice created
+      data.field_576 = `${invoice.field_156} invoice rescheduled from ${previous.field_157_raw.date_formatted} to ${invoice.field_157_raw.date_formatted}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    // Insert the notes if there are any
+    if (notes.length > 0) addActivityRecords(notes)
+
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
+
 }
 
 async function createCallOutInvoice(record) {

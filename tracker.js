@@ -65,7 +65,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         if (view.source.object === objects.invoices) {
           let invoiceObj = new KnackObject(view.source.object, view)
           invoiceObj.onCreate(processNewInvoice)
-          // invoiceObj.onUpdate(processUpdatedInvoice)
+          invoiceObj.onUpdate(processUpdatedInvoice)
           // invoiceObj.onDelete(processDeletedInvoice)
         }
 
