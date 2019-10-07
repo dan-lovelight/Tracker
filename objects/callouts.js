@@ -5,7 +5,7 @@ $(document).on('knack-form-submit.view_1967', function(event, view, record) {
 
 // Process newly created callouts
 async function processNewCallOut({
-  record: callout
+  record: callout, action
 }) {
   try {
     // Set processing flag
@@ -27,6 +27,7 @@ async function processNewCallOut({
 
     handleCalendarUpdates(callout)
     updateConnectedJobsInPortal(callout) // Update any connected portal callouts
+    handleCalloutNotes(callout, {}, [], action)
 
   } catch (err) {
     if (typeof Sentry === 'undefined') throw err
@@ -40,7 +41,8 @@ async function processNewCallOut({
 async function processUpdatedCallOut({
   record: callout,
   changes,
-  previous
+  previous,
+  action
 }) {
   try {
     let names = await getCallOutName(callout, changes)
@@ -59,6 +61,7 @@ async function processUpdatedCallOut({
     handleCalendarUpdates(callout, previous, changes)
     handleInstallerReports(callout, previous, changes)
     updateConnectedJobsInPortal(callout)
+    handleCalloutNotes(callout, previous, changes, action)
 
   } catch (err) {
     if (typeof Sentry === 'undefined') throw err
@@ -685,6 +688,26 @@ function isReportUpdated(changes) {
   return false
 }
 
+function isCalloutScheduled(callout){
+  if(callout.field_1005==='Scheduled') return true
+  return false
+}
+
+function isCalloutJustScheduled(callout, changes){
+  if (changes.includes('field_1005') && callout.field_1005 === 'Scheduled') return true
+  return false
+}
+
+function isCalloutJustCancelled(callout, changes){
+  if (changes.includes('field_1005') && callout.field_1005 === 'Cancelled') return true
+  return false
+}
+
+function isCalloutStatusUpdated(callout, changes){
+  if (changes.includes('field_1005')) return true
+  return false
+}
+
 // End Boolean Helper Functions
 
 // ----------------------------------------------------------
@@ -931,4 +954,90 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
+}
+
+function handleCalloutNotes(callout, previous, changes, action){
+  try {
+    let user = Knack.getUserAttributes()
+    let isStatusUpdated = isCalloutStatusUpdated(callout, changes)
+    let isScheduled = isCalloutScheduled(callout)
+    let isJustScheduled = isCalloutJustScheduled(callout, changes)
+    let isJustCancelled = isCalloutJustCancelled(callout, changes)
+    let isDateUpdated = isScheduledDateUpdated(changes)
+    let isJustReported = isReportUpdated(changes)
+    let notes = []
+    let data = {}
+
+    // exit if there's no job
+    if(callout.field_928.lenght === 0) return
+
+    data.field_1655 = user.name // Created by
+    data.field_579 = callout.field_928_raw.map(job => job.id)
+
+    if (action.isCreate || isStatusUpdated) {
+      let status = callout.field_1005
+      if(status === 'Requested') {
+        // Insert callout requested record
+        data.field_1659 = ['5d8c5301039e4200150d18b2'] // Callout Requested
+        data.field_576 = `${callout.field_1485} requested`
+        notes.push(JSON.parse(JSON.stringify(data)))
+      }
+
+      if(status === 'Tentative') {
+        // Insert callout requested record
+        data.field_1659 = ['5d8c5301039e4200150d18b2'] // Callout Requested
+        let date = callout.field_924_raw.date_formatted
+        let time = `${callout.field_924_raw.hours}:${callout.field_924_raw.minutes.length===1 ? '0':''}${callout.field_924_raw.minutes}${callout.field_924_raw.am_pm}`
+        data.field_576 = `${callout.field_1485} tentatively booked in on ${date} at ${time}`
+        notes.push(JSON.parse(JSON.stringify(data)))
+      }
+    }
+
+    if (isJustScheduled) {
+      // Insert order created record
+      data.field_1659 = ['5d8c5309bb51b40010290d4c'] // Callout Requested
+      let date = callout.field_924_raw.date_formatted
+      let time = `${callout.field_924_raw.hours}:${callout.field_924_raw.minutes.length===1 ? '0':''}${callout.field_924_raw.minutes}${callout.field_924_raw.am_pm}`
+      let installers = getConnectionIdentifiers(callout.field_927_raw).join(', ')
+      data.field_576 = `${callout.field_1485} booked with ${installers} on ${date} at ${time}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (isJustCancelled) {
+      // Insert order created record
+      data.field_1659 = ['5d8c532297961100125a2c11'] // Callout Cancelled
+      data.field_576 = `${previous.field_1005} ${callout.field_1485} cancelled`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (isScheduled && !isJustScheduled && isDateUpdated) {
+      // Insert order created record
+      data.field_1659 = ['5d8c531a7a64470010565a0a'] // Callout Rescheduled
+      let date = callout.field_924_raw.date_formatted
+      let time = `${callout.field_924_raw.hours}:${callout.field_924_raw.minutes.length===1 ? '0':''}${callout.field_924_raw.minutes}${callout.field_924_raw.am_pm}`
+      let previousDate = previous.field_924_raw.date_formatted
+      let previousTime = `${previous.field_924_raw.hours}:${previous.field_924_raw.minutes.length===1 ? '0':''}${previous.field_924_raw.minutes}${previous.field_924_raw.am_pm}`
+      data.field_576 = `${callout.field_1485} rescheduled from ${date} at ${time} to ${previousDate} at ${previousTime}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    if (isJustReported) {
+      // Insert callout report submitted record
+      if(callout.field_1542.indexOf('Issues')>-1) {
+        data.field_1659 = ['5d8c54b5821e410010e9bad6'] // Report - No Issues
+      } else {
+        data.field_1659 = ['5d8c53281a510100115de5d1'] // Report - Follow Up
+      }
+      data.field_576 = `Report submitted - ${callout.field_1542}`
+      notes.push(JSON.parse(JSON.stringify(data)))
+    }
+
+    // Insert the notes if there are any
+    if (notes.length > 0) addActivityRecords(notes)
+
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
+
 }
