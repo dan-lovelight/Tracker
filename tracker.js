@@ -40,7 +40,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
           let jobsObj = new KnackObject(view.source.object, view)
           jobsObj.onCreate(processNewJob)
           jobsObj.onUpdate(processUpdatedJob)
-        //   jobsObj.onDelete(processDeletedJob)
+          //   jobsObj.onDelete(processDeletedJob)
         }
 
         // Add note listeners
@@ -62,12 +62,12 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         }
 
         // Add invoice listeners
-        // if (view.source.object === objects.invoices) {
-        //   let invoiceObj = new KnackObject(view.source.object, view)
-        //   invoiceObj.onCreate(processNewInvoice)
-        //   invoiceObj.onUpdate(processUpdatedInvoice)
-        //   invoiceObj.onDelete(processDeletedInvoice)
-        // }
+        if (view.source.object === objects.invoices) {
+          let invoiceObj = new KnackObject(view.source.object, view)
+          invoiceObj.onCreate(processNewInvoice)
+          invoiceObj.onUpdate(processUpdatedInvoice)
+          // invoiceObj.onDelete(processDeletedInvoice)
+        }
 
       }
     }
@@ -90,10 +90,15 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 
 $(document).on('knack-scene-render.any', function(event, scene) {
 
-  logMixPanelPageLoad(scene) // Capture data
-  $(".kn-back-link a").html("<i class='fa fa-chevron-circle-left'></i> Previous"); // Change back links
-  addLinksToMainMenu()
-  formatAddressInput()
+  try {
+    logMixPanelPageLoad(scene) // Capture data
+    $(".kn-back-link a").html("<i class='fa fa-chevron-circle-left'></i> Previous"); // Change back links
+    addLinksToMainMenu()
+    formatAddressInput()
+  } catch (err) {
+    if (!Sentry) throw err
+    Sentry.captureException(err)
+  }
 
 })
 
@@ -110,8 +115,15 @@ function logMixPanelPageLoad(scene) {
   mixpanel.track(`Page Loaded`, logData)
 }
 
-function logMixpanelRecordAction({view, record, action, fields, changes}) {
+function logMixpanelRecordAction({
+  view,
+  record,
+  action,
+  fields,
+  changes
+}) {
 
+  let user = Knack.getUserAttributes()
   let slug = view.scene ? view.scene.slug : ''
   let scene_id = view.scene ? view.scene.scene_id : ''
   let name = view.name ? view.name : ''
