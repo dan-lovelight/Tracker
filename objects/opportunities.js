@@ -17,6 +17,7 @@ function processOpportunityChange({record:opportunity, changes, action, view, pr
     handleSlackNotifications(opportunity, changes, previous, action)
 
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -189,6 +190,7 @@ function handleOppNotes(opportunity, isNewOpp, view, previous, changes) {
     // Insert the notes if there are any
     if (notes.length > 0) addActivityRecords(notes)
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 

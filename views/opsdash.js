@@ -155,7 +155,7 @@ $(document).on('knack-scene-render.scene_713', function(event, scene) {
   if (completeJobInstalls) completeJobInstalls.forEach(job => {
     if (uniqueCompletedInstallJobIds.includes(job.id)) $('#view_2327 #' + job.id).remove()
   })
-  
+
   // get a list of job ids in ordered status
   const orderedJobIds = orderedJobs.map(job => job.id)
 
@@ -260,7 +260,8 @@ $(document).on('knack-view-render.view_1024', async function(event, view, record
       $reviewer.html(reviewerOption).trigger('liszt:updated')
     }
   } catch (error) {
-    updateLog(`Send for review error: \`\`\`${error.message}\n${error.stack}\`\`\``)
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
   }
   Knack.hideSpinner()
 })

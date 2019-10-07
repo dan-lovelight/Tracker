@@ -26,7 +26,7 @@ async function processOrderChange({
     handleOrderNotes(order, previous, changes, action)
 
   } catch (err) {
-    if (!Sentry) throw err
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 
@@ -178,7 +178,7 @@ function handleOrderNotes(order, previous, changes, action){
     if (notes.length > 0) addActivityRecords(notes)
 
   } catch (err) {
-    if (!Sentry) throw err
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 

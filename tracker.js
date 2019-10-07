@@ -96,7 +96,7 @@ $(document).on('knack-scene-render.any', function(event, scene) {
     addLinksToMainMenu()
     formatAddressInput()
   } catch (err) {
-    if (!Sentry) throw err
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 

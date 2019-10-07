@@ -60,6 +60,7 @@ async function processUpdatedJob({
     handlePortalUpdates(job, changes)
 
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -79,6 +80,7 @@ async function processNewJobNote({
     await noteObj.update(note.id, data)
 
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -203,6 +205,7 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     // Insert the notes if there are any
     if (notes.length > 0) addActivityRecords(notes)
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 
@@ -311,7 +314,8 @@ async function copyFilesFromJobToDocsRecord(job, filesToMove) {
 
     // Wait for the new docs to be created
     return await Promise.all(promises)
-  } catch {
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }

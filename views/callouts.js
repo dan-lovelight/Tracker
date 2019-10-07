@@ -180,6 +180,7 @@ function addJobDetailsToCallOut(view) {
         if (job.field_12_raw.zip && zip) zip.value = job.field_12_raw.zip
       }
     } catch (err) {
+      if (typeof Sentry === 'undefined') throw err
       Sentry.captureException(err)
     } finally {
       Knack.hideSpinner()
@@ -316,6 +317,7 @@ $(document).on('knack-form-submit.view_2314 knack-form-submit.view_2316', async 
       let invoice = await createCallOutInvoice(record)
       window.location.replace(`${event.currentTarget.URL.split('?')[0]}invoice-call-out/${invoice.id}`)
     } catch (err) {
+      if (typeof Sentry === 'undefined') throw err
       Sentry.captureException(err)
     } finally {
       Knack.hideSpinner()
@@ -330,6 +332,7 @@ $(document).on('knack-form-submit.view_2305', async function(event, view, record
     let invoice = await createCallOutInvoice(record)
     window.location.replace(`${event.currentTarget.URL.split('?')[0]}invoice-call-out/${invoice.id}`)
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   } finally {
     Knack.hideSpinner()

@@ -29,6 +29,7 @@ async function processNewCallOut({
     updateConnectedJobsInPortal(callout) // Update any connected portal callouts
 
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   } finally {
     window.callOutProcessing = false
@@ -60,6 +61,7 @@ async function processUpdatedCallOut({
     updateConnectedJobsInPortal(callout)
 
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -134,6 +136,7 @@ async function createEvent(callout) {
     calloutObj.update(callout.id, {
       'field_1496': 'yes', // flag that an update is still required
     })
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   } finally {
     removeCalendarUpdateFlag(callout)
@@ -161,6 +164,7 @@ async function updateEvent(callout) {
     calloutObj.update(callout.id, {
       'field_1496': 'yes', // flag that an update is still required
     })
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   } finally {
     removeCalendarUpdateFlag(callout)
@@ -191,6 +195,7 @@ async function cancelEvent(callout) {
     calloutObj.update(callout.id, {
       'field_1496': 'yes', // flag that an update is still required
     })
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   } finally {
     removeCalendarUpdateFlag(callout)
@@ -209,6 +214,7 @@ async function lovelightCalendarService(params, queryParams, eventId, calendar =
     let json = await response.json()
     return json
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -221,6 +227,7 @@ async function applyCalendarUpdateFlag(callout) {
     updateData.field_1101 = 'Yes' // Add 'Calendar Update In Progress Flag' to avoid race conditions
     await calloutsObj.update(callout.id, updateData)
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -233,6 +240,7 @@ async function removeCalendarUpdateFlag(callout) {
     updateData.field_1101 = 'No' // Remove 'Calendar Update In Progress Flag' to avoid race conditions
     await calloutsObj.update(callout.id, updateData)
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -434,8 +442,8 @@ async function buildGCalEventBody(callout) {
       },
     }
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
-    throw new Error(err)
   }
 }
 
@@ -727,7 +735,7 @@ async function handleInstallerReports(callout, previous, changes) {
     return
 
   } catch (err) {
-    if (!Sentry) throw err
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
@@ -856,7 +864,7 @@ async function generateReportTemplateData(callout, previous) {
     return dynamicData
 
   } catch (err) {
-    if (!Sentry) throw err
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 
@@ -918,7 +926,7 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
     }
 
   } catch (err) {
-    if (!Sentry) throw err
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }

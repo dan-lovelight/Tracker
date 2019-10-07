@@ -117,7 +117,8 @@ async function createRecordPromise(object, data) {
     let json = await response.json()
     return json
   } catch (err) {
-    logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
   }
 }
 
@@ -135,7 +136,8 @@ async function getRecordPromise(object, id) {
     let json = await response.json()
     return json
   } catch (err) {
-    logError(getRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
   }
 }
 
@@ -153,7 +155,8 @@ async function updateRecordPromise(object, id, data) {
     let json = await response.json()
     return json
   } catch (err) {
-    logError(updateRecordPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
   }
 }
 
@@ -175,7 +178,8 @@ async function searchRecordsPromise(object, filter) {
     let records = await json.records
     return records
   } catch (err) {
-    logError(searchRecordsPromise, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
   }
 }
 
@@ -352,7 +356,8 @@ async function triggerZap(endPoint, dataObject, logEntry) {
   try {
     await fetch(url, init)
   } catch (err) {
-    logError(triggerZap, arguments, err, Knack.getUserAttributes(), window.location.href, true)
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
   }
 }
 
@@ -388,6 +393,7 @@ async function displayContactDetails(contactId, field) {
           })
           displayDetails()
         } catch (err) {
+          if (typeof Sentry === 'undefined') throw err
           Sentry.captureException(err)
         }
       })
@@ -402,6 +408,7 @@ async function displayContactDetails(contactId, field) {
           })
           displayDetails()
         } catch (err) {
+          if (typeof Sentry === 'undefined') throw err
           Sentry.captureException(err)
         }
       })
@@ -460,6 +467,7 @@ async function addActivityRecords(records) {
       await recordsObj.create(records[i])
     }
   } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
 }
