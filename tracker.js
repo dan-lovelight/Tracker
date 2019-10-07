@@ -273,7 +273,10 @@ $(document).on('knack-view-render.view_1287', function(event, view) {
           return response.json();
         }).then(function(json) {
           return json.id; //just need something to indicate it worked, don't care what
-        })).catch(logError(hopeItDoesntBreak, arguments, err, Knack.getUserAttributes(), window.location.href, true)) // This needs work
+        })).catch(err=>{
+          if (typeof Sentry === 'undefined') throw err
+          Sentry.captureException(err)
+        }) // This needs work
       }
       return Promise.all(promiseArray);
     }
