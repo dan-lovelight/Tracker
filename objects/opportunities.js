@@ -113,18 +113,18 @@ function handleSlackNotifications(opportunity, changes, previous, action){
       if(salesPerson.indexOf('Jeremy') > -1) data.salesPersonCredit = quotedBy
 
       // Send sale notification
-      triggerZap('l5tx9j', zapierData, 'Sale!')
+      triggerZap('l5tx9j', data, 'Sale!')
 
     }
 
     //Notify QLD channel about all wins
     if (record.field_117 == 'QLD' && value < SALE_NOTIFICATION_VALUE) {
       data.salesPersonCredit = salesPerson;
-      triggerZap('e337ri', zapierData, 'QLD Sale!');
+      triggerZap('e337ri', data, 'QLD Sale!');
     }
 
     // Send notification of B2B sales
-    if (typeof company !== 'undefined') triggerZap('l5hoyo', zapierData, 'Opportunity has a company');
+    if (typeof company !== 'undefined') triggerZap('l5hoyo', data, 'Opportunity has a company');
 
   }
 
