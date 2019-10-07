@@ -1,118 +1,177 @@
-//***************************************************************************
-//******************* INVOICE FORMS *****************************************
-//***************************************************************************
-
-//******************* RECORD CREATED ****************************************
-
-//Add Invoice
-//https://lovelight.knack.com/tracker#jobs/view-job-details/{}/add-invoice/{}/
-//https://builder.knack.com/lovelight/tracker#pages/scene_68/views/view_127
-$(document).on('knack-record-create.view_127 knack-record-create.view_2342', function(event, view, record) {
-  processNewInvoiceRecord(record);
-});
-
-//Add Invoice - manage invoices
-//
-$(document).on('knack-record-create.view_163', function(event, view, record) {
-  processNewInvoiceRecord(record);
-});
-
-//Issue Invoice
-$(document).on('knack-form-submit.view_1751', function(event, view, record) {
-  issueInvoice(record);
+$(document).on('knack-form-submit.view_1751', function(event,view, record){
+  handleSendingInvoices(record)
 })
 
-//***************************************************************************
-//******************* PROCESS NEW INVOICE ***********************************
-//***************************************************************************
+async function processNewInvoice({
+  record: invoice
+}) {
 
-function processNewInvoiceRecord(record) {
+  try {
 
-  var jobID = record.field_155_raw['0'].id;
-  var percentageDue = record.field_1403;
+    let jobId = invoice.field_155_raw[0].id;
+    let percentageDue = invoice.field_1403;
 
-  console.log(percentageDue);
+    let data = {};
 
-  var data = {};
+    let jobObj = new KnackObject(objects.jobs)
+    let job = await jobObj.get(jobId)
 
-  //Get the details of the invoice's job
-  var getJob = fetch('https://api.knack.com/v1/objects/object_3/records/' + jobID, {
-      method: 'GET',
-      headers: myKnackHeaders
-    })
-    .then(function(res) {
-      return res.json();
-    })
-    .then(function(job) {
+    //If there is a company we'll use the company name, otherwise the contact name
+    if (job.field_1459.length > 0) {
+      data.field_1398 = job.field_1459_raw['0'].identifier;
+    } else {
+      data.field_1398 = job.field_80_raw['0'].identifier;
+    }
 
-      //If there is a company we'll use the company name, otherwise the contact name
-      if (job.field_1459.length > 0) {
-        data.field_1398 = job.field_1459_raw['0'].identifier; //This needs to be updated when we migrate companies data
-      } else {
-        data.field_1398 = job.field_80_raw['0'].identifier;
-      }
+    // Get amount due if percentage is custom value
+    if (percentageDue != 'Other') {
+      let value = parseFloat(job.field_130_raw.replace(/\,/g, ''))
+      let percent = parseFloat(percentageDue.replace(/\%/g, '')) / 100
+      let due = value * percent
+      data.field_154 = (due).toFixed(2);
+    }
 
-      if (percentageDue != 'Other') {
-        data.field_154 = parseInt(job.field_130_raw.replace(/\,/g, '')) * parseInt(percentageDue.replace(/\%/g, '')) / 100;
-        console.log(job.field_130_raw.replace(/\,/g, ''))
-        console.log(parseInt(job.field_130_raw.replace(/\,/g, '')))
+    // Consolidate the data
+    let updateData = Object.assign({}, data)
 
-        console.log(data.field_154);
-      }
-    })
-    .then(function() {
+    // Update the job
+    if (!$.isEmptyObject(updateData)) {
+      let invoiceObj = new KnackObject(objects.invoices)
+      invoice = await invoiceObj.update(invoice.id, updateData)
+    }
 
-      console.log(data);
-
-      //write details back to the invoice
-      updateRecordPromise('object_19', record.id, data)
-
-    })
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
 
 }
 
+async function handleSendingInvoices(invoice) {
+  try {
 
-//***************************************************************************
-//******************* ISSUE INVOICE ****************************************
-//***************************************************************************
+    let dueDate = getInvoiceDueDate(invoice)
+    let description = await getInvoiceDescription(invoice)
+    let xeroAccount = getXeroAccountNumber(invoice.field_434, invoice.field_698)
 
-async function issueInvoice(record) {
+    let salesId
+    if(invoice.field_1280_raw){
+      salesId = invoice.field_1280_raw[0].id
+    } else {
+      let jobId = invoice.field_155_raw[0].id;
+      let jobObj = new KnackObject(objects.jobs)
+      let job = await jobObj.get(jobId)
+      salesId = job.field_1276_raw[0].id
+    }
 
-  //Invoice Variables
-  let invoiceID = record.id;
-  let invoiceAccount = record.field_1398;
-  let invoiceContactID = record.field_1396_raw["0"].id;
-  let invoiceValueFormatted = record.field_154;
-  let invoiceValue = parseInt(record.field_154_raw.replace(/\,/g, ''));
-  let invoicePercent = record.field_156;
-  let invoiceType = record.field_313;
-  let dueDateOption = record.field_1399;
-  let invoiceDueDate; //= record.field_835 > 0 ? record.field_835_raw.date_formatted : undefined;
-  let invoiceDueDateUTC;
-  let invoiceService = record.field_314 == 'Other' ? record.field_315 : record.field_314;
-  let invoicePO = record.field_319.length > 0 ? 'PO Number: ' + record.field_319 : undefined;
-  let xeroAccount = "";
-  let xeroAccountNumber = "";
-  let description = "";
+    let salesObj = new KnackObject(objects.salespeople)
+    let salesperson = await salesObj.get(salesId)
 
-  //Job Varialbes
-  let jobRecord;
-  let jobID = record.field_155_raw['0'].id;
-  let jobSite = "";
-  let jobState = "";
-  let jobValue = 0;
-  let jobValueFormatted = "";
-  let jobValueInvoiced = 0;
-  let jobValueRemaining = "";
-  let jobName = record.field_155_raw['0'].identifier;
-  let jobSalesID = "";
+    let data = {};
 
-  //Salesperson Variables
-  let salespersonRecord;
-  let salesPersonEmail = ""
+    data.invoiceID = invoice.id;
+    data.invoiceContactID = invoice.field_1396_raw[0].id;
+    data.invoiceContactName = invoice.field_1398;
+    data.dueDate = dueDate.date;
+    data.dueDateFormatted = dueDate.utc;
+    data.reference = invoice.field_155_raw[0].identifier;
+    data.description = description;
+    data.invoiceValue = parseFloat(invoice.field_154_raw.replace(/\,/g, '')).toFixed(2);
+    data.accountCode = xeroAccount;
+    data.state = invoice.field_434;
+    data.salesPerson = salesperson.field_957_raw.email;
+
+    return triggerZap('cmjwd2', data, 'Create Invoice');
+
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
+
+}
+
+function getInvoiceDueDate(invoice) {
+
+  let dueDate = {}
+  dueDate.date = moment().format("DD/MM/YYYY")
+  dueDate.utc = moment().format()
+
+  let dueDateOption = invoice.field_1399
+
+  if (dueDateOption.indexOf('Pick a date') >= 0) {
+    dueDate.date = invoice.field_835_raw.date_formatted;
+    dueDate.utc = moment(dueDate.date, "DD/MM/YYYY").format();
+  }
+
+  if (hasNumber(dueDateOption)) {
+    let days = dueDateOption.match(/\d/)[0]
+    dueDate.date = moment().add(days, 'days').format("DD/MM/YYYY");
+    dueDate.utc = moment().add(days, 'days').format();
+  }
+
+  if (dueDateOption.indexOf('End of next month') >= 0) {
+    dueDate.date = moment().add(1, 'months').endOf('month').format("DD/MM/YYYY");
+    dueDate.utc = moment().add(1, 'months').endOf('month').format();
+  }
+
+  return dueDate
+
+}
+
+async function getInvoiceDescription(invoice) {
+
+  try {
+    let description = ''
+
+    let jobId = invoice.field_155_raw[0].id;
+    let jobObj = new KnackObject(objects.jobs)
+    let job = await jobObj.get(jobId)
+
+    //Invoice Variables
+    let invoicePercent = invoice.field_156;
+    let invoiceType = invoice.field_313;
+    let invoiceService = invoice.field_314 == 'Other' ? invoice.field_315 : invoice.field_314;
+
+    //Job Varialbes
+    let jobSite = job.field_12.replace(/<\/?[^>]+(>|$)/g, " ");
+    let jobValue = job.field_130_raw ? parseFloat(job.field_130_raw.replace(/\,/g, '')).toFixed(2) : 0
+    let jobValueFormatted = job.field_130;
+    let jobValueInvoiced = parseFloat(job.field_162.replace(/\,/g, '').replace(/\$/g, '')).toFixed(2);
+    let jobValueRemaining = formatAsDollars(jobValue - jobValueInvoiced);
+
+    //Build invoice description
+    if (jobSite.length > 0) description = "Site address: " + jobSite + '\n\n'
+
+    //Add the service being provided
+    description += invoiceService + '\n\n';
+
+    //Add the job value
+    if (invoiceType != 'Call Out Fee') description += 'Total Job Value: ' + jobValueFormatted + ' excluding GST.\n' + invoicePercent + ' ' + invoiceType + ' due.\n'
+
+    //Add variable detail
+    if (invoiceType == 'Balance') {
+      description += 'Payment due before installation.';
+    } else if (invoiceType == 'Deposit') {
+      description += 'Payment due to commence works.';
+    } else if (invoiceType == 'Installment') {
+      description += 'Total remaining to be invoiced is ' + jobValueRemaining;
+    } else if (invoiceType == 'Call Out Fee') {
+      description += 'Payment due upon receipt'
+    }
+
+    return description
+
+  } catch (err){
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
+
+}
+
+function getXeroAccountNumber(state, division) {
 
   //Required to look up accounts based on job details
-  const xeroAccounts = [{
+  const XERO_ACCOUNTS = [{
       id: 0,
       account: 'VIC - Custom',
       number: 41000
@@ -219,118 +278,30 @@ async function issueInvoice(record) {
     }
   ];
 
-  //Set the invoice due date
-  if (record.field_1399.indexOf('Immediately') >= 0) {
-    invoiceDueDate = moment().format("DD/MM/YYYY");
-    invoiceDueDateUTC = moment().format();
-  } else if (record.field_1399.indexOf('7 days') >= 0) {
-    invoiceDueDate = moment().add(7, 'days').format("DD/MM/YYYY");
-    invoiceDueDateUTC = moment().add(7, 'days').format();
-  } else if (record.field_1399.indexOf('14 days') >= 0) {
-    invoiceDueDate = moment().add(14, 'days').format("DD/MM/YYYY");
-    invoiceDueDateUTC = moment().add(14, 'days').format();
-  } else if (record.field_1399.indexOf('30 days') >= 0) {
-    invoiceDueDate = moment().add(30, 'days').format("DD/MM/YYYY");
-    invoiceDueDateUTC = moment().add(30, 'days').format();
-  } else if (record.field_1399.indexOf('End of next month') >= 0) {
-    invoiceDueDate = moment().add(1, 'months').endOf('month').format("DD/MM/YYYY");
-    invoiceDueDateUTC = moment().add(1, 'months').endOf('month').format();
-  } else if (record.field_1399.indexOf('Pick a date') >= 0) {
-    invoiceDueDate = record.field_835_raw.date_formatted;
-    invoiceDueDateUTC = moment(invoiceDueDate, "DD/MM/YYYY").format();
-  } else { //date is missing, defulat to today
-    invoiceDueDate = moment().format("DD/MM/YYYY")
-    invoiceDueDateUTC = moment().format();
-  }
-
-  //Create formatter for reformatting currency after calculation
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2
-  })
-
-  let job = await getRecordPromise('object_3', jobID)
-
-  jobSite = job.field_12.replace(/<\/?[^>]+(>|$)/g, " ");
-  jobValue = job.field_130_raw ? parseInt(job.field_130_raw.replace(/\,/g, '')) : 0
-  jobValueFormatted = job.field_130;
-  jobValueInvoiced = parseInt(job.field_162.replace(/\,/g, '').replace(/\$/g, ''));
-  jobValueRemaining = formatter.format(jobValue - jobValueInvoiced);
-
-  jobRecord = job;
-  jobState = job.field_58;
-  jobSalesID = job.field_1276_raw["0"].id;
-  xeroAccount = jobState + ' - ' + job.field_59;
-  xeroAccountNumber = xeroAccounts.find(xeroAccountNumber => xeroAccountNumber.account == xeroAccount).number;
-  description = "";
-
-  //Build invoice description
-  if (jobSite.length > 0) { //Don't include job site if this is blank
-    description = "Site address: " + jobSite + '\n\n';
-  }
-  //Add the service being provided
-  description += invoiceService + '\n\n';
-
-  //Add the job value
-  if (invoiceType != 'Call Out Fee') {
-    description += 'Total Job Value: ' + jobValueFormatted + ' excluding GST.\n' + invoicePercent + ' ' + invoiceType + ' due.\n'
-  }
-
-  //Add variable detail
-  if (invoiceType == 'Balance') {
-    description += 'Payment due before installation.';
-  } else if (invoiceType == 'Deposit') {
-    description += 'Payment due to commence works.';
-  } else if (invoiceType == 'Installment') {
-    description += 'Total remaining to be invoiced is ' + jobValueRemaining;
-  } else if (invoiceType == 'Call Out Fee') {
-    description += 'Payment due upon receipt'
-  }
-
-  //Add PO number if present
-  if (invoicePO !== undefined) {
-    description += '\n\n' + invoicePO;
-  }
-
-  let salesperson = await getRecordPromise('object_82', jobSalesID)
-
-  salespersonRecord = salesperson;
-  salesPersonEmail = salesperson.field_957_raw.email;
-
-  let data = {};
-
-  data.invoiceID = invoiceID;
-  data.invoiceContactID = invoiceContactID;
-  data.invoiceContactName = invoiceAccount;
-  data.dueDate = invoiceDueDate;
-  data.dueDateFormatted = invoiceDueDateUTC;
-  data.reference = jobName;
-  data.description = description;
-  data.invoiceValue = invoiceValue;
-  data.accountCode = xeroAccountNumber;
-  data.state = jobState;
-  data.salesPerson = salesPersonEmail;
-
-  return triggerZap('cmjwd2', data, 'Create Invoice');
-
+  let accountName = state + ' - ' + division
+  let accountNumber = XERO_ACCOUNTS.find(xeroAccountNumber => xeroAccountNumber.account == accountName).number;
+  return accountNumber
 }
 
-
 async function createCallOutInvoice(record) {
-  // Insert a connected invoice
-  let data = {
-    field_155: [record.field_928_raw[0].id], // Job
-    field_1629: [record.id], // Link to this callout
-    field_1396: [record.field_1025_raw[0].id], // Invoice Contact to Site Contact
-    field_1398: record.field_1025_raw[0].identifier, // Issue Invoice To to Site Contact Name
-    field_313: 'Call Out Fee', // Invoice type
-    field_315: 'Service Call', // Custom Service
-    field_314: 'Other', // Sevice Option
-    field_835: moment().format("DD/MM/YYYY"), // Due date
-    field_1399: 'Pick a date'
+  try {
+    // Insert a connected invoice
+    let data = {
+      field_155: [record.field_928_raw[0].id], // Job
+      field_1629: [record.id], // Link to this callout
+      field_1396: [record.field_1025_raw[0].id], // Invoice Contact to Site Contact
+      field_1398: record.field_1025_raw[0].identifier, // Issue Invoice To to Site Contact Name
+      field_313: 'Call Out Fee', // Invoice type
+      field_315: 'Service Call', // Custom Service
+      field_314: 'Other', // Sevice Option
+      field_835: moment().format("DD/MM/YYYY"), // Due date
+      field_1399: 'Pick a date'
+    }
+    let invoiceObj = new KnackObject(objects.invoices)
+    let invoice = await invoiceObj.create(data)
+    return invoice
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
   }
-  let invoiceObj = new KnackObject(objects.invoices)
-  let invoice = await invoiceObj.create(data)
-  return invoice
 }
