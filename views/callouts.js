@@ -43,7 +43,8 @@ $(document).on('knack-record-create.view_1962', function(event, view, record) {
 // Development Create Forms rendered
 $(document).on('knack-view-render.view_2254 knack-view-render.view_2258', async function(event, view, data) {
   Knack.showSpinner()
-  let development = await getRecordPromise(view.scene.object, view.scene.scene_id)
+  let developmentsObj = new KnackObject(objects.developments)
+  let development = await developmentsObj.get(view.scene.scene_id)
 
   let $siteContact = $('#' + view.key + '-field_1025') // Need the jquery wrapper for later manipuation
   let street = document.getElementById('street')
@@ -163,7 +164,8 @@ function addJobDetailsToCallOut(view) {
   async function populateSiteContactAndAddress(jobId) {
     Knack.showSpinner()
     try { // Get the job deatils
-      let job = await getRecordPromise('object_3', jobId)
+      let jobsObj = new KnackObject(objects.jobs)
+      let job = await jobsObj.get(jobId)
       //Populate Site Contact
       if (job.field_432_raw) {
         if (job.field_432_raw.length > 0) {

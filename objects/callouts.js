@@ -345,7 +345,8 @@ async function getMultiInstallerIndicator(callout) {
   if (callout.field_927_raw.length < 2) return ''
   let installerIDs = getConnectionIDs(callout.field_927_raw)
   let installerFilter = createFilterFromArrayOfIDs(installerIDs)
-  let installers = await searchRecordsPromise('object_71', installerFilter)
+  let installersObj = new KnackObject(objects.installers)
+  let installers = await installersObj.find(installerFilter)
   return installers.reduce(function(colouredHeads, installer) {
     colouredHeads += '<span style="background-color:' + installer.field_1486 + '">👤</span>'
     return colouredHeads
@@ -373,7 +374,8 @@ async function getJobUpdates(callOut, changes, forceUpdate = false) {
   ]
 
   // Get the job details
-  let job = await getRecordPromise(objects.jobs, callOut.field_928_raw[0].id)
+  let jobsObj = new KnackObject(objects.jobs)
+  let job = await jobsObj.get(callOut.field_928_raw[0].id)
 
   // Preprocess the job data
   job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding

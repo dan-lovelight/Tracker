@@ -344,7 +344,8 @@ $(document).on(newJobFromScratchForms.join(' '), function(event, view, data) {
 });
 
 async function prefillJobsForm(view) {
-  let opportunity = await getRecordPromise(view.scene.object, view.scene.scene_id)
+  let opsObj = new KnackObject(objects.opportunities)
+  let opportunity = await opsObj.get(view.scene.scene_id)
   // Set the division
 
   $('#' + view.key + '-field_59')[0].value = opportunity.field_118
