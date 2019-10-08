@@ -118,7 +118,7 @@ function handleSlackNotifications(opportunity, changes, previous, action){
     }
 
     //Notify QLD channel about all wins
-    if (record.field_117 == 'QLD' && value < SALE_NOTIFICATION_VALUE) {
+    if (opportunity.field_117 == 'QLD' && value < SALE_NOTIFICATION_VALUE) {
       data.salesPersonCredit = salesPerson;
       triggerZap('e337ri', data, 'QLD Sale!');
     }
