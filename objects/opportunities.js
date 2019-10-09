@@ -67,7 +67,7 @@ function getOppNoteUdpates(opportunity){
 function handleSlackNotifications(opportunity, changes, previous, action){
 
   // Trigger zap for new quote requests (create's ticket in ZD)
-  if(action.isCreate && opportunity.field_127==='To Quote') triggerZap('lq798w', opportunity, 'new quote request')
+  if(action.isCreate && opportunity.field_127==='To Quote' && opportunity.field_field_118 !== 'Custom') triggerZap('lq798w', opportunity, 'new quote request')
 
   // Only continue if status is updated
   if(!isOppStatusUpdated(changes)) return
