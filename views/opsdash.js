@@ -194,7 +194,7 @@ $(document).on('knack-scene-render.scene_713', function(event, scene) {
 // This column is hidden in the UI natively via Knack
 $(document).on('knack-view-render.view_2235', function(event, view, data) {
   data.forEach(record => {
-    if (record['field_928.field_245'].indexOf('Measure') === -1) {
+    if (record['field_928.field_245'] && record['field_928.field_245'].indexOf('Measure') === -1) {
       let calloutRow = document.getElementById(record.id)
       if (calloutRow) calloutRow.remove()
     }
