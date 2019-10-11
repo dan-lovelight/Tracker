@@ -46,7 +46,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
         // Add note listeners
         if (view.source.object === objects.activityRecords) {
           let notesObj = new KnackObject(view.source.object, view)
-          notesObj.onCreate(processNewJobNote)
+          notesObj.onCreate(processNewNote)
         }
 
         // Add opportunity listeners

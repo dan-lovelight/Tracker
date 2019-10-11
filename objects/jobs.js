@@ -65,7 +65,7 @@ async function processUpdatedJob({
   }
 }
 
-async function processNewJobNote({
+async function processNewNote({
   record: note
 }) {
   try {
@@ -79,10 +79,118 @@ async function processNewJobNote({
     let noteObj = new KnackObject(objects.activityRecords)
     await noteObj.update(note.id, data)
 
+    if (note.field_1667 !== 'No') sendNoteNotifications(note)
+
   } catch (err) {
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
+}
+
+async function sendNoteNotifications(note) {
+
+  const TEMPLATE_ID = 'd-8d2427e639b249f2b5eedef529de3986'
+
+  let user = Knack.getUserAttributes()
+  let isJob = note.field_579.length > 0
+  let isOpp = note.field_1663.length > 0
+  let isSalesNotification = note.field_1667 === 'Sales' || note.field_1667 === 'Both'
+  let isOpsNotification = note.field_1667 === 'Ops' || note.field_1667 === 'Both'
+  let salesRecipient = []
+  let opsRecipient = []
+  let salesId
+  let opsId
+  let dynamicData = {}
+
+  if (!isJob && !isOpp) return // must have a job or opp to have notificaiton recipients
+
+  if (isJob) {
+    //Get details from job, alwasy in preference to an opp
+    let jobId = note.field_579_raw[0].id
+    let jobsObj = new KnackObject(objects.jobs)
+    let job = await jobsObj.get(jobId)
+    if (isSalesNotification) salesId = job.field_1276_raw[0].id
+    if (isOpsNotification) opsId = job.field_1277_raw[0].id
+
+    dynamicData.parent = job.field_296
+
+  } else if (isOpp) {
+    //Get details from the opportunity
+    let oppId = note.field_1663_raw[0].id
+    let opsObj = new KnackObject(objects.opportunities)
+    let opp = await opsObj.get(oppId)
+    if (isSalesNotification) salesId = opp.field_1274_raw[0].id
+    if (isOpsNotification) opsId = opp.field_1275_raw[0].id
+
+    dynamicData.parent = opp.field_123
+
+  }
+
+  if (salesId) salesRecipient = await getSalesEmailForSendgrid(salesId)
+  if (opsId) opsRecipient = await getOpsEmailForSendgrid(opsId)
+
+  dynamicData.note = note.field_576
+
+  let from = {
+    'email': 'reports@lovelight.com.au',
+    'name': user.name
+  }
+  let cc = [{
+    'email': user.email,
+    'name': user.name
+  }]
+  let reply_to = {
+    'email': user.email,
+    'name': user.name
+  }
+  let to
+  if (salesRecipient.length > 0 && opsRecipient.length > 0 && salesRecipient[0].email === opsRecipient[0].email) {
+    to = salesRecipient
+  } else {
+    to = [].concat(salesRecipient, opsRecipient)
+  }
+
+  let email_body = {
+    'personalizations': [{
+      'to': to,
+      'cc': cc,
+      'dynamic_template_data': dynamicData
+    }],
+    'from': from,
+    'reply_to': reply_to,
+    'template_id': TEMPLATE_ID
+  }
+
+  triggerZap('o3azzbk', email_body)
+
+}
+
+async function getSalesEmailForSendgrid(salesId) {
+  let salespeopleObj = new KnackObject(objects.salespeople)
+  let salesperson = await salespeopleObj.get(salesId)
+  if (salesperson.field_957_raw) {
+    let recipient = {
+      'email': salesperson.field_957_raw.email,
+      'name': salesperson.field_956,
+    }
+    return [recipient]
+  }
+  return []
+}
+
+async function getOpsEmailForSendgrid(opsId) {
+  let opspeopleObj = new KnackObject(objects.opspeople)
+  let opsperson = await opspeopleObj.get(opsId)
+  if (opsperson.field_814_raw) {
+
+    let recipient = {
+      'email': opsperson.field_814_raw.email,
+      'name': opsperson.field_813
+    }
+
+    return [recipient]
+  }
+  return []
 }
 
 async function handlePortalUpdates(job, changes) {
