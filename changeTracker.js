@@ -84,6 +84,7 @@ class KnackObject {
 
     this._assert(this.headers, this.errorMsgs.noHeaders)
 
+    id = id || ''
     let url = this.knackURL + 'objects/' + this.key + '/records/' + id
     let init = {
       method: 'GET',
