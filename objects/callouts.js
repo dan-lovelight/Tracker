@@ -983,7 +983,7 @@ function handleCalloutNotes(callout, previous, changes, action){
         notes.push(JSON.parse(JSON.stringify(data)))
       }
 
-      if(status === 'Tentative') {
+      if(status === 'Tentative' && callout.field_924_raw) {
         // Insert callout requested record
         data.field_1659 = ['5d8c5301039e4200150d18b2'] // Callout Requested
         let date = callout.field_924_raw.date_formatted
