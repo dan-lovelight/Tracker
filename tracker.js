@@ -11,7 +11,9 @@ const objects = {
   'opspeople': 'object_68',
   'documents': 'object_22',
   'activityRecords': 'object_53',
-  'developments':'object_21'
+  'activityTypes' : 'object_112',
+  'developments':'object_21',
+  'jobStatuses':'object_28',
 }
 
 // -------------------------------------------------------
