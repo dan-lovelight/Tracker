@@ -970,7 +970,7 @@ function handleCalloutNotes(callout, previous, changes, action){
     let data = {}
 
     // exit if there's no job
-    if(callout.field_928.lenght === 0) return
+    if(callout.field_928.length === 0) return
 
     data.field_1655 = user.name // Created by
     data.field_579 = callout.field_928_raw.map(job => job.id)
