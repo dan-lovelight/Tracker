@@ -101,6 +101,7 @@ async function sendNoteNotifications(note) {
   let salesId
   let opsId
   let dynamicData = {}
+  let recentNotes
 
   if (!isJob && !isOpp) return // must have a job or opp to have notificaiton recipients
 
@@ -112,7 +113,28 @@ async function sendNoteNotifications(note) {
     if (isSalesNotification) salesId = job.field_1276_raw[0].id
     if (isOpsNotification) opsId = job.field_1277_raw[0].id
 
+    dynamicData.status = job.field_245_raw[0].identifier.split(' - ')[1]
     dynamicData.parent = job.field_296
+    dynamicData.parentType = 'Job'
+    dynamicData.link = `https://lovelight.knack.com/tracker#jobs/view-job-details/${jobId}/`
+
+    let jobStatusObj = new KnackObject(objects.jobStatuses)
+    let jobStatuses = await jobStatusObj.get(job.field_245_raw[0].id)
+
+    dynamicData.statusIcon = jobStatuses.field_1668.replace("style='max-width:100%'","style='max-width:25px' width='25'")
+
+    // Get all recent notes for the job
+    let filter = {
+      "match": "and",
+      "rules": [{
+      "field": "field_579",
+      "operator": "is",
+      "value": jobId
+    }]
+    }
+
+    let notesObj = new KnackObject(objects.activityRecords)
+    recentNotes = await notesObj.find(filter)
 
   } else if (isOpp) {
     //Get details from the opportunity
@@ -122,44 +144,79 @@ async function sendNoteNotifications(note) {
     if (isSalesNotification) salesId = opp.field_1274_raw[0].id
     if (isOpsNotification) opsId = opp.field_1275_raw[0].id
 
+    dynamicData.status = opp.field_127
     dynamicData.parent = opp.field_123
+    dynamicData.parentType = 'Opportunity'
+    dynamicData.link = `https://lovelight.knack.com/tracker#custom-opportunities/view-opportunity-details/${oppId}/`
+
+    // Get all recent notes for the opportunity
+    let filter = {
+      "match": "and",
+      "rules": [{
+      "field": "field_1663",
+      "operator": "is",
+      "value": oppId
+    }]
+    }
+
+    let notesObj = new KnackObject(objects.activityRecords)
+    recentNotes = await notesObj.find(filter)
 
   }
 
+  // Gather all the receipient details
   if (salesId) salesRecipient = await getSalesEmailForSendgrid(salesId)
   if (opsId) opsRecipient = await getOpsEmailForSendgrid(opsId)
-
-  dynamicData.note = note.field_576
 
   let from = {
     'email': 'reports@lovelight.com.au',
     'name': user.name
   }
-  let cc = [{
-    'email': user.email,
-    'name': user.name
-  }]
+
   let reply_to = {
     'email': user.email,
     'name': user.name
   }
-  let to
-  if (salesRecipient.length > 0 && opsRecipient.length > 0 && salesRecipient[0].email === opsRecipient[0].email) {
-    to = salesRecipient
-  } else {
-    to = [].concat(salesRecipient, opsRecipient)
-  }
+
+  let cc = [{
+    'email': user.email,
+    'name': user.name
+  }]
+
+  // SendGrid rejects requests if an email is duplicated
+  // Handle case where sales and ops is same person
+  if (JSON.stringify(salesRecipient) === JSON.stringify(opsRecipient)) opsRecipient = []
+  // Handle case where current user is the sales or ops person
+  if (JSON.stringify(cc) === JSON.stringify(salesRecipient)) cc = []
+  if (JSON.stringify(cc) === JSON.stringify(opsRecipient)) cc = []
+
+  let to = [].concat(salesRecipient, opsRecipient)
+
+  // Add the current note
+  dynamicData.note = note.field_576
+  dynamicData.user = user.name
+
+  // Add the most recent notes
+  let activityTypesObj = new KnackObject(objects.activityTypes)
+  let activityTypes = await activityTypesObj.get()
+
+  dynamicData.history = `
+  <table>
+  ${recentNotes.map(note => `<tr><td style="padding:5px;" class="row-label"><div style="width:25px">${activityTypes.records.filter(type => type.id === note.field_1659_raw[0].id)[0].field_1658.replace("style='max-width:100%'","style='max-width:25px' width='25'")}</div></td><td style="padding:5px;">${note.field_576}</td></tr>`).join('')}
+  </table>`
 
   let email_body = {
     'personalizations': [{
       'to': to,
-      'cc': cc,
       'dynamic_template_data': dynamicData
     }],
     'from': from,
     'reply_to': reply_to,
     'template_id': TEMPLATE_ID
   }
+
+  // include CC if requried (sendgrid rejects an empty array)
+  if (cc.length>0) email_body.personalizations[0].cc = cc
 
   triggerZap('o3azzbk', email_body)
 
