@@ -3,7 +3,8 @@ $(document).on('knack-form-submit.view_1751', function(event, view, record) {
 })
 
 async function processNewInvoice({
-  record: invoice, action
+  record: invoice,
+  action
 }) {
 
   try {
@@ -341,7 +342,11 @@ async function handleInvoiceNotes(invoice, previous, changes, action) {
     if (isDateChanged) {
       // Insert order created record
       data.field_1659 = ['5d8c27aecb58ff00136ee71e'] // Invoice created
-      data.field_576 = `${invoice.field_156} invoice rescheduled from ${previous.field_157_raw.date_formatted} to ${invoice.field_157_raw.date_formatted}`
+      if (previous.field_157_raw) {
+        data.field_576 = `${invoice.field_156} invoice rescheduled from ${previous.field_157_raw.date_formatted} to ${invoice.field_157_raw.date_formatted}`
+      } else {
+        data.field_576 = `${invoice.field_156} invoice scheduled for ${invoice.field_157_raw.date_formatted}`
+      }
       notes.push(JSON.parse(JSON.stringify(data)))
     }
 
