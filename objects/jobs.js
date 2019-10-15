@@ -142,8 +142,8 @@ async function sendNoteNotifications(note) {
       let oppId = note.field_1663_raw[0].id
       let opsObj = new KnackObject(objects.opportunities)
       let opp = await opsObj.get(oppId)
-      if (isSalesNotification) salesId = opp.field_1274_raw[0].id
-      if (isOpsNotification) opsId = opp.field_1275_raw[0].id
+      if (isSalesNotification) salesId = opp.field_1274_raw ? opp.field_1274_raw[0].id : undefined
+      if (isOpsNotification) opsId = opp.field_1275_raw ? opp.field_1275_raw[0].id : undefined
 
       dynamicData.status = opp.field_127
       dynamicData.parent = opp.field_123
