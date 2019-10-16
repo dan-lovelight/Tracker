@@ -345,8 +345,3 @@ $(document).on('knack-form-submit.view_2305', async function(event, view, record
 $(document).on('knack-view-render.view_2297', async function(event, view, data) {
   displayContactDetails(data.field_1396_raw[0].id, 'field_1396')
 })
-
-// Raise invoice in Xero for a callout
-$(document).on('knack-form-submit.view_2297', async function(event, view, record) {
-  issueInvoice(record)
-})

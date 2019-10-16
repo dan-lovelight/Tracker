@@ -1,4 +1,10 @@
+// Raise invoice from job
 $(document).on('knack-form-submit.view_1751', function(event, view, record) {
+  handleSendingInvoices(record)
+})
+
+// Raise invoice in Xero for a callout
+$(document).on('knack-form-submit.view_2297', async function(event, view, record) {
   handleSendingInvoices(record)
 })
 
