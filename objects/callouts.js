@@ -1029,7 +1029,7 @@ function handleCalloutNotes(callout, previous, changes, action){
       } else {
         data.field_1659 = ['5d8c53281a510100115de5d1'] // Report - Follow Up
       }
-      data.field_576 = `Report submitted - ${callout.field_1542}`
+      data.field_576 = `${callout.field_1485} report submitted - ${callout.field_1542}`
       notes.push(JSON.parse(JSON.stringify(data)))
     }
 
