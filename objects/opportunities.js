@@ -124,7 +124,10 @@ function handleSlackNotifications(opportunity, changes, previous, action){
     }
 
     // Send notification of B2B sales
-    if (typeof company !== 'undefined') triggerZap('l5hoyo', data, 'Opportunity has a company');
+    if (opportunity.field_1460.length > 0) {
+      if( value >= 20000 && value < 100000 ) triggerZap('l5hoyo', data);
+      if( value >= 100000 ) triggerZap('jdu1qz', data)
+    }
 
   }
 
