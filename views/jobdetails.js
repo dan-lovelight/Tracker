@@ -50,7 +50,7 @@ function addZendeskButtonToMenu() {
   if ($('.field_1599 a').length > 0) {
     let zdLink = $('.field_1599 a')[0].href
     let mainMenuView = '#view_2106'
-    let button = `<a class="added-button kn-link kn-button" href="${zdLink}" target="_blank"><span><img src="https://freeicons.io/laravel/public/uploads/icons/png/18487936531552562368-256.png">&nbsp;Zendesk</span></a>`
+    let button = `<a class="added-button kn-link kn-button" href="${zdLink}" target="_blank"><span><img src="https://s3.us-east-2.amazonaws.com/upload-icon/uploads/icons/png/18487936531552562368-128.png">&nbsp;Zendesk</span></a>`
     $(mainMenuView + " > div.control").append(button)
   }
   $('.field_1599').hide()
