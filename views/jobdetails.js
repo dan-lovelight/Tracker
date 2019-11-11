@@ -9,7 +9,7 @@ $(document).on('knack-scene-render.scene_52', function(event, scene) {
   ]
 
   hideIfEmpty.forEach(view => {
-    if (Knack.models[view].data.length === 0) {
+    if (Knack.models[view] && Knack.models[view].data.length === 0) {
       $('#' + view).remove()
     }
   })
