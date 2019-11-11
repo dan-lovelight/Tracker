@@ -12,7 +12,7 @@ $(document).on('knack-scene-render.scene_642', function(event, scene) {
 
   // Get submit report button text
   let buttonTxt = 'Submit Report'
-  if(Knack.models.view_1442.attributes.field_1546.indexOf('Submitted')>-1){
+  if(Knack.models.view_1442.attributes.field_1546 && Knack.models.view_1442.attributes.field_1546.indexOf('Submitted')>-1){
     buttonTxt = 'Update Report'
   }
 
