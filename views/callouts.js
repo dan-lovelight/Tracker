@@ -129,7 +129,7 @@ function addJobDetailsToCallOut(view) {
   if (view.scene.object === 'object_3') {
     populateSiteContactAndAddress(view.scene.scene_id)
   } else {
-    if ($siteContact[0].length) {
+    if ($siteContact[0] && $siteContact[0].length) {
       if ($siteContact[0].length > 0) displayContactDetails($siteContact[0].value, 'field_1025')
     }
   }
