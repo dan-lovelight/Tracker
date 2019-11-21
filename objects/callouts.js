@@ -294,7 +294,7 @@ async function getCallOutName(callout, changes, forceUpdate = false) {
   // Build Display Names
   let name = {}
   name.field_1488 = `${confirmationIcon}${typeIcon}${type}${nameToDisplay}`.trim() // Form display name
-  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}<span id="${callout.id}"><span>`.trim() // Calendar display name
+  name.field_1481 = `${multiInstallerIndicator}${name.field_1488}${addressDisplay}<span id="${callout.id}" data-isReported=${callout.field_1546==="Submitted"}></span>`.trim() // Calendar display name
   //The event id has been added in a hidden span at the end to identify the tile for popover population
 
   return name
