@@ -4,15 +4,6 @@ $(document).on('knack-view-render.view_1962', function(event, view) {
   // Insert filters and other custom features
   pimpSchedulingCalendar(view.key, 'view_1964')
 
-  // Apply updates to event tiles once they are available.
-  waitForAddedNode({
-    class: 'fc-event',
-    parent: document.querySelector('#view_1962'),
-    recursive: true,
-    done: processCalendarEvents,
-    view: view
-  })
-
   // Hide the requested callouts table
   $('#view_2325').hide() //.css('display', 'none')
 })
@@ -59,20 +50,30 @@ $(document).on('keyup keydown', function(e) {
   window.shifted = e.ctrlKey
 })
 
-function pimpSchedulingCalendar(view, installerColourKeyList) {
+function pimpSchedulingCalendar(viewKey, installerColourKeyList) {
   let installersInCalendar = getInstallerDetailsFromListView(installerColourKeyList) // Get the installer data from the temporary key view
   let eventColours = getInstallerColourFiltersFromListView(installerColourKeyList)
-  let newFilter = createFilterMenuNode(installersInCalendar, view) // Build the new filter
-  let $insertLocation = $('#' + view + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
+  let newFilter = createFilterMenuNode(installersInCalendar, viewKey) // Build the new filter
+  let $insertLocation = $('#' + viewKey + ' div.kn-records-nav') // selector of the element that the new filter will be placed after
   if (newFilter && $insertLocation[0]) $insertLocation[0].insertBefore(newFilter, $insertLocation[0].children[1]); // Add menu to page
-  let $menu = $('#' + view + ' div.kn-records-nav div.js-filter-menu')[0]
+  let $menu = $('#' + viewKey + ' div.kn-records-nav div.js-filter-menu')[0]
   if ($menu) $menu.style = 'display:inline-block' // Make menus display next to each other
   $('#' + installerColourKeyList).hide() // Hide the temporary key view
-  Knack.models[view].view.events.event_colors = eventColours
+  Knack.models[viewKey].view.events.event_colors = eventColours
 
   // Sometimes duplicate buttons and calendars are added when filtering, don't know why
-  if ($('#' + view + ' .fc-header').length > 1) $('#' + view + ' .fc-header')[1].remove()
-  if ($('#' + view + ' .fc-content').length > 1) $('#' + view + ' .fc-content')[1].remove()
+  if ($('#' + viewKey + ' .fc-header').length > 1) $('#' + viewKey + ' .fc-header')[1].remove()
+  if ($('#' + viewKey + ' .fc-content').length > 1) $('#' + viewKey + ' .fc-content')[1].remove()
+
+  // Apply updates to event tiles once they are available.
+  waitForAddedNode({
+    class: 'fc-event',
+    parent: document.querySelector(`#${viewKey}`),
+    recursive: true,
+    done: processCalendarEvents,
+    viewKey: viewKey
+  })
+
 }
 
 
@@ -239,7 +240,7 @@ function waitForAddedNode(params) {
     var el = document.getElementsByClassName(params.class);
     if (el) {
       //this.disconnect();
-      params.done(el, params.view);
+      params.done(el, params.viewKey);
     }
   }).observe(params.parent || document, {
     subtree: !!params.recursive,
@@ -247,10 +248,10 @@ function waitForAddedNode(params) {
   });
 }
 
-function processCalendarEvents(elements, view) {
+function processCalendarEvents(elements, viewKey) {
   colourMultiPersonEvents(elements)
   colourTenativeEvents(elements)
-  addPopOvers(elements, view)
+  addPopOvers(elements, viewKey)
 }
 
 function colourMultiPersonEvents(elements) {
@@ -298,13 +299,13 @@ function colourTenativeEvents(elements) {
   })
 }
 
-function addPopOvers(elements, view) {
+function addPopOvers(elements, viewKey) {
   let $events = $('.fc-event').not('.has-tooltip')
   $events.each((index, element) => {
     $(element).addClass("has-tooltip");
     if ($(element).find('span[id]').length > 0) {
       let eventId = $(element).find('span[id]')[0].id
-      let eventDetails = Knack.models[view.key].data.models.find(event => event.attributes.id === eventId).attributes
+      let eventDetails = Knack.models[viewKey].data.models.find(event => event.attributes.id === eventId).attributes
       let eventName = eventDetails.field_1488
       let startTime = `${eventDetails.field_924_raw.hours}:${eventDetails.field_924_raw.minutes}${eventDetails.field_924_raw.am_pm.toLowerCase()}`
       let endTime = `${eventDetails.field_924_raw.to.hours}:${eventDetails.field_924_raw.to.minutes}${eventDetails.field_924_raw.to.am_pm.toLowerCase()}`
