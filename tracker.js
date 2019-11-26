@@ -35,6 +35,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
             let calloutsObj = new KnackObject(view.source.object, view)
             calloutsObj.onCreate(processNewCallOut)
             calloutsObj.onUpdate(processUpdatedCallOut)
+            calloutsObj.onTouch(checkCallOutForMissingData)
             //calloutsObj.onDelete(processDeletedCallOut)
           }
 

@@ -5,7 +5,8 @@ $(document).on('knack-form-submit.view_1967', function(event, view, record) {
 
 // Process newly created callouts
 async function processNewCallOut({
-  record: callout, action
+  record: callout,
+  action
 }) {
   try {
     // Set processing flag
@@ -67,6 +68,29 @@ async function processUpdatedCallOut({
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
+}
+
+// Runs every time a callout is touched (saved without changes)
+async function checkCallOutForMissingData({
+  record: callout
+}) {
+
+  try { // If the callout has no blank job fields, we might be ok to exit early
+    if (hasBlankJobFields(callout)) {
+      let jobDetails = await getJobUpdates(callout, [], true)
+
+      // If there are changes, update the callout
+      if (!$.isEmptyObject(jobDetails)) {
+        let calloutsObj = new KnackObject(objects.callouts)
+        callout = await calloutsObj.update(callout.id, jobDetails)
+      }
+
+    }
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
+
 }
 
 // Sometime there is a need to force an event update, even when there are no changes
@@ -358,15 +382,19 @@ async function getMultiInstallerIndicator(callout) {
 
 // Get all relevant data from job to update callout details
 // Returns a partial callout object with all the necgessary fields populated
-async function getJobUpdates(callOut, changes, forceUpdate = false) {
-
-  // If changes supplied, return early if no changes to job
-  if (changes || forceUpdate) {
-    if (!isJobUpdated(changes)) return {}
-  }
+async function getJobUpdates(callout, changes, forceUpdate = false) {
 
   // Return early if job is blank
-  if (callOut.field_928.length === 0) return {}
+  if (callout.field_928.length === 0) return {}
+
+  // If we're not forcing an update
+  if(!forceUpdate){
+    // Given changes have been supplied and there are no missing job fields
+    if (changes && !hasBlankJobFields(callout)){
+      // Check if the job has changed, return early if it has not
+      if (!isJobUpdated(changes)) return {}
+    }
+  } // Otherwise, continue (forcing update OR missing job fields OR no changes supplied)
 
   let fieldsToCopy = [
     ['field_1276', 'field_985'], // Salesperson
@@ -378,7 +406,7 @@ async function getJobUpdates(callOut, changes, forceUpdate = false) {
 
   // Get the job details
   let jobsObj = new KnackObject(objects.jobs)
-  let job = await jobsObj.get(callOut.field_928_raw[0].id)
+  let job = await jobsObj.get(callout.field_928_raw[0].id)
 
   // Preprocess the job data
   job.field_59_raw = (job.field_59 === 'Apartments' || job.field_59 === 'Projects') ? ['Commercial'] : [job.field_59] // we use 'Commercial' for scheulding
@@ -388,6 +416,16 @@ async function getJobUpdates(callOut, changes, forceUpdate = false) {
   }
 
   return updateData = copyFieldsToNewObject(job, fieldsToCopy)
+}
+
+// Check if the supplied callout has any blank fields that are populated from a job
+// Ensures that if code fails to execute when job is first added, we still get the key data
+function hasBlankJobFields(callOut) {
+  let jobFields = ['field_985', 'field_1474', 'field_1494', 'field_1482', 'field_1495']
+  for (let i = 0; i<jobFields.length; i ++){
+    if (isFieldBank(callOut, jobFields[i])) return true
+  }
+  return false
 }
 
 // Create parameters required to create / update a google calendar event
@@ -688,22 +726,22 @@ function isReportUpdated(changes) {
   return false
 }
 
-function isCalloutScheduled(callout){
-  if(callout.field_1005==='Scheduled') return true
+function isCalloutScheduled(callout) {
+  if (callout.field_1005 === 'Scheduled') return true
   return false
 }
 
-function isCalloutJustScheduled(callout, changes){
+function isCalloutJustScheduled(callout, changes) {
   if (changes.includes('field_1005') && callout.field_1005 === 'Scheduled') return true
   return false
 }
 
-function isCalloutJustCancelled(callout, changes){
+function isCalloutJustCancelled(callout, changes) {
   if (changes.includes('field_1005') && callout.field_1005 === 'Cancelled') return true
   return false
 }
 
-function isCalloutStatusUpdated(callout, changes){
+function isCalloutStatusUpdated(callout, changes) {
   if (changes.includes('field_1005')) return true
   return false
 }
@@ -957,7 +995,7 @@ async function generateReportEmailBody(callout, dynamic_template_data, template_
   }
 }
 
-function handleCalloutNotes(callout, previous, changes, action){
+function handleCalloutNotes(callout, previous, changes, action) {
   try {
     let user = Knack.getUserAttributes()
     let isStatusUpdated = isCalloutStatusUpdated(callout, changes)
@@ -970,21 +1008,21 @@ function handleCalloutNotes(callout, previous, changes, action){
     let data = {}
 
     // exit if there's no job
-    if(callout.field_928.length === 0) return
+    if (callout.field_928.length === 0) return
 
     data.field_1655 = user.name // Created by
     data.field_579 = callout.field_928_raw.map(job => job.id)
 
     if (action.isCreate || isStatusUpdated) {
       let status = callout.field_1005
-      if(status === 'Requested') {
+      if (status === 'Requested') {
         // Insert callout requested record
         data.field_1659 = ['5d8c5301039e4200150d18b2'] // Callout Requested
         data.field_576 = `${callout.field_1485} requested`
         notes.push(JSON.parse(JSON.stringify(data)))
       }
 
-      if(status === 'Tentative' && callout.field_924_raw) {
+      if (status === 'Tentative' && callout.field_924_raw) {
         // Insert callout requested record
         data.field_1659 = ['5d8c5301039e4200150d18b2'] // Callout Requested
         let date = callout.field_924_raw.date_formatted
@@ -1024,7 +1062,7 @@ function handleCalloutNotes(callout, previous, changes, action){
 
     if (isJustReported) {
       // Insert callout report submitted record
-      if(callout.field_1542.indexOf('Issues')>-1) {
+      if (callout.field_1542.indexOf('Issues') > -1) {
         data.field_1659 = ['5d8c54b5821e410010e9bad6'] // Report - No Issues
       } else {
         data.field_1659 = ['5d8c53281a510100115de5d1'] // Report - Follow Up
