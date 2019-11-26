@@ -93,12 +93,12 @@ function getInvoiceDueDate(invoice) {
     dueDate.utc = moment(dueDate.date, "DD/MM/YYYY").format();
   }
 
-  else  if (dueDateOption.indexOf('End of next month') >= 0) {
-    dueDate.date = moment().add(1, 'months').endOf('month').format("DD/MM/YYYY");
-    dueDate.utc = moment().add(1, 'months').endOf('month').format();
+  else  if (dueDateOption.indexOf('30 days from the end of this month') >= 0) {
+    dueDate.date = moment().endOf('month').add(30, 'days').format("DD/MM/YYYY");
+    dueDate.utc = moment().endOf('month').add(30, 'days').format();
   } 
 
-  else  if (dueDateOption.indexOf('45 days from end of this month') >= 0) {
+  else  if (dueDateOption.indexOf('45 days from the end of this month') >= 0) {
     dueDate.date = moment().endOf('month').add(45, 'days').format("DD/MM/YYYY");
     dueDate.utc = moment().endOf('month').add(45, 'days').format();
   }
