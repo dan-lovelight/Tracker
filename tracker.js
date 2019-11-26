@@ -11,9 +11,9 @@ const objects = {
   'opspeople': 'object_68',
   'documents': 'object_22',
   'activityRecords': 'object_53',
-  'activityTypes' : 'object_112',
-  'developments':'object_21',
-  'jobStatuses':'object_28',
+  'activityTypes': 'object_112',
+  'developments': 'object_21',
+  'jobStatuses': 'object_28',
 }
 
 // -------------------------------------------------------
@@ -22,55 +22,57 @@ $(document).on('knack-view-render.any', function(event, view, data) {
 
   // Add global listeners
   try {
-    if (view.source) {
-      if (view.source.object) {
+    if (Knack.getUserAttributes() !== "No user found") {
+      if (view.source) {
+        if (view.source.object) {
 
-        // Add listeners to everything for tracking
-        let changeLogger = new KnackObject(view.source.object, view)
-        changeLogger.onChange(logMixpanelRecordAction)
+          // Add listeners to everything for tracking
+          let changeLogger = new KnackObject(view.source.object, view)
+          changeLogger.onChange(logMixpanelRecordAction)
 
-        // Add callout listeners
-        if (view.source.object === objects.callouts) {
-          let calloutsObj = new KnackObject(view.source.object, view)
-          calloutsObj.onCreate(processNewCallOut)
-          calloutsObj.onUpdate(processUpdatedCallOut)
-          //calloutsObj.onDelete(processDeletedCallOut)
+          // Add callout listeners
+          if (view.source.object === objects.callouts) {
+            let calloutsObj = new KnackObject(view.source.object, view)
+            calloutsObj.onCreate(processNewCallOut)
+            calloutsObj.onUpdate(processUpdatedCallOut)
+            //calloutsObj.onDelete(processDeletedCallOut)
+          }
+
+          // Add job listeners
+          if (view.source.object === objects.jobs) {
+            let jobsObj = new KnackObject(view.source.object, view)
+            jobsObj.onCreate(processNewJob)
+            jobsObj.onUpdate(processUpdatedJob)
+            //   jobsObj.onDelete(processDeletedJob)
+          }
+
+          // Add note listeners
+          if (view.source.object === objects.activityRecords) {
+            let notesObj = new KnackObject(view.source.object, view)
+            notesObj.onCreate(processNewNote)
+          }
+
+          // Add opportunity listeners
+          if (view.source.object === objects.opportunities) {
+            let opportunityObj = new KnackObject(view.source.object, view)
+            opportunityObj.onChange(processOpportunityChange)
+          }
+
+          // Add order listeners
+          if (view.source.object === objects.orders) {
+            let ordersObj = new KnackObject(view.source.object, view)
+            ordersObj.onChange(processOrderChange)
+          }
+
+          // Add invoice listeners
+          if (view.source.object === objects.invoices) {
+            let invoiceObj = new KnackObject(view.source.object, view)
+            invoiceObj.onCreate(processNewInvoice)
+            invoiceObj.onUpdate(processUpdatedInvoice)
+            // invoiceObj.onDelete(processDeletedInvoice)
+          }
+
         }
-
-        // Add job listeners
-        if (view.source.object === objects.jobs) {
-          let jobsObj = new KnackObject(view.source.object, view)
-          jobsObj.onCreate(processNewJob)
-          jobsObj.onUpdate(processUpdatedJob)
-          //   jobsObj.onDelete(processDeletedJob)
-        }
-
-        // Add note listeners
-        if (view.source.object === objects.activityRecords) {
-          let notesObj = new KnackObject(view.source.object, view)
-          notesObj.onCreate(processNewNote)
-        }
-
-        // Add opportunity listeners
-        if (view.source.object === objects.opportunities) {
-          let opportunityObj = new KnackObject(view.source.object, view)
-          opportunityObj.onChange(processOpportunityChange)
-        }
-
-        // Add order listeners
-        if (view.source.object === objects.orders) {
-          let ordersObj = new KnackObject(view.source.object, view)
-          ordersObj.onChange(processOrderChange)
-        }
-
-        // Add invoice listeners
-        if (view.source.object === objects.invoices) {
-          let invoiceObj = new KnackObject(view.source.object, view)
-          invoiceObj.onCreate(processNewInvoice)
-          invoiceObj.onUpdate(processUpdatedInvoice)
-          // invoiceObj.onDelete(processDeletedInvoice)
-        }
-
       }
     }
   } catch (err) {
@@ -275,7 +277,7 @@ $(document).on('knack-view-render.view_1287', function(event, view) {
           return response.json();
         }).then(function(json) {
           return json.id; //just need something to indicate it worked, don't care what
-        })).catch(err=>{
+        })).catch(err => {
           if (typeof Sentry === 'undefined') throw err
           Sentry.captureException(err)
         }) // This needs work
