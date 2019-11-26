@@ -135,6 +135,12 @@ function isItAnArray(array) {
   }
 }
 
+// Checks if the field passed in is empty
+function isFieldBank(object,fieldKey){
+  if (object[fieldKey] === "") return true
+  return false
+}
+
 // -------------------- UI MANIPULATION  ---------------------
 
 function hideEmptyTables(scene) {
@@ -438,4 +444,105 @@ function makeFieldsRequired(view, fields = []) {
     Knack.hideSpinner()
   })
 
+}
+
+function getCSVFromField(fileInputId, callback) {
+
+  if (!window.FileReader) return alert('FileReader API is not supported by your browser.')
+
+  let $i = $('#' + fileInputId) // Put file input ID here
+  let input = $i[0]; // Getting the element from jQuery
+
+  if (input.files && input.files[0]) {
+
+    try {
+      file = input.files[0]; // The file
+      fr = new FileReader(); // FileReader instance
+      fr.readAsText(file);
+
+      // This event fires after file is read
+      fr.onload = function() {
+        callback(fr.result)
+      }
+    } catch (err) {
+      throw new Error('FileReader read error')
+    }
+
+  } else {
+    alert("File not selected or browser incompatible.")
+  }
+}
+
+//var csv is the CSV file with headers
+function csvJSON(csv){
+
+  var lines=csv.split("\n");
+  var result = [];
+  var headers=lines[0].split(",");
+
+  for(var i=1;i<lines.length;i++){
+
+      var obj = {};
+      var currentline=lines[i].split(",");
+
+      for(var j=0;j<headers.length;j++){
+          obj[headers[j].trim()] = currentline[j];
+      }
+
+      result.push(obj);
+
+  }
+
+  return result //JSON
+}
+
+function getCurrentFiscalYear() {
+  //get current date
+  var today = new Date();
+
+  //get current month
+  var curMonth = today.getMonth() + 1;
+
+  var fiscalYr = "";
+  if (curMonth >= 6) { //
+    fiscalYr = `FY${today.getFullYear()+1}`
+
+  } else {
+    fiscalYr = `FY${today.getFullYear()+1}`
+  }
+  return fiscalYr
+}
+
+function getCurrentFiscalQuarter() {
+  //get current date
+  var today = new Date();
+
+  //get current month
+  var curMonth = today.getMonth() + 1;
+
+ let quarters = {
+ "1":"FQ3",
+ "2":"FQ3",
+ "3":"FQ3",
+ "4":"FQ4",
+ "5":"FQ4",
+ "6":"FQ4",
+ "7":"FQ1",
+ "8":"FQ1",
+ "9":"FQ1",
+ "10":"FQ2",
+ "11":"FQ2",
+ "12":"FQ2"
+ }
+
+  return quarters[curMonth]
+}
+
+function toTitleCase(str) {
+  return str.replace(
+    /\w\S*/g,
+    function(txt) {
+      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    }
+  );
 }
