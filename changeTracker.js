@@ -10,6 +10,7 @@
 // .onCreate(callback)
 // .onUpdate(callback)
 // .onDelete(callback)
+// .onTouch(callback)
 // All three of these functions return the following object
 // params = {
 //   view: view the triggered the update,
@@ -25,6 +26,8 @@
 //   changes: array of changed fields (excluding _raw)
 // }
 // On create returns an empty array of changes and an empty object for previous
+
+// Requires a global variable window.myKnackHeaders in order to work
 
 class KnackObject {
   constructor(objectKey, view) {
@@ -178,7 +181,27 @@ class KnackObject {
 
   }
 
-  async onUpdate(callback) {
+  // Fires when a record is saved but no changes have been made
+  async onTouch(callback){
+    this._onUpdate(function(params){
+      if(params.changes.length === 0){
+        callback(params)
+      }
+    })
+  }
+
+  // Fires when a record is saved with changes
+  async onUpdate(callback){
+    this._onUpdate(function(params){
+      if(params.changes.length>0){
+        callback(params)
+      }
+    })
+  }
+
+  // This function does the heavy lifting to determing if a record is updated
+  // It fires on any submit. onTouch and onUpdate both use it.
+  async _onUpdate(callback) {
 
     if (!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
@@ -219,12 +242,14 @@ class KnackObject {
       }
     }
 
+    // Unused event & view parameters are required here as they are passed in by the calling function
     function recordUpdateHandler(event, view, record) {
       compareAndReturn(record, KnackObject.prototype.recordBefore[hash])
       // Reset the baseline
       KnackObject.prototype.recordBefore[hash] = JSON.parse(JSON.stringify(record))
     }
 
+    // Unused event & view parameters are required here as they are passed in by the calling function
     function cellUpdateHandler(event, view, record) {
       // Identify the original record
       KnackObject.prototype.recordBefore[hash] = KnackObject.prototype.dataBefore[hash].filter(recordInTable => recordInTable.id === record.id)[0]
@@ -290,8 +315,8 @@ class KnackObject {
       Object.keys(record).forEach(key => {
         if (recordBefore[key] !== record[key] && key.indexOf('raw') < 0) changes.push(key)
       })
-      // Pass to callback if there are changes
-      if (changes.length > 0) {
+
+      // Pass to result to callback
         let params = {
           view: self.view,
           record: record,
@@ -306,7 +331,6 @@ class KnackObject {
           changes: changes
         }
         callback(params)
-      }
     }
 
   }
