@@ -31,6 +31,15 @@ class KnackObject {
     this.key = objectKey
     this.view = view
 
+    // Load headers required to use Knack API
+    if (!this.headers) {
+      try {
+        KnackObject.prototype.headers = window.myKnackHeaders
+      } catch (err) {
+        this._assert(this.headers, this.errorMsgs.noHeaders)
+      }
+    }
+
     let objectDetails = Knack.objects.models.filter(object => object.id === objectKey)[0]
     this.name = objectDetails.attributes.name
     this.nameSingular = objectDetails.attributes.inflections.singular
@@ -449,7 +458,6 @@ class KnackObject {
 
 KnackObject.prototype.dataBefore = {}
 KnackObject.prototype.recordBefore = {}
-KnackObject.prototype.headers = myKnackHeaders
 KnackObject.prototype.knackURL = 'https://api.knackhq.com/v1/'
 KnackObject.prototype.errorMsgs = {
   'noHeaders': 'You must set KnackObject.headers in order to use KnackObject',
