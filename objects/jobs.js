@@ -12,7 +12,6 @@ async function processNewJob({
     let data = {}
     data.field_1656 = user.name // created by
     data.field_260 = moment().format("DD/MM/YYYY hh:mma") // Status change date
-    data.field_1652 = '' // Remove notes, these have been copied to an activity record
 
     // Collect any other update data to be processed for a newely created job
     // ....
@@ -44,7 +43,6 @@ async function processUpdatedJob({
     // Get data to update the job
     let statusUpdates = getStatusChangeDetails(changes)
     let data = {}
-    data.field_1652 = '' // Remove notes, these have been copied to an activity record
 
     // Consolidate the data
     let updateData = Object.assign({}, data, statusUpdates)
@@ -341,6 +339,7 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
       data.field_1659 = ['5d8c078bdb00f0001095e39d'] // Note
       data.field_576 = job.field_1652 // Note details
       notes.push(JSON.parse(JSON.stringify(data)))
+      clearTempJobNote(job)
     }
 
     if (isStatusUpdated) {
@@ -379,6 +378,23 @@ function handleJobNotes(job, isNewJob, view, previous, changes) {
     Sentry.captureException(err)
   }
 
+}
+
+async function clearTempJobNote(job) {
+  try {
+    if (job.field_1652 === '') return // no need to clear if already empty
+
+    let data = {}
+    data.field_1652 = ''
+
+    // Update the job
+    let jobsObj = new KnackObject(objects.jobs)
+    await jobsObj.update(job.id, data)
+
+  } catch (err) {
+    if (typeof Sentry === 'undefined') throw err
+    Sentry.captureException(err)
+  }
 }
 
 function isJobStatusUpdated(changes) {
