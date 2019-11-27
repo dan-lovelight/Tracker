@@ -1,5 +1,6 @@
 // Knack object has two sets of methods:
 //
+// Before first use .init must be called and passed a valid headers object
 // 1) For manipulating records
 // .create(data)
 // .get(id)
@@ -33,15 +34,15 @@ class KnackObject {
   constructor(objectKey, view) {
     this.key = objectKey
     this.view = view
-
-    // Load headers required to use Knack API
-    if (!this.headers) {
-      try {
-        KnackObject.prototype.headers = window.myKnackHeaders
-      } catch (err) {
-        this._assert(this.headers, this.errorMsgs.noHeaders)
-      }
-    }
+    //
+    // // Load headers required to use Knack API
+    // if (!this.headers) {
+    //   try {
+    //     KnackObject.prototype.headers = window.myKnackHeaders
+    //   } catch (err) {
+    //     this._assert(this.headers, this.errorMsgs.noHeaders)
+    //   }
+    // }
 
     let objectDetails = Knack.objects.models.filter(object => object.id === objectKey)[0]
     this.name = objectDetails.attributes.name
@@ -105,6 +106,15 @@ class KnackObject {
 
     return await this._goFetch(url, init)
 
+  }
+
+  // Initialise the KnackObject by supplying Knack Headers
+  static init(headers){
+    if(headers === Object(headers) && Object.keys(headers).length > 0){
+      KnackObject.prototype.headers = headers
+    } else{
+      throw new Error(this.prototype.errorMsgs.initFailed)
+    }
   }
 
   async update(id, data = {}) {
@@ -484,6 +494,7 @@ KnackObject.prototype.dataBefore = {}
 KnackObject.prototype.recordBefore = {}
 KnackObject.prototype.knackURL = 'https://api.knackhq.com/v1/'
 KnackObject.prototype.errorMsgs = {
-  'noHeaders': 'You must set KnackObject.headers in order to use KnackObject',
-  'noView': 'You must initialise with a view in order to use onChange methods'
+  'noHeaders': 'Knack headers are missing. You must initialise KnackObject with a headers object in order to use KnackObject',
+  'noView': 'You must initialise with a view in order to use onChange methods',
+  'initFailed': 'You must pass a valid headers object to initialise KnackObject'
 }

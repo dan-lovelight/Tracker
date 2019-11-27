@@ -546,3 +546,12 @@ function toTitleCase(str) {
     }
   );
 }
+
+function getHeaders(service){
+  try{
+    if($('.kn-login').length > 0) return false
+    return JSON.parse(CryptoJS.AES.decrypt(Knack.getUserAttributes().values.field_1676, Knack.getUserAttributes().values.field_1677).toString(CryptoJS.enc.Latin1))[service]}
+  catch(err){
+  	// This doesn't work if the user is not logged in.
+  }
+}

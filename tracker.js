@@ -20,6 +20,11 @@ const objects = {
 // Start Listener
 $(document).on('knack-view-render.any', function(event, view, data) {
 
+  // Ensure all headers have been decrypted and are available
+  if(!KnackObject.headers) KnackObject.init(getHeaders('Knack'))
+  window.myJobRecHeaders = window.myJobRecHeaders || getHeaders('JobRec')
+  window.calendarHeaders = window.calendarHeaders || getHeaders('Calendar')
+
   // Add global listeners
   try {
     if (Knack.getUserAttributes() !== "No user found") {
