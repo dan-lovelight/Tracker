@@ -168,8 +168,9 @@ class KnackObject {
     this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
+    let hash = this._hashCode(`${self.view.key}${callback.toString()}`)
     if (this.view.action && this.view.action !== 'insert') return
-    if (this._isListenerAlreadyApplied('create', callback)) return
+    if (this._isListenerAlreadyApplied('create', hash)) return
 
     // Listen for new records
     $(document).on(`knack-record-create.${this.view.key}`, function(event, view, record) {
@@ -193,39 +194,43 @@ class KnackObject {
 
   // Fires when a record is saved but no changes have been made
   async onTouch(callback){
+    // Get a unique has for the callback. Used to ensure each is only attached once.
+    let hash = this._hashCode(`${this.view.key}${callback.toString()}`)
     this._onUpdate(function(params){
       if(params.changes.length === 0){
         callback(params)
       }
-    })
+    }, hash, 'touch')
   }
 
   // Fires when a record is saved with changes
   async onUpdate(callback){
+    // Get a unique has for the callback. Used to ensure each is only attached once.
+    let hash = this._hashCode(`${this.view.key}${callback.toString()}`)
     this._onUpdate(function(params){
       if(params.changes.length>0){
         callback(params)
       }
-    })
+    }, hash, 'update')
   }
 
   // This function does the heavy lifting to determing if a record is updated
   // It fires on any submit. onTouch and onUpdate both use it.
-  async _onUpdate(callback) {
+  // Event type is either 'touch' or 'update' - used when tracking listeners already applied
+  async _onUpdate(callback, hash, eventType) {
 
     if (!this._isValidView) return
     this._assert(this.headers, this.errorMsgs.noHeaders)
     this._assert(this.view, this.errorMsgs.noView)
 
     let self = this
-    let hash = this._hashCode(`${self.view.key}${callback.toString()}`)
     KnackObject.prototype.recordBefore[self.view.key] = {}
 
     // Handle update forms
     if (this.view.type === 'form' && this.view.action === 'update') {
       KnackObject.prototype.recordBefore[hash] = await this.get(this.view.scene.scene_id)
       // Only add global listeners once
-      if (!this._isListenerAlreadyApplied('update', callback)) {
+      if (!this._isListenerAlreadyApplied(eventType, hash)) {
         $(document).on(`knack-record-update.${this.view.key}`, recordUpdateHandler)
         return // No action links on forms, exit here
       }
@@ -246,7 +251,7 @@ class KnackObject {
         // Store the table data prior to any change being made
         KnackObject.prototype.dataBefore[hash] = JSON.parse(JSON.stringify(dataInTable))
         // Add a listner to the table for inline edits, but only once per view
-        if (!this._isListenerAlreadyApplied('update', callback)) {
+        if (!this._isListenerAlreadyApplied(eventType, hash)) {
           $(document).on(`knack-cell-update.${this.view.key}`, cellUpdateHandler)
         }
       }
@@ -275,7 +280,7 @@ class KnackObject {
     // Handle views with action links (tables & view details)
     let $actionLinks = $('#' + this.view.key + ' .kn-action-link')
     if ($actionLinks.length > 0) {
-      this._isListenerAlreadyApplied('update', callback)
+      this._isListenerAlreadyApplied(eventType, hash)
       waitForActionLinkEvents()
     }
 
@@ -355,6 +360,7 @@ class KnackObject {
     let record = false
     let recordId
     let detailsView = false
+    let hash = this._hashCode(`${self.view.key}${callback.toString()}`)
 
     // Add our own click listener if there are delete links
     let $deleteLinks = $('#' + this.view.key + ' .kn-link-delete')
@@ -379,7 +385,7 @@ class KnackObject {
 
       $deleteLinks.click(async function(event) {
         // Only add global listeners once
-        if (!self._isListenerAlreadyApplied('delete', callback)) {
+        if (!self._isListenerAlreadyApplied('delete', hash)) {
           $(document).on(`knack-record-delete.${self.view.key}`, function() {
             waitForRecord()
           })
@@ -455,10 +461,11 @@ class KnackObject {
   }
   // for each callback function, important to only apply the listener once
   // this checks via a record kept on the KnackObject prototype
-  _isListenerAlreadyApplied(action, callback) {
+  // hash parameter is a hashed version of the callback function
+  _isListenerAlreadyApplied(action, hash) {
     // Create a unique id for the view/callback combo.
     let alreadyApplied = true
-    let hash = this._hashCode(`${this.view.key}${callback.toString()}`)
+    // let hash = this._hashCode(`${this.view.key}${callback.toString()}`)
 
     if (!KnackObject.prototype.listeners) {
       KnackObject.prototype.listeners = {}
@@ -470,6 +477,7 @@ class KnackObject {
         'create': new Set(),
         'update': new Set(),
         'delete': new Set(),
+        'touch': new Set(),
       }
       alreadyApplied = false
     }
