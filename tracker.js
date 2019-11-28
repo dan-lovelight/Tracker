@@ -14,6 +14,7 @@ const objects = {
   'activityTypes': 'object_112',
   'developments': 'object_21',
   'jobStatuses': 'object_28',
+  'leads': 'object_81'
 }
 
 // -------------------------------------------------------
