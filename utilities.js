@@ -1,26 +1,26 @@
 // Limit the selectable time range to 6am to 8pm & show duration in to-time
 // Takes a string for the target field id eg 'view_123-field_123'
-function pimpTimePicker(fieldId) {
+function pimpTimePicker(view, fieldId) {
   // Set the time to 5am to 8pm
-  $('#' + fieldId + '-time').timepicker({
+  $(`#${view.key}-${fieldId}-time`).timepicker({
     'minTime': '5:00am',
     'maxTime': '8:00pm',
     'showDuration': false
   });
   // Set the time to 5am to 8pm
-  $('#' + fieldId + '-time-to').timepicker({
+  $(`#${view.key}-${fieldId}-time-to`).timepicker({
     'minTime': '5:00am',
     'maxTime': '8:00pm',
     'showDuration': true
   });
   // Remove repeat and all day options
-  $('#kn-input-' + fieldId.split('-')[1] + ' > div:nth-child(3)').remove()
+  $('#kn-input-' + fieldId + ' > div:nth-child(3)').remove()
 
   // Update the start time of to-time for accurate duration when start time changes
-  $('input#' + fieldId + '-time').on('focusout', function() {
+  $(`input#${view.key}-${fieldId}-time`).on('focusout', function() {
     console.log('focusOut from time')
-    $('#' + fieldId + '-time-to').timepicker('option', {
-      minTime: $('#' + fieldId + '-time').val()
+    $(`#${view.key}-${fieldId}-time-to`).timepicker('option', {
+      minTime: $(`#${view.key}-${fieldId}-time`).val()
     })
   })
 }
@@ -234,6 +234,21 @@ async function triggerZap(endPoint, dataObject, logEntry) {
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)
   }
+}
+
+function pimpContactField(view,field){
+  // Get the target contact field
+  let $contact = $(`#${view.key}-${field}`) // Need the jquery wrapper for later manipuation
+
+  // Display details if the field is not blank
+  if ($contact[0] && $contact[0].length) {
+    if ($contact[0].length > 0) displayContactDetails($contact[0].value, field)
+  }
+
+  // Watch for changes in the field.
+  $(`#${view.key}-${field}`).on('change', function() {
+    if ($contact[0].length > 0) displayContactDetails($contact[0].value, field)
+  })
 }
 
 // Adds a text box under a contact object to expose email and phone

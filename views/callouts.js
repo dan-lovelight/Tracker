@@ -76,7 +76,7 @@ $(document).on(hideTablesSchedulingScenes.join(' '), function(event, scene) {
 
 // Create & Edit forms rendered
 $(document).on(createCallOutForms.join(' '), function(event, view, data) {
-  pimpTimePicker(view.key + '-field_924')
+  pimpTimePicker(view,'field_924')
   addJobDetailsToCallOut(view)
   setDateTimeFromCalendar(view)
 })
