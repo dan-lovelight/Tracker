@@ -254,31 +254,41 @@ function pimpContactField(view,field){
 // Adds a text box under a contact object to expose email and phone
 // Allows editing in conjunction with popover function
 async function displayContactDetails(contactId, field) {
+
   if (!contactId) return
-  let $siteContactDetails = $('#site-contact-details')
+
+  // Get any existing details that are displayed
+  let $siteContactDetails = $('#contact-details')
+
+  // Check for existing details
   if ($siteContactDetails.length === 0) {
-    $('#connection-picker-chosen-' + field).append('<div id="site-contact-details">Loading...</div>')
-    $siteContactDetails = $('#site-contact-details')
+    // Add div to hold contact details and display 'loading' to the user
+    $('#connection-picker-chosen-' + field).append('<div id="contact-details">Loading...</div>')
+    $siteContactDetails = $('#contact-details')
   } else if ($siteContactDetails[0].innerText.indexOf('Loading') > -1) {
+    // Exit if already loading
     return
   } else {
+    // Display 'loaing' to user
     $siteContactDetails[0].innerText = 'Loading...'
   }
+
+  // Get the contact's details
   let contactObj = new KnackObject(objects.contacts)
-  let siteContact = await contactObj.get(contactId)
+  let contact = await contactObj.get(contactId)
   displayDetails()
 
   function displayDetails() {
-    let phone = siteContact.field_231_raw ? siteContact.field_231_raw : ''
-    let email = siteContact.field_76_raw ? siteContact.field_76_raw.email : ''
+    let phone = contact.field_231_raw ? contact.field_231_raw : ''
+    let email = contact.field_76_raw ? contact.field_76_raw.email : ''
     let html = `<strong>mobile:</strong> ${phone} <a id='edit-mobile'>edit</a><br><strong>email:</strong> ${email} <a id='edit-email'>edit</a>`
-    $('#site-contact-details').html(html)
+    $('#contact-details').html(html)
 
     $('#edit-mobile').click(function() {
       getInlineUserInput('Phone', phone, '#edit-mobile', async function(newNumber) {
         try {
-          $('#site-contact-details').html('Loading...')
-          siteContact = await contactObj.update(siteContact.id, {
+          $('#contact-details').html('Loading...')
+          contact = await contactObj.update(contact.id, {
             'field_231': newNumber
           })
           displayDetails()
@@ -292,8 +302,8 @@ async function displayContactDetails(contactId, field) {
     $('#edit-email').click(function() {
       getInlineUserInput('Email', email, '#edit-email', async function(newEmail) {
         try {
-          $('#site-contact-details').html('Loading...')
-          siteContact = await contactObj.update(siteContact.id, {
+          $('#contact-details').html('Loading...')
+          contact = await contactObj.update(contact.id, {
             'field_76': newEmail
           })
           displayDetails()
