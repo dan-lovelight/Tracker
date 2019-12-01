@@ -63,7 +63,7 @@ $(document).on('knack-view-render.view_2428', function(event, view) {
   insertOptionMenu('#view_2424', buttonArray, toggleActivity)
 
   // set default state
-  toggleActivity( window.lastActivity || 'Note')
+  toggleActivity( window.activitySelected || 'Note')
 
   function toggleActivity(activitySelected) {
 
