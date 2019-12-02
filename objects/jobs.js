@@ -200,9 +200,19 @@ async function sendNoteNotifications(note) {
     let activityTypes = await activityTypesObj.get()
 
     dynamicData.history = `
-  <table>
-  ${recentNotes.map(note => `<tr><td style="padding:5px;" class="row-label"><div style="width:25px">${activityTypes.records.filter(type => type.id === note.field_1659_raw[0].id)[0].field_1658.replace("style='max-width:100%'","style='max-width:25px' width='25'")}</div></td><td style="padding:5px;">${note.field_576}</td></tr>`).join('')}
-  </table>`
+      <table>
+        ${recentNotes.map(note => {
+          `<tr>
+            <td style="padding:5px;" class="row-label">
+              <div style="width:25px">
+                ${activityTypes.records.filter(type => {
+                  type.id === note.field_1659_raw[0].id
+                })[0].field_1658.replace("style='max-width:100%'","style='max-width:25px' width='25'")}
+              </div>
+            </td>
+              <td style="padding:5px;">${note.field_576}</td>
+            </tr>`}).join('')}
+      </table>`
 
     let email_body = {
       'personalizations': [{
