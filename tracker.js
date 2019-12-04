@@ -81,6 +81,18 @@ $(document).on('knack-view-render.any', function(event, view, data) {
             // invoiceObj.onDelete(processDeletedInvoice)
           }
 
+          // Add lead listeners
+          if (view.source.object === objects.leads) {
+            let leadObj = new KnackObject(view.source.object, view)
+            leadObj.onChange(processLeadChange)
+          }
+
+          // Add activity listeners
+          if (view.source.object === objects.activities) {
+            let activityObj = new KnackObject(view.source.object, view)
+            activityObj.onChange(processActivityChange)
+          }
+
         }
       }
     }
