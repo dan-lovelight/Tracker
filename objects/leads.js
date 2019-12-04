@@ -58,13 +58,13 @@ function handleLeadNotes(lead, isNewLead, view, previous, changes) {
   try {
     let user = Knack.getUserAttributes()
     let isStatusUpdated = isLeadStatusUpdated(changes)
-    let hasPrimaryContact = hasPrimaryContact(lead)
+    //let hasContact = hasPrimaryContact(lead)
     let notes = []
     let data = {}
 
     data.field_1655 = user.name // Create by
-    data.field_1684 = [lead.id] // Link to lead
-    data.field_1679 = hasPrimaryContact ? [lead.field_1670_raw.id] :[] // Link to contact
+    data.field_1692 = [lead.id] // Link to lead
+    //data.field_1679 = hasContact ? [lead.field_1670_raw.id] :[] // Link to contact
 
     if (isNewLead) {
       // Insert lead created record
@@ -74,42 +74,42 @@ function handleLeadNotes(lead, isNewLead, view, previous, changes) {
     }
 
     if (isStatusUpdated && !isNewLead) {
-      let status = lead.field_1705_raw.identifier
+      let status = lead.field_1705_raw[0].identifier
 
       if (status.indexOf('Converted') > -1) {
         // Insert a lead completed record
         data.field_1659 = ['5de0422a11d759001575f44f'] // Lead Conveted
-        data.field_576 = `Lead converted from ${previous.field_1705_raw.identifier} to an Opportunity!}`
+        data.field_576 = `Lead converted from ${previous.field_1705_raw[0].identifier} to an Opportunity!}`
         notes.push(JSON.parse(JSON.stringify(data)))
 
       } else if (status.indexOf('Dead') > -1) {
         // Insert a lead cancelled record
         data.field_1659 = ['5de04200da511100150e07d1'] // Lead Dead
-        data.field_576 = `Status changed from ${lead.field_1705_raw.identifier} to ${status}`
+        data.field_576 = `Status changed from ${previous.field_1705_raw[0].identifier} to ${status}`
         notes.push(JSON.parse(JSON.stringify(data)))
 
       } else if (status.indexOf('Cold') > -1){
         // Insert a status change record
         data.field_1659 = ['5de042f54546590015b8d463'] // Status Change to Cold
-        data.field_576 = `Status changed from ${lead.field_1705_raw.identifier} to ${status}`
+        data.field_576 = `Status changed from ${previous.field_1705_raw[0].identifier} to ${status}`
         notes.push(JSON.parse(JSON.stringify(data)))
 
       } else if (status.indexOf('Warm') > -1){
         // Insert a status change record
         data.field_1659 = ['5de0428e2ce6140019b63df5'] // Status Change to Warm
-        data.field_576 = `Status changed from ${lead.field_1705_raw.identifier} to ${status}`
+        data.field_576 = `Status changed from ${previous.field_1705_raw[0].identifier} to ${status}`
         notes.push(JSON.parse(JSON.stringify(data)))
 
       } else if (status.indexOf('Hot') > -1){
         // Insert a status change record
         data.field_1659 = ['5de042a5faf6780015e6dc6f'] // Status Change to Hot
-        data.field_576 = `Status changed from ${lead.field_1705_raw.identifier} to ${status}`
+        data.field_576 = `Status changed from ${previous.field_1705_raw[0].identifier} to ${status}`
         notes.push(JSON.parse(JSON.stringify(data)))
       }
     }
 
     // Insert the notes if there are any
-    if (notes.length > 0) addLeadRecords(notes)
+    if (notes.length > 0) addActivityRecords(notes)
   } catch (err) {
     if (typeof Sentry === 'undefined') throw err
     Sentry.captureException(err)

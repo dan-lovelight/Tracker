@@ -10,11 +10,12 @@ const objects = {
   'salespeople': 'object_82',
   'opspeople': 'object_68',
   'documents': 'object_22',
-  'activityRecords': 'object_53',
-  'activityTypes': 'object_112',
+  'notes': 'object_53',
+  'notesTypes': 'object_112',
   'developments': 'object_21',
   'jobStatuses': 'object_28',
-  'leads': 'object_81'
+  'leads': 'object_81',
+  'activities':'object_114'
 }
 
 // -------------------------------------------------------
@@ -56,7 +57,7 @@ $(document).on('knack-view-render.any', function(event, view, data) {
           }
 
           // Add note listeners
-          if (view.source.object === objects.activityRecords) {
+          if (view.source.object === objects.notes) {
             let notesObj = new KnackObject(view.source.object, view)
             notesObj.onCreate(processNewNote)
           }

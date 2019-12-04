@@ -362,7 +362,7 @@ function getInlineUserInput(title, defaultValue, selector, callback) {
 async function addActivityRecords(records) {
   if (!isItAnArray(records) || records.length === 0) throw Error('Activities Records must be in an array')
   try { // Create the records
-    let recordsObj = new KnackObject(objects.activityRecords)
+    let recordsObj = new KnackObject(objects.notes)
     for (let i = 0; i < records.length; i++) {
       await recordsObj.create(records[i])
     }

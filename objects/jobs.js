@@ -73,7 +73,7 @@ async function processNewNote({
     data.field_1652 = '' // Remove notes, these have been copied to an activity record
 
     // Update the note
-    let noteObj = new KnackObject(objects.activityRecords)
+    let noteObj = new KnackObject(objects.notes)
     await noteObj.update(note.id, data)
 
     if (note.field_1667 !== 'No') sendNoteNotifications(note)
@@ -131,7 +131,7 @@ async function sendNoteNotifications(note) {
         }]
       }
 
-      let notesObj = new KnackObject(objects.activityRecords)
+      let notesObj = new KnackObject(objects.notes)
       recentNotes = await notesObj.find(filter)
 
     } else if (isOpp) {
@@ -157,7 +157,7 @@ async function sendNoteNotifications(note) {
         }]
       }
 
-      let notesObj = new KnackObject(objects.activityRecords)
+      let notesObj = new KnackObject(objects.notes)
       recentNotes = await notesObj.find(filter)
 
     }
@@ -195,8 +195,8 @@ async function sendNoteNotifications(note) {
     dynamicData.user = user.name
 
     // Add the most recent notes
-    let activityTypesObj = new KnackObject(objects.activityTypes)
-    let activityTypes = await activityTypesObj.get()
+    let notesTypesObj = new KnackObject(objects.notesTypes)
+    let notesTypes = await notesTypesObj.get()
 
     dynamicData.history = `
       <table>
@@ -204,7 +204,7 @@ async function sendNoteNotifications(note) {
           `<tr>
             <td style="padding:5px;" class="row-label">
               <div style="width:25px">
-                ${activityTypes.records.filter(type => {
+                ${notesTypes.records.filter(type => {
                   type.id === note.field_1659_raw[0].id
                 })[0].field_1658.replace("style='max-width:100%'","style='max-width:25px' width='25'")}
               </div>
