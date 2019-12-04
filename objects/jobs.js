@@ -72,7 +72,6 @@ async function processNewNote({
     data.field_1655 = user.name // created by
     data.field_1652 = '' // Remove notes, these have been copied to an activity record
 
-
     // Update the note
     let noteObj = new KnackObject(objects.activityRecords)
     await noteObj.update(note.id, data)
