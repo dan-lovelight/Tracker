@@ -1,28 +1,6 @@
-$(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-view-render.view_2424', function(event, sceneOrView) {
 
-  // New submit buttons
-  let newSubmitButtons = [{
-      "name": "Submit",
-      "primary": true,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "submit": true,
-      "callbackAfter": redirectToParentPage
-    },
-    {
-      "name": "Submit and Rebook",
-      "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "submit": true,
-      "callbackAfter": false
-    },
-    {
-      "name": "Submit as Dead",
-      "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "submit": true,
-      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
-    }
-  ]
+
+$(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-view-render.view_2424', function(event, sceneOrView) {
 
   // Add activity option menu
   let activityOptions = [{
@@ -46,6 +24,33 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
     optionID: "5dde09f4b5d12c00185236fa"
   }, ]
 
+  // New submit buttons
+  let newSubmitButtons = [{
+      "name": "Submit",
+      "primary": true,
+      "callbackBefore": showLeadActivityOptionsDropdown,
+      "callbackBeforeArgs" : [activityOptions],
+      "submit": true,
+      "callbackAfter": redirectToParentPage
+    },
+    {
+      "name": "Submit and Rebook",
+      "primary": false,
+      "callbackBefore": showLeadActivityOptionsDropdown,
+      "callbackBeforeArgs" : [activityOptions],
+      "submit": true,
+      "callbackAfter": false
+    },
+    {
+      "name": "Submit as Dead",
+      "primary": false,
+      "callbackBefore": showLeadActivityOptionsDropdown,
+      "callbackBeforeArgs" : [],
+      "submit": true,
+      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
+    }
+  ]
+
   // Get all views, approach varies if called by scene or view
   let allViews = sceneOrView.views || sceneOrView.scene.views
   let leadId = sceneOrView.scene_id || sceneOrView.scene.scene_id
@@ -68,7 +73,10 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
   pimpContactField(activitiesView, 'field_1679')
   pimpContactField(notesView, 'field_1679')
   $("#kn-input-field_1688 > div [value=Cancelled]").parent().remove() // Remove cancelled as a status option
-  toggleActivity(activityOptions, window.activitySelected || 'Note')
+  toggleActivity(window.activitySelected || 'Note')
+  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click',function(){
+    applyActivityDisplayRules()
+  })
 
   // Add listener for when notes contact field is clicked
   $('#view_2424_field_1679_chzn input').on('click', function() {
@@ -91,7 +99,7 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
 })
 
 // Notes required
-function toggleActivity(activityOptions, activitySelected) {
+function toggleActivity(activitySelected) {
 
   let notesViewKey = 'view_2424'
   let $notesView = $(`#${notesViewKey}`)
@@ -102,20 +110,15 @@ function toggleActivity(activityOptions, activitySelected) {
   // Set global variable to keep track of last option selected
   window.activitySelected = activitySelected
 
-  let $activityType = $(`#${activitiesViewKey}-field_1685`)
-  let activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
-
   if (activitySelected === 'Note') {
     $activitiesView.hide()
     $notesView.show()
   } else {
     $activitiesView.show()
     $notesView.hide()
-
+    applyActivityDisplayRules()
     // Hide the activity type dropdown
     $('#kn-input-field_1685').hide()
-    // Set the activity type in the hidden field
-    $activityType.html(`<option value='${activityDetails.optionID}'>${activityDetails.return}</option>`).trigger('liszt:updated')
 
     // Toggle the date field
     if (activitySelected === "Meeting") {
@@ -131,11 +134,38 @@ function toggleActivity(activityOptions, activitySelected) {
   }
 }
 
+function applyActivityDisplayRules(){
+  let activity = window.activitySelected
+  let isComplete = $('input[name=view_2428-field_1688]:checked').val() === 'Complete'
+  let isSuccess = $('input[name=view_2428-field_1711]:checked').val() === 'Success'
+
+  // Show call outcomes if a call
+  if(isComplete && activity === 'Call'){
+    $('#kn-input-field_1711').show()
+
+    // Hide details unless successful
+    if(isSuccess){
+      $('#kn-input-field_1691').show()
+    } else {
+      $('#kn-input-field_1691').hide()
+    }
+
+  } else {
+    // Hide call outcomes
+    $('#kn-input-field_1711').hide()
+  }
+}
 
 // ***********************
 // Functions for new buttons
-function showLeadActivityOptionsDropdown() {
-  $('#kn-input-field_1685').show()
+function showLeadActivityOptionsDropdown(activityOptions) {
+
+    // Set the activity type in the hidden field
+    $('#kn-input-field_1685').show()
+    let $activityType = $(`#view_2428-field_1685`)
+    let activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
+    $activityType.html(`<option value='${activityDetails.optionID}'>${activityDetails.return}</option>`).trigger('liszt:updated')
+    if ($activityType[0].value === '' || $activityType[0].value === undefined) throw new Error('activity type not set')
 }
 
 async function markTargetLeadAsDeadAndRedirectToParent() {
@@ -181,9 +211,11 @@ function addOptionsToConnectionDropDown(view_key, field, options) {
 // [{
 //  name: name,
 //  primary: boolean - should the button have the 'is-prmary' class
-//  callbackBefore: callback function to execute before submit, will await if async. Always executed, even if submit fails
+//  callbackBefore: callback function to execute before submit, will await if async. Always executed, even if submit fails.
+//  callbackBeforeArgs : array of arguements to pass to the callback
 //  submit: boolean - should submit be called after callback function?
 //  callbackAfter: callback function to execute after, will await if async
+// callbackAfterArgs : array of arguements to pass to the callback
 // }]
 function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
 
@@ -215,7 +247,7 @@ function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
     $newButton.on('click', async function(event) {
       // Execute before submit callback
       if (button.callbackBefore) {
-        await button.callbackBefore(event)
+        await button.callbackBefore(...button.callbackBeforeArgs || undefined)
       }
 
       // Submit the form
@@ -232,7 +264,7 @@ function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
             let isError = $('.is-error').length > 0
             if (!isLoading) clearInterval(wait)
             if (!isError) {
-              await button.callbackAfter(event)
+              await button.callbackAfter(...button.callbackAfterArgs || undefined)
             }
           }, 200)
         }, 1000)
@@ -281,7 +313,7 @@ function insertOptionMenu(insertBefore, optionsArray, onClickCallback, buttonGro
     $(`#${buttonGroupId} .is-active`).removeClass("is-active")
     $(this).addClass("is-active")
     let returnValue = $(this).attr('data-return')
-    onClickCallback(optionsArray, returnValue)
+    onClickCallback(returnValue, optionsArray)
   })
 
 }

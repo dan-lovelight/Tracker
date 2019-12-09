@@ -72,6 +72,11 @@ async function processNewNote({
     data.field_1655 = user.name // created by
     data.field_1652 = '' // Remove notes, these have been copied to an activity record
 
+    // If it's a normal note but is linked to a contact, change it to a 'contact note'
+    if(note.field_1679.length > 0 && note.field_1659_raw[0].identifier === 'Note'){
+      data.field_1659 = ['5d943fddc1c54d0010d376c6']
+    }
+
     // Update the note
     let noteObj = new KnackObject(objects.notes)
     await noteObj.update(note.id, data)

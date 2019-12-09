@@ -13,7 +13,7 @@ function processActivityChange({record:activity, changes, action, view, previous
       activityObj.update(activity.id, updateData)
     }
 
-    //handleActivityNotes(activity, action.isCreate, view, previous, changes)
+    handleActivityNotes(activity, action.isCreate, view, previous, changes)
     //handleSlackNotifications(opportunity, changes, previous, action)
 
   } catch (err) {
@@ -42,58 +42,133 @@ function isActivityStatusUpdated(changes) {
 function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
   try {
 
-    let activityTypes = {
-      'Email':'5dde09fb8f1b080015f60d47',
-      'Meeting':'5dde0a04225c5f00151ee8f4',
-      'Call':'5dde09f4b5d12c00185236fa',
-      'Task':'5dde09f0b19ce90016428186'
-    }
-
-    let type = Object.entries()
+    let type = activity.field_1685_raw[0].identifier
     let user = Knack.getUserAttributes()
     let isStatusUpdated = isActivityStatusUpdated(changes)
+    let status = activity.field_1688
+    let isCreated = isNewActivity
+    let date = type === 'Meeting' ? activity.field_1708_raw.date_formatted : activity.field_1687_raw.date_formatted
+    let time = type === 'Meeting' ? `${activity.field_1708_raw.hours}:${activity.field_1708_raw.minutes.length===1 ? '0':''}${activity.field_1708_raw.minutes}${activity.field_1708_raw.am_pm}` : ''
+    let contactNames = getConnectionIdentifiers(activity.field_1689_raw).reduce((names,name, index)=>{
+      if(index === 0){
+        names += name
+      } else if(index === activity.field_1689_raw.length-1){
+        names += ` and ${name}`
+      } else {
+        names += `, ${name}`
+      }
+      return names
+    },'')
     let notes = []
     let data = {}
 
-
+    let noteType
+    if(isCreated || isStatusUpdated){
+      noteType = status // If the activity is just created, or the status has been changed, then the note required is determined by the new status
+    } else {
+      return
+    }
 
     data.field_1655 = user.name // Create by
     data.field_1684 = [activity.id]
+    data.field_1679 = getConnectionIDs(activity.field_1689_raw) // contact ids
+    data.field_1692 = getConnectionIDs(activity.field_1690_raw) // lead ids
+    data.field_579 = [] // job ids
+    data.field_1663 = [] // opportunity ids
+    data.field_1680 = [] // company ids
 
-    if (isNewActivity) {
-      // Insert activity created record
-      data.field_1659 = ['5d8c093bfc02f50011364c1e'] // Activity Created
-      data.field_576 = `Activity created from ${view.name} form`
-      notes.push(JSON.parse(JSON.stringify(data)))
-    }
+    switch (type) {
 
-    if (isThereANote) {
-      // Insert a note record
-      data.field_1659 = ['5d8c078bdb00f0001095e39d'] // Note
-      data.field_576 = activity.field_1652 // Note details
-      notes.push(JSON.parse(JSON.stringify(data)))
-      clearTempActivityNote(activity)
-    }
+      case 'Email': {
 
-    if (isStatusUpdated) {
-      let status = activity.field_245
-      if (status.indexOf('Complete') > -1) {
-        // Insert a activity completed record
-        data.field_1659 = ['5d9435e24dbdf0001041faec'] // Activity Completed
-        data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${activity.field_245_raw[0].identifier.split(' - ')[1]}`
-        notes.push(JSON.parse(JSON.stringify(data)))
+        if(noteType === 'Scheduled'){
+          data.field_1659 = ['5de040c84546590015b8d2f5'] // note type
+          data.field_576 = `Email ${activity.field_1689.length > 0 ? `to ${contactNames} ` : ''}scheduled for ${date}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Complete'){
+          data.field_1659 = ['5de0411bfaf6780015e6db8e'] // note type
+          data.field_576 = `Email ${activity.field_1689.length > 0 ? `to ${contactNames} ` : ''}logged: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Cancelled'){
+          data.field_1659 = ['5dedcddc81313500159dd367'] // note type
+          data.field_576 = `Email ${activity.field_1689.length > 0 ? `to ${contactNames} ` : ''}cancelled: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+      break
+      }
 
-      } else if (status.indexOf('Cancelled') > -1) {
-        // Insert a activity cancelled record
-        data.field_1659 = ['5d94360307205f001028211c'] // Activity Cancelled
-        data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${activity.field_245_raw[0].identifier.split(' - ')[1]}`
-        notes.push(JSON.parse(JSON.stringify(data)))
+      case 'Call': {
 
-      } else {
-        // Insert a status change record
-        data.field_1659 = ['5d8c0d5622d07d0010b41b9e'] // Status Change
-        data.field_576 = `Status changed from ${previous.field_245_raw[0].identifier.split(' - ')[1]} to ${activity.field_245_raw[0].identifier.split(' - ')[1]}`
-        notes.push(JSON.parse(JSON.stringify(data)))
+        let callOutcome = activity.field_1711
+
+        if(noteType === 'Scheduled'){
+          data.field_1659 = ['5de03fc9b646f10015abf9e1'] // note type
+          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}scheduled for ${date}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Complete' && callOutcome === 'Success'){
+          data.field_1659 = ['5de0401cfaf6780015e6dab7'] // note type
+          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}logged: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Complete' && callOutcome === 'No Answer'){
+          data.field_1659 = ['5de0403ada511100150e06e3'] // note type
+          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}logged: No answer`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Complete' && callOutcome === 'Left Voicemail'){
+          data.field_1659 = ['5de03ffb11d759001575f2d7'] // note type
+          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}logged: Left voicemail`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Cancelled'){
+          data.field_1659 = ['5dedce0270794b0015ee8781'] // note type
+          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}cancelled: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+      break
+      }
+
+      case 'Meeting': {
+
+        if(noteType === 'Scheduled'){
+          data.field_1659 = ['5de0414e6ca77100154b7925'] // note type
+          data.field_576 = `Meeting ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}scheduled for ${date} at ${time}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Complete'){
+          data.field_1659 = ['5de04162faf6780015e6dbaf'] // note type
+          data.field_576 = `Meeting ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}logged: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Cancelled'){
+          data.field_1659 = ['5dedce47df15170015bc96f2'] // note type
+          data.field_576 = `Meeting ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}cancelled: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+      break
+      }
+
+      case 'Task':{
+
+        if(noteType === 'Scheduled'){
+          data.field_1659 = ['5de04075a297fc00150edf1c'] // note type
+          data.field_576 = `Task scheduled for ${date}: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Complete'){
+          data.field_1659 = ['5de0407e4546590015b8d2c0'] // note type
+          data.field_576 = `Task complete: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Cancelled'){
+          data.field_1659 = ['5dedcec410f0b80016b9f5d9'] // note type
+          data.field_576 = `Task cancelled: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+      break
       }
     }
 

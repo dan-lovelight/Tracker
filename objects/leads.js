@@ -79,7 +79,7 @@ function handleLeadNotes(lead, isNewLead, view, previous, changes) {
       if (status.indexOf('Converted') > -1) {
         // Insert a lead completed record
         data.field_1659 = ['5de0422a11d759001575f44f'] // Lead Conveted
-        data.field_576 = `Lead converted from ${previous.field_1705_raw[0].identifier} to an Opportunity!}`
+        data.field_576 = `Lead converted from ${previous.field_1705_raw[0].identifier} to an Opportunity!`
         notes.push(JSON.parse(JSON.stringify(data)))
 
       } else if (status.indexOf('Dead') > -1) {
