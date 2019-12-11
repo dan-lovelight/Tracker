@@ -17,7 +17,7 @@ $(document).on('knack-scene-render.scene_52', function(event, scene) {
   // collapseTables(scene)
   formatHeading()
   addChangeStatusButtonToMenu()
-  addZendeskButtonToMenu()
+  addZendeskButtonToMenu('view_2106')
   addOptionsButtonToMenu()
 
 })
@@ -46,10 +46,10 @@ function addChangeStatusButtonToMenu() { // Hide the report form
   $(changeStatusView).hide()
 }
 
-function addZendeskButtonToMenu() {
+function addZendeskButtonToMenu(viewKey) {
   if ($('.field_1599 a').length > 0) {
     let zdLink = $('.field_1599 a')[0].href
-    let mainMenuView = '#view_2106'
+    let mainMenuView = `#${viewKey}`//'#view_2106'
     let button = `<a class="added-button kn-link kn-button" href="${zdLink}" target="_blank"><span><img src="https://s3.us-east-2.amazonaws.com/upload-icon/uploads/icons/png/18487936531552562368-128.png">&nbsp;Zendesk</span></a>`
     $(mainMenuView + " > div.control").append(button)
   }

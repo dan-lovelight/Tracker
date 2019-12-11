@@ -1,20 +1,82 @@
-$(document).on('knack-scene-render.scene_1118', function(event, scene) {
-  formatLeadHeading()
+// Add Lead from a contact on the sales My Contacts page
+$(document).on('knack-view-render.view_2418', function(event, view) {
+  // New submit buttons
+  let newSubmitButtons = [{
+      "name": "Create",
+      "primary": true,
+      "callbackBefore": undefined,
+      "callbackBeforeArgs": [],
+      "submit": true,
+      "callbackAfter": redirectToParentPage
+    },
+    {
+      "name": "Create and Add Another",
+      "primary": false,
+      "callbackBefore": undefined,
+      "callbackBeforeArgs": [],
+      "submit": true,
+      "callbackAfter": false
+    }, ,
+    {
+      "name": "Create and Schedule Activity",
+      "primary": false,
+      "callbackBefore": checkLeadFields,
+      "callbackBeforeArgs": [],
+      "submit": false,
+      "callbackAfter": createLeadFromContactForm
+    }
+  ]
+
+  // If required, swap out submit buttons on add activity view
+  let $activitiesSubmitButtons = $('#altSubmitActivities')
+  if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
+
+  // In order to redirect the user to the lead, and show the add activity option, we need to know what the lead was
+  // The only way to do this is to insert it using the API. This requires that we intercept the normal submit button
+  // And not using the submit button requires that we do our own check that required fields are filled
+  function checkLeadFields() {
+    rqdFields = ['field_948', 'field_1724', 'field_1705']
+    if ($('#kn-input-field_1705 .chzn-select').val() !== '5de04389a297fc00150ee2a0') rqdFields.push('field_986') // Close date required if not cold
+    return checkRequiredFields(view, rqdFields) // returns false if check fails
+  }
+
 })
 
-function formatLeadHeading() {
-  let $headerView = $('#view_2419')
-  let $leadStatus = $('.job-status-wrapper')
-  let $leadTeam = $('#view_2447 div.field_962 > div > span')
-  // Move the status into the heading
-  $headerView.find('.kn-detail-body').append($leadStatus)
-  $headerView.find('.kn-detail-body').append($leadTeam)
-  $leadTeam.addClass('pull-right').attr("id", "lead-team")
-  // Remove the second table column
-  $headerView.find('.kn-details-group > div:nth-child(2)').remove()
-  // Move the team field into the heading
+//
+async function createLeadFromContactForm() {
+
+  let data = {}
+  data.field_948 = $('#field_948').val()
+  data.field_1724 = [$('#kn-input-field_1724 .chzn-select').val()]
+  data.field_1705 = [$('#kn-input-field_1705 .chzn-select').val()]
+  data.field_968 = $('#field_968').val()
+  data.field_964 = $('#field_964').val()
+  data.field_986 = moment($('#view_2418-field_986').datepicker('getDate')).format("DD/MM/YYYY")
+
+  alert('this is not hooked up yet')
+
 }
 
+// Lead details page
+$(document).on('knack-scene-render.scene_1118', function(event, scene) {
+  formatLeadHeading()
+  addZendeskButtonToMenu('view_2436')
+
+  function formatLeadHeading() {
+    let $headerView = $('#view_2419')
+    let $leadStatus = $('.job-status-wrapper')
+    let $leadTeam = $('#view_2447 div.field_962 > div > span')
+    // Move the status into the heading
+    $headerView.find('.kn-detail-body').append($leadStatus)
+    $headerView.find('.kn-detail-body').append($leadTeam)
+    $leadTeam.addClass('pull-right').attr("id", "lead-team")
+    // Remove the second table column
+    $headerView.find('.kn-details-group > div:nth-child(2)').remove()
+    // Move the team field into the heading
+  }
+})
+
+// Schedule or Log an activity from within lead details
 $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', function(event, view) {
 
   // Add activity option menu
@@ -43,7 +105,7 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', functi
       "name": "Submit",
       "primary": true,
       "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs" : [activityOptions],
+      "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": redirectToParentPage
     },
@@ -51,14 +113,14 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', functi
       "name": "Submit and Book Another",
       "primary": false,
       "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs" : [activityOptions],
+      "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": false
     }
   ]
 
   // Only submit as dead for logged activities
-  if(view.key === 'view_2446') {
+  if (view.key === 'view_2446') {
     // Logged activities are 'rebooked'
     newSubmitButtons[1].name = "Submit and Rebook"
     // Logged activities allow submit as dead
@@ -66,7 +128,7 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', functi
       "name": "Submit as Dead",
       "primary": false,
       "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs" : [],
+      "callbackBeforeArgs": [],
       "submit": true,
       "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
     })
@@ -79,16 +141,16 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', functi
 
   // Add the activity options menu if it doesn't already exist.
   let $activityOptionsMenu = $('#activityOptionsMenu')
-  if($activityOptionsMenu.length === 0) insertOptionMenu(`#${view.key}`, activityOptions, toggleActivity, 'activityOptionsMenu')
+  if ($activityOptionsMenu.length === 0) insertOptionMenu(`#${view.key}`, activityOptions, toggleActivity, 'activityOptionsMenu')
 
   // If required, swap out submit buttons on add activity view
   let $activitiesSubmitButtons = $('#altSubmitActivities')
-  if($activitiesSubmitButtons.length=== 0 ) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
+  if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
 
   // Format scene display
   pimpContactField(view, 'field_1679')
   toggleActivity(window.activitySelected || 'Call', activityOptions)
-  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click',function(){
+  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
     applyActivityDisplayRules(activityOptions[0].status)
   })
 
@@ -132,7 +194,7 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
       "name": "Submit",
       "primary": true,
       "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs" : [activityOptions],
+      "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": redirectToParentPage
     },
@@ -140,7 +202,7 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
       "name": "Submit and Rebook",
       "primary": false,
       "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs" : [activityOptions],
+      "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": false
     },
@@ -148,7 +210,7 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
       "name": "Submit as Dead",
       "primary": false,
       "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs" : [],
+      "callbackBeforeArgs": [],
       "submit": true,
       "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
     }
@@ -160,24 +222,24 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
 
   // Add the activity options menu if it doesn't already exist.
   let $activityOptionsMenu = $('#activityOptionsMenu')
-  if($activityOptionsMenu.length === 0) insertOptionMenu('#view_2424', activityOptions, toggleActivity, 'activityOptionsMenu')
+  if ($activityOptionsMenu.length === 0) insertOptionMenu('#view_2424', activityOptions, toggleActivity, 'activityOptionsMenu')
 
   // If required, swap out submit buttons on add note view
   let notesView = allViews.filter(view => view.key === 'view_2424')[0]
   let $notesSubmitButtons = $('#altSubmitNote')
-  if($notesSubmitButtons.length === 0 ) replaceSubmitButton(notesView, newSubmitButtons, 'altSubmitNote')
+  if ($notesSubmitButtons.length === 0) replaceSubmitButton(notesView, newSubmitButtons, 'altSubmitNote')
 
   // If required, swap out submit buttons on add activity view
   let activitiesView = allViews.filter(view => view.key === 'view_2428')[0]
   let $activitiesSubmitButtons = $('#altSubmitActivities')
-  if($activitiesSubmitButtons.length=== 0 ) replaceSubmitButton(activitiesView, newSubmitButtons, 'altSubmitActivities')
+  if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(activitiesView, newSubmitButtons, 'altSubmitActivities')
 
   // Format scene display
   pimpContactField(activitiesView, 'field_1679')
   pimpContactField(notesView, 'field_1679')
   $("#kn-input-field_1688 > div [value=Cancelled]").parent().remove() // Remove cancelled as a status option
   toggleActivity(window.activitySelected || 'Note')
-  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click',function(){
+  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
     applyActivityDisplayRules()
   })
 
@@ -219,7 +281,7 @@ function toggleActivity(activitySelected, optionsArray) {
   } else {
     $activitiesView.show()
     $notesView.hide()
-    let activityStatus = optionsArray ? optionsArray.filter(activity=>activity.return === activitySelected)[0].status : undefined
+    let activityStatus = optionsArray ? optionsArray.filter(activity => activity.return === activitySelected)[0].status : undefined
     applyActivityDisplayRules(activityStatus)
     // Hide the activity type dropdown
     $('#kn-input-field_1685').hide()
@@ -228,28 +290,32 @@ function toggleActivity(activitySelected, optionsArray) {
     if (activitySelected === "Meeting") {
       $('#kn-input-field_1707').hide()
       $('#kn-input-field_1687').show()
-      pimpTimePicker({key:activitiesViewKey}, 'field_1687')
+      pimpTimePicker({
+        key: activitiesViewKey
+      }, 'field_1687')
     } else {
       $('#kn-input-field_1707').show()
       $('#kn-input-field_1687').hide()
-      pimpTimePicker({key:activitiesViewKey}, 'field_1707')
+      pimpTimePicker({
+        key: activitiesViewKey
+      }, 'field_1707')
     }
 
   }
 }
 
 // activityStatus is optional - no need to pass if this is set explicity on the form.
-function applyActivityDisplayRules(activityStatus){
+function applyActivityDisplayRules(activityStatus) {
   let activity = window.activitySelected
   let isComplete = $('input[name$=-field_1688]:checked').val() === 'Complete' || activityStatus === 'Complete'
   let isSuccess = $('input[name$=-field_1711]:checked').val() === 'Success'
 
   // Show call outcomes if a call
-  if(isComplete && activity === 'Call'){
+  if (isComplete && activity === 'Call') {
     $('#kn-input-field_1711').show()
 
     // Hide details unless successful
-    if(isSuccess){
+    if (isSuccess) {
       $('#kn-input-field_1691').show()
     } else {
       $('#kn-input-field_1691').hide()
@@ -267,12 +333,13 @@ function applyActivityDisplayRules(activityStatus){
 // Functions for new buttons
 function showLeadActivityOptionsDropdown(activityOptions) {
 
-    // Set the activity type in the hidden field
-    $('#kn-input-field_1685').show()
-    let $activityType = $(`#view_2428-field_1685`)
-    let activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
-    $activityType.html(`<option value='${activityDetails.optionID}'>${activityDetails.return}</option>`).trigger('liszt:updated')
-    if ($activityType[0].value === '' || $activityType[0].value === undefined) throw new Error('activity type not set')
+  // Set the activity type in the hidden field
+  $('#kn-input-field_1685').show()
+  let $activityType = $(`[id^=view_][id$=-field_1685]`)
+  let activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
+  $activityType.html(`<option value='${activityDetails.optionID}'>${activityDetails.return}</option>`).trigger('liszt:updated')
+  if ($activityType[0].value === '' || $activityType[0].value === undefined) throw new Error('activity type not set')
+  return true
 }
 
 async function markTargetLeadAsDeadAndRedirectToParent() {
@@ -301,7 +368,7 @@ function getContactsFromLead(lead) {
 // **************
 // Utils
 function redirectToParentPage() {
-  if(Knack.getPreviousScene().link !=='#') window.location.href = Knack.getPreviousScene().link
+  if (Knack.getPreviousScene().link !== '#') window.location.href = Knack.getPreviousScene().link
 }
 
 function addOptionsToConnectionDropDown(view_key, field, options) {
@@ -319,10 +386,11 @@ function addOptionsToConnectionDropDown(view_key, field, options) {
 //  name: name,
 //  primary: boolean - should the button have the 'is-prmary' class
 //  callbackBefore: callback function to execute before submit, will await if async. Always executed, even if submit fails.
+// ** if callbackBefore returns false, nothing further will happen **
 //  callbackBeforeArgs : array of arguements to pass to the callback
 //  submit: boolean - should submit be called after callback function?
 //  callbackAfter: callback function to execute after, will await if async
-// callbackAfterArgs : array of arguements to pass to the callback
+//  callbackAfterArgs : array of arguements to pass to the callback
 // }]
 function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
 
@@ -353,17 +421,18 @@ function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
     // Add click listner
     $newButton.on('click', async function(event) {
       // Execute before submit callback
+      let callbackBeforeSuccess = true
       if (button.callbackBefore) {
-        await button.callbackBefore(...button.callbackBeforeArgs || undefined)
+        callbackBeforeSuccess = await button.callbackBefore(...button.callbackBeforeArgs || undefined)
       }
 
       // Submit the form
-      if (button.submit) {
+      if (button.submit && callbackBeforeSuccess) {
         $submitButton.trigger('submit')
       }
 
       // Execute the after callback
-      if (button.callbackAfter) {
+      if (button.callbackAfter && callbackBeforeSuccess) {
         // Wait to ensure the submit has worked
         setTimeout(function() {
           let wait = setInterval(async function() {
@@ -371,7 +440,11 @@ function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
             let isError = $('.is-error').length > 0
             if (!isLoading) clearInterval(wait)
             if (!isError) {
-              await button.callbackAfter(...button.callbackAfterArgs || undefined)
+              if (button.callbackAfterArgs) {
+                await button.callbackAfter(...button.callbackAfterArgs)
+              } else {
+                await button.callbackAfter()
+              }
             }
           }, 200)
         }, 1000)
@@ -393,7 +466,7 @@ function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
 // ]
 // onClickFunction takes the return parameter
 // function returns the 'return' value specificed in the options array
-function insertOptionMenu(insertBefore, optionsArray, onClickCallback, buttonGroupId="custom-menu") {
+function insertOptionMenu(insertBefore, optionsArray, onClickCallback, buttonGroupId = "custom-menu") {
 
   // Don't add the menu twice
   if ($(`#${buttonGroupId}`).length > 0) return

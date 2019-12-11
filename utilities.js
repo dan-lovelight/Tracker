@@ -422,52 +422,73 @@ function makeFieldsRequired(view, fields = []) {
 
   // Replace the submit event with our own click event
   $newButton.on('click', function(event) {
-    Knack.showSpinner()
-    let isRequiredEntered = true
-    let warningMessage = []
+    // Check fields are OK
+    checkRequiredFields(view, fields, function(){
+      // Trigger submit if they are
+      $submitButton.trigger('submit')
+    })
+  })
 
-    // Remove any previous warnings
-    $('.is-error-message').remove()
+}
 
-    // Check that a value has been supplied
-    fields.forEach(field => {
-      if ($(`#kn-input-${field}`).length > 0) {
+// callbackIfOK an optional callback function that will run if everything passes
+// function returns true/false based on outcome
+function checkRequiredFields(view, fields, callbackIfOK){
+  Knack.showSpinner()
+  let isRequiredEntered = true
+  let warningMessage = []
 
-        let $input = $(`#${view.key}-${field}`)
-        let $connectionInput = $(`#${view.key}_${field}_chzn`)
-        let value = $input[0].value
+  // Remove any previous warnings
+  $('.is-error-message').remove()
+  $('.input-error').removeClass('input-error')
 
-        if (value === '' && $input.closest('.kn-input').is(":visible")) {
-          isRequiredEntered = false
-          warningMessage.push(`<p><strong>${$('#kn-input-'+ field + ' label > span')[0].innerText} is required.</strong></p>`)
+  // Check that a value has been supplied
+  fields.forEach(field => {
 
-          if ($connectionInput.length > 0) {
-            $connectionInput.find('a').addClass('input-error') // single selection
-            $connectionInput.find('ul').addClass('input-error') // multi selection
-          } else {
-            $input.addClass('input-error') //.addClass('is-error')
-          }
+    // Check short text field
+    let $shortText = $(`.kn-input-short_text #${field}`)
+    if($shortText.length>0){
+      if($shortText.val()==='' && $shortText.closest('.kn-input').is(":visible")){
+        isRequiredEntered = false
+        warningMessage.push(`<p><strong>${$('#kn-input-'+ field + ' label > span')[0].innerText} is required.</strong></p>`)
+        $shortText.addClass('input-error')
+      }
+    } else if ($(`#kn-input-${field}`).length > 0) {
+
+      let $input = $(`#${view.key}-${field}`)
+      let $connectionInput = $(`#${view.key}_${field}_chzn`)
+      let value = $input[0].value
+
+      if (value === '' && $input.closest('.kn-input').is(":visible")) {
+        isRequiredEntered = false
+        warningMessage.push(`<p><strong>${$('#kn-input-'+ field + ' label > span')[0].innerText} is required.</strong></p>`)
+
+        if ($connectionInput.length > 0) {
+          $connectionInput.find('a').addClass('input-error') // single selection
+          $connectionInput.find('ul').addClass('input-error') // multi selection
+        } else {
+          $input.addClass('input-error') //.addClass('is-error')
         }
       }
-    })
-
-    if (isRequiredEntered) {
-      // call the original function
-      $submitButton.trigger('submit')
-
-    } else {
-      let warning =
-        `<div class="kn-message is-error is-error-message">
-        <span class="kn-message-body">
-          ${warningMessage.join('')}
-        </span>
-      </div>`
-
-      if ($('.is-error-message').length === 0) $('#' + view.key + ' form').prepend(warning)
-
     }
-    Knack.hideSpinner()
   })
+
+  if (isRequiredEntered) {
+    if(callbackIfOK) callbackIfOK()
+    Knack.hideSpinner()
+    return true
+  } else {
+    let warning =
+      `<div class="kn-message is-error is-error-message">
+      <span class="kn-message-body">
+        ${warningMessage.join('')}
+      </span>
+    </div>`
+
+    if ($('.is-error-message').length === 0) $('#' + view.key + ' form').prepend(warning)
+    Knack.hideSpinner()
+    return false
+  }
 
 }
 
