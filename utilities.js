@@ -70,7 +70,7 @@ function hasNumber(myString) {
   return /\d/.test(myString);
 }
 
-function formatAsDollars(value){
+function formatAsDollars(value) {
 
   //Create formatter
   const formatter = new Intl.NumberFormat('en-US', {
@@ -136,7 +136,7 @@ function isItAnArray(array) {
 }
 
 // Checks if the field passed in is empty
-function isFieldBank(object,fieldKey){
+function isFieldBank(object, fieldKey) {
   if (object[fieldKey] === "") return true
   return false
 }
@@ -236,7 +236,7 @@ async function triggerZap(endPoint, dataObject, logEntry) {
   }
 }
 
-function pimpContactField(view,field){
+function pimpContactField(view, field) {
   // Get the target contact field
   let $contact = $(`#${view.key}-${field}`) // Need the jquery wrapper for later manipuation
 
@@ -258,76 +258,166 @@ async function displayContactDetails(contactId, field) {
   if (!contactId) return
 
   // Get any existing details that are displayed
-  let $siteContactDetails = $('#contact-details')
+  let $contactDetails = $('#contact-details')
 
   // Check for existing details
-  if ($siteContactDetails.length === 0) {
+  if ($contactDetails.length === 0) {
     // Add div to hold contact details and display 'loading' to the user
     $('#connection-picker-chosen-' + field).append('<div id="contact-details">Loading...</div>')
-    $siteContactDetails = $('#contact-details')
-  } else if ($siteContactDetails[0].innerText.indexOf('Loading') > -1) {
+    $contactDetails = $('#contact-details')
+  } else if ($contactDetails[0].innerText.indexOf('Loading') > -1) {
     // Exit if already loading
     return
   } else {
     // Display 'loaing' to user
-    $siteContactDetails[0].innerText = 'Loading...'
+    $contactDetails[0].innerText = 'Loading...'
   }
 
   // Get the contact's details
   let contactObj = new KnackObject(objects.contacts)
   let contact = await contactObj.get(contactId)
-  displayDetails()
+  displayDetails(contact)
 
-  function displayDetails() {
+  function displayDetails(contact) {
+
+    let name = contact.field_108_raw ? contact.field_108_raw.first + ' ' + contact.field_108_raw.last : ''
     let phone = contact.field_231_raw ? contact.field_231_raw : ''
     let email = contact.field_76_raw ? contact.field_76_raw.email : ''
-    let html = `<strong>mobile:</strong> ${phone} <a id='edit-mobile'>edit</a><br><strong>email:</strong> ${email} <a id='edit-email'>edit</a>`
+    let sales = contact.field_997.length > 0 ? contact.field_997_raw[0].identifier : ''
+
+    let html = `
+      ${contact.field_108.length === 0 ? `<strong>name:</strong> ${name} <a id='edit-name'>edit</a><br>` :''}
+      <strong>mobile:</strong> ${phone} <a id='edit-mobile'>edit</a><br>
+      <strong>email:</strong> ${email} <a id='edit-email'>edit</a><br>
+      <strong>owner:</strong> ${sales}
+    `
     $('#contact-details').html(html)
 
+    let editName = {
+      title: 'Name',
+      defaultValue: contact.field_108_raw,
+      selector: '#edit-name',
+      field: 'field_108',
+      callback: executeInlineUpdate
+    }
+
+    let editPhone = {
+      title: 'Phone',
+      defaultValue: phone,
+      selector: '#edit-mobile',
+      field: 'field_231',
+      callback: executeInlineUpdate
+    }
+
+    let editEmail = {
+      title: 'Email',
+      defaultValue: email,
+      selector: '#edit-email',
+      field: 'field_76',
+      callback: executeInlineUpdate
+    }
+
+    $('#edit-name').click(function() {
+      getInlineUserInput(editName)
+    })
+
     $('#edit-mobile').click(function() {
-      getInlineUserInput('Phone', phone, '#edit-mobile', async function(newNumber) {
-        try {
-          $('#contact-details').html('Loading...')
-          contact = await contactObj.update(contact.id, {
-            'field_231': newNumber
-          })
-          displayDetails()
-        } catch (err) {
-          if (typeof Sentry === 'undefined') throw err
-          Sentry.captureException(err)
-        }
-      })
+      getInlineUserInput(editPhone)
     })
 
     $('#edit-email').click(function() {
-      getInlineUserInput('Email', email, '#edit-email', async function(newEmail) {
-        try {
-          $('#contact-details').html('Loading...')
-          contact = await contactObj.update(contact.id, {
-            'field_76': newEmail
-          })
-          displayDetails()
-        } catch (err) {
-          if (typeof Sentry === 'undefined') throw err
-          Sentry.captureException(err)
-        }
-      })
+      getInlineUserInput(editEmail)
     })
+
   }
+
+  async function executeInlineUpdate(data) {
+    try {
+      $('#contact-details').html('Loading...')
+      updatedContact = await contactObj.update(contact.id, data)
+      displayDetails(updatedContact)
+    } catch (err) {
+      if (typeof Sentry === 'undefined') throw err
+      Sentry.captureException(err)
+    }
+  }
+
 }
 
 // Creates a popover to collect user input
 // Places the popover relative to the passed in selector
 // Callback takes a single parameter - the value of the user input
-function getInlineUserInput(title, defaultValue, selector, callback) {
+function getInlineUserInput({
+  title,
+  defaultValue,
+  selector,
+  field,
+  callback
+}) {
   // Don't duplicate the popover
   if ($('#popover-input').length > 0) return
+
+  let fieldType = Knack.objects.models.filter(object => object.id === objects.contacts)[0]
+  fieldType = fieldType.fields.models.filter(find => find.id === field)
+  fieldType = fieldType[0].attributes.type
+
+  // editable field types - multiple_choice, connection, short_text, name, address, email, phone
+  let inputHtml = ''
+
+  if (fieldType === 'name') {
+    inputHtml = `
+      <div class="kn-input kn-input-name control">
+        <div class="control is-grouped">
+          <p class="control is-expanded">
+            <input class="input" id="first" name="first" type="text" value="" placeholder="First">
+          </p>
+          <p class="control is-expanded">
+            <input class="input" id="last" name="last" type="text" value="" placeholder="Last">
+          </p>
+        </div>
+      </div>
+    `
+  } else if (['short_text', 'email', 'phone'].includes(fieldType)) {
+    inputHtml = `
+    <div class="kn-input kn-input-${fieldType} control">
+      <div class="control">
+        <input class="input">
+      </div>
+    `
+  } else {
+    throw new Error('unsupported field type')
+  }
+
   // Insert the popover into the page
-  let inputModalHtml = `<div class="drop kn-popover drop-target-attached-top" id="popover-input"> <div class="drop-content"> <h1 class="kn-title">${title}<span class="close-popover fa fa-times"></span></h1> <div> <div class="renderer-form kn-form"> <form> <ul class="kn-form-group columns kn-form-group-1"> <li class="kn-form-col column is-constrained"> <div class="kn-input kn-input-short_text control" id="kn-input-field_1477" data-input-id="field_1477"> <div class="control"> <input class="input"> </div> </div> </li> </ul> </form> </div> <div class="submit"><a class="kn-button is-primary save prevent-close trigger-load">Submit</a></div> </div> </div> </div>`
+  let inputModalHtml = `
+  <div class="drop kn-popover drop-target-attached-top" id="popover-input">
+    <div class="drop-content">
+      <h1 class="kn-title">${title}<span class="close-popover fa fa-times"></span></h1>
+        <div>
+          <div class="renderer-form kn-form">
+            <form>
+              <ul class="kn-form-group columns kn-form-group-1">
+                <li class="kn-form-col column is-constrained">
+                  ${inputHtml}
+                  </div>
+                </li>
+              </ul>
+            </form>
+          </div>
+          <div class="submit">
+            <a class="kn-button is-primary save prevent-close trigger-load">
+              Submit
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    `
+  // Insert to edit popover
   $('body').append(inputModalHtml)
+
   // Format and position popover
   let $input = $('#popover-input')
-  $input.find('.input')[0].value = defaultValue
   $input.css({
     'position': 'fixed'
   })
@@ -338,6 +428,14 @@ function getInlineUserInput(title, defaultValue, selector, callback) {
   offset.top = (offset.top - inputHeight)
   $input.offset(offset)
 
+  // Set default value
+  if(fieldType === 'name'){
+      $input.find('.input')[0].value = defaultValue.first
+      $input.find('.input')[1].value = defaultValue.last
+  } else {
+    $input.find('.input')[0].value = defaultValue
+  }
+
   // add close listener
   $input.find('span').click(function() {
     $input.remove()
@@ -345,7 +443,20 @@ function getInlineUserInput(title, defaultValue, selector, callback) {
 
   // add submit listener
   $input.find('a').click(function() {
-    callback($input.find('input')[0].value)
+    let updateData = {}
+    if (fieldType = 'name') {
+      updateData = `{
+        "${field}" : {
+          "first":"${$input.find('input')[0].value}",
+          "last":"${$input.find('input')[1].value}"
+        }
+      }`
+    } else {
+      updateData = `{
+        "${field}":"${$input.find('input')[0].value}"
+      }`
+    }
+    callback(JSON.parse(updateData))
     $input.remove()
     // need to consider error handling here
   })
@@ -423,7 +534,7 @@ function makeFieldsRequired(view, fields = []) {
   // Replace the submit event with our own click event
   $newButton.on('click', function(event) {
     // Check fields are OK
-    checkRequiredFields(view, fields, function(){
+    checkRequiredFields(view, fields, function() {
       // Trigger submit if they are
       $submitButton.trigger('submit')
     })
@@ -433,7 +544,7 @@ function makeFieldsRequired(view, fields = []) {
 
 // callbackIfOK an optional callback function that will run if everything passes
 // function returns true/false based on outcome
-function checkRequiredFields(view, fields, callbackIfOK){
+function checkRequiredFields(view, fields, callbackIfOK) {
   Knack.showSpinner()
   let isRequiredEntered = true
   let warningMessage = []
@@ -447,8 +558,8 @@ function checkRequiredFields(view, fields, callbackIfOK){
 
     // Check short text field
     let $shortText = $(`.kn-input-short_text #${field}`)
-    if($shortText.length>0){
-      if($shortText.val()==='' && $shortText.closest('.kn-input').is(":visible")){
+    if ($shortText.length > 0) {
+      if ($shortText.val() === '' && $shortText.closest('.kn-input').is(":visible")) {
         isRequiredEntered = false
         warningMessage.push(`<p><strong>${$('#kn-input-'+ field + ' label > span')[0].innerText} is required.</strong></p>`)
         $shortText.addClass('input-error')
@@ -474,7 +585,7 @@ function checkRequiredFields(view, fields, callbackIfOK){
   })
 
   if (isRequiredEntered) {
-    if(callbackIfOK) callbackIfOK()
+    if (callbackIfOK) callbackIfOK()
     Knack.hideSpinner()
     return true
   } else {
@@ -520,22 +631,22 @@ function getCSVFromField(fileInputId, callback) {
 }
 
 //var csv is the CSV file with headers
-function csvJSON(csv){
+function csvJSON(csv) {
 
-  var lines=csv.split("\n");
+  var lines = csv.split("\n");
   var result = [];
-  var headers=lines[0].split(",");
+  var headers = lines[0].split(",");
 
-  for(var i=1;i<lines.length;i++){
+  for (var i = 1; i < lines.length; i++) {
 
-      var obj = {};
-      var currentline=lines[i].split(",");
+    var obj = {};
+    var currentline = lines[i].split(",");
 
-      for(var j=0;j<headers.length;j++){
-          obj[headers[j].trim()] = currentline[j];
-      }
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j].trim()] = currentline[j];
+    }
 
-      result.push(obj);
+    result.push(obj);
 
   }
 
@@ -566,20 +677,20 @@ function getCurrentFiscalQuarter() {
   //get current month
   var curMonth = today.getMonth() + 1;
 
- let quarters = {
- "1":"FQ3",
- "2":"FQ3",
- "3":"FQ3",
- "4":"FQ4",
- "5":"FQ4",
- "6":"FQ4",
- "7":"FQ1",
- "8":"FQ1",
- "9":"FQ1",
- "10":"FQ2",
- "11":"FQ2",
- "12":"FQ2"
- }
+  let quarters = {
+    "1": "FQ3",
+    "2": "FQ3",
+    "3": "FQ3",
+    "4": "FQ4",
+    "5": "FQ4",
+    "6": "FQ4",
+    "7": "FQ1",
+    "8": "FQ1",
+    "9": "FQ1",
+    "10": "FQ2",
+    "11": "FQ2",
+    "12": "FQ2"
+  }
 
   return quarters[curMonth]
 }
@@ -593,11 +704,11 @@ function toTitleCase(str) {
   );
 }
 
-function getHeaders(service){
-  try{
-    if($('.kn-login').length > 0) return false
-    return JSON.parse(CryptoJS.AES.decrypt(Knack.getUserAttributes().values.field_1676, Knack.getUserAttributes().values.field_1677).toString(CryptoJS.enc.Latin1))[service]}
-  catch(err){
-  	// This doesn't work if the user is not logged in.
+function getHeaders(service) {
+  try {
+    if ($('.kn-login').length > 0) return false
+    return JSON.parse(CryptoJS.AES.decrypt(Knack.getUserAttributes().values.field_1676, Knack.getUserAttributes().values.field_1677).toString(CryptoJS.enc.Latin1))[service]
+  } catch (err) {
+    // This doesn't work if the user is not logged in.
   }
 }
