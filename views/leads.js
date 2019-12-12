@@ -1,3 +1,15 @@
+// Add note to an existing lead
+$(document).on('knack-view-render.view_2443', async function(event, view) {
+
+  let leadId = view.scene.scene_id
+
+  preloadAndPimpContactField(view, 'field_1679', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
+  })
+
+})
+
 // Add Lead from a contact on the sales My Contacts page
 $(document).on('knack-view-render.view_2418', function(event, view) {
   // New submit buttons
@@ -77,7 +89,7 @@ $(document).on('knack-scene-render.scene_1118', function(event, scene) {
 })
 
 // Schedule or Log an activity from within lead details
-$(document).on('knack-view-render.view_2445 knack-view-render.view_2446', function(event, view) {
+$(document).on('knack-view-render.view_2445 knack-view-render.view_2446', async function(event, view) {
 
   // Add activity option menu
   let activityOptions = [{
@@ -136,9 +148,6 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', functi
     activityOptions[0].status = 'Complete'
   }
 
-  // Get all views, approach varies if called by scene or view
-  let leadId = view.scene.scene_id
-
   // Add the activity options menu if it doesn't already exist.
   let $activityOptionsMenu = $('#activityOptionsMenu')
   if ($activityOptionsMenu.length === 0) insertOptionMenu(`#${view.key}`, activityOptions, toggleActivity, 'activityOptionsMenu')
@@ -148,24 +157,21 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', functi
   if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
 
   // Format scene display
-  pimpContactField(view, 'field_1679')
   toggleActivity(window.activitySelected || 'Call', activityOptions)
   $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
     applyActivityDisplayRules(activityOptions[0].status)
   })
 
-  // Add listener for when contact field is clicked
-  $(`#${view.key}_field_1679_chzn input`).on('click', function() {
-    // Check if it has already been populated
-    if ($(`#${view.key}-field_1679 option`).length === 0) {
-      // If not, populate the note contacts dropdown with Lead contacts
-      loadFieldWithLeadContacts(leadId, view.key, 'view_2419', 'field_1679')
-    }
+  // Preload contacts menu
+  let leadId = view.scene.scene_id
+  preloadAndPimpContactField(view, 'field_1689', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
   })
 
 })
 
-$(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-view-render.view_2424', function(event, sceneOrView) {
+$(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-view-render.view_2424', async function(event, sceneOrView) {
 
   // Add activity option menu
   let activityOptions = [{
@@ -218,7 +224,6 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
 
   // Get all views, approach varies if called by scene or view
   let allViews = sceneOrView.views || sceneOrView.scene.views
-  let leadId = sceneOrView.scene_id || sceneOrView.scene.scene_id
 
   // Add the activity options menu if it doesn't already exist.
   let $activityOptionsMenu = $('#activityOptionsMenu')
@@ -235,7 +240,7 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
   if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(activitiesView, newSubmitButtons, 'altSubmitActivities')
 
   // Format scene display
-  pimpContactField(activitiesView, 'field_1679')
+  pimpContactField(activitiesView, 'field_1689')
   pimpContactField(notesView, 'field_1679')
   $("#kn-input-field_1688 > div [value=Cancelled]").parent().remove() // Remove cancelled as a status option
   toggleActivity(window.activitySelected || 'Note')
@@ -243,22 +248,15 @@ $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-
     applyActivityDisplayRules()
   })
 
-  // Add listener for when notes contact field is clicked
-  $('#view_2424_field_1679_chzn input').on('click', function() {
-    // Check if it has already been populated
-    if ($('#view_2424-field_1679 option').length === 0) {
-      // If not, populate the note contacts dropdown with Lead contacts
-      loadFieldWithLeadContacts(leadId, 'view_2424', 'view_1299', 'field_1679')
-    }
+  // Preload contacts menu
+  let leadId = view.scene.scene_id
+  preloadAndPimpContactField(activitiesView, 'field_1679', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
   })
-
-  // Add listnerer for when activites contact field is clicked
-  $('#view_2428_field_1689_chzn input').on('click', function() {
-    // Check if it has already been populated
-    if ($('#view_2428-field_1689 option').length === 0) {
-      // If not, populate the activities contacts dropdown with Lead contacts
-      loadFieldWithLeadContacts(leadId, 'view_2428', 'view_1299', 'field_1689')
-    }
+  preloadAndPimpContactField(notesView, 'field_1689', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
   })
 
 })
@@ -350,27 +348,55 @@ async function markTargetLeadAsDeadAndRedirectToParent() {
   window.location.href = Knack.getPreviousScene().link
 }
 
-function loadFieldWithLeadContacts(leadId, callingViewKey, leadViewKey, field) {
-  let leads = Knack.views[leadViewKey].model.data.models || false
-  let lead = leads.filter(lead => lead.id === leadId)[0].attributes || Knack.views[leadViewKey].model.attributes
-  let leadContacts = getContactsFromLead(lead)
-  if (leadContacts) addOptionsToConnectionDropDown(callingViewKey, field, leadContacts)
-}
-
-function getContactsFromLead(lead) {
-  if (!lead.field_1670_raw || lead.field_1670_raw.length === 0) return
-  return [{
-    id: lead.field_1670_raw[0].id,
-    identifier: lead.field_1670_raw[0].identifier
-  }]
-}
-
 // **************
 // Utils
 function redirectToParentPage() {
   if (Knack.getPreviousScene().link !== '#') window.location.href = Knack.getPreviousScene().link
 }
 
+// Adds display details functionality to a contact field and preloads with contacts passed in
+// contactsFunction is a function that returns an array of contacts objects
+// By using a function, the field is not loaded until it is clicked, avoiding unnecessary API calls
+// Contact objects:
+// [{id:id,identifier:identifier}]
+function preloadAndPimpContactField(view, field, contactsFunction) {
+  // Show contact details after selection
+  pimpContactField(view, field)
+  // Add listener for when contact field is clicked
+  $(`#${view.key}_${field}_chzn input`).on('click', async function() {
+    // Check if it has already been populated
+    if ($(`#${view.key}-${field} option`).length === 0) {
+      // If not, populate the note contacts dropdown with Lead contacts
+      try {
+        Knack.showSpinner()
+        let contacts = await contactsFunction()
+        addOptionsToConnectionDropDown(view.key, field, contacts)
+      } catch (err) {
+
+      } finally {
+        Knack.hideSpinner()
+      }
+    }
+  })
+}
+
+// Returns an array of lead contacts
+async function getLeadContacts(leadId) {
+  let leadsObj = new KnackObject(objects.leads)
+  let lead = await leadsObj.get(leadId)
+  // Return early if there is no primary contact
+  if (!lead.field_1670_raw || lead.field_1670_raw.length === 0) return []
+  // Return the primary contact
+  let contacts = [{
+    id: lead.field_1670_raw[0].id,
+    identifier: lead.field_1670_raw[0].identifier
+  }]
+  // Later update to return any connected contacts
+  return contacts
+}
+
+// Options is an array or connection objects
+// [{id:id,identifier:identifier}]
 function addOptionsToConnectionDropDown(view_key, field, options) {
   let $field = $(`#${view_key}-${field}`)
   let optionHTML = ''
