@@ -444,7 +444,7 @@ function getInlineUserInput({
   // add submit listener
   $input.find('a').click(function() {
     let updateData = {}
-    if (fieldType = 'name') {
+    if (fieldType === 'name') {
       updateData = `{
         "${field}" : {
           "first":"${$input.find('input')[0].value}",
