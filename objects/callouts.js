@@ -155,7 +155,7 @@ async function createEvent(callout) {
   try {
     let gCalEventDetails = await lovelightCalendarService(params, queryParams)
     calloutObj.update(callout.id, {
-      'field_1082': gCalEventDetails.id, // record the event idea
+      'field_1082': gCalEventDetails.id, // record the event id
       'field_1496': 'no', // flag that everything worked
     })
     return gCalEventDetails
@@ -304,7 +304,9 @@ async function getCallOutName(callout, changes, forceUpdate = false) {
   let jobsCount = callout.field_928.length > 0 ? callout.field_928_raw.length : 0
   let jobsCountDisplay = jobsCount > 1 ? '(+' + (jobsCount - 1) + ' others)' : ''
   let firstJob = jobsCount > 0 ? callout.field_928_raw['0'].identifier : ''
-  let firstJobNoNumbers = jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
+  // updated this line to only strip number if there are multiple jobs on the callout
+  // otherwise display it to facilitate installer reporting
+  let firstJobNoNumbers = jobsCount = 1 ? firstJob : jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
   let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
 
   let development = callout.field_1482.length > 0 ? ' | ' + callout.field_1482_raw['0'].identifier : ''
