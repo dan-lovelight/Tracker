@@ -306,7 +306,7 @@ async function getCallOutName(callout, changes, forceUpdate = false) {
   let firstJob = jobsCount > 0 ? callout.field_928_raw['0'].identifier : ''
   // updated this line to only strip number if there are multiple jobs on the callout
   // otherwise display it to facilitate installer reporting
-  let firstJobNoNumbers = jobsCount = 1 ? firstJob : jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
+  let firstJobNoNumbers = jobsCount === 1 ? firstJob : jobsCount > 0 ? firstJob.split('-').shift().replace(/[0-9]/g, '') + '-' + firstJob.split('-')['1'] : '' // strip numbers from job name
   let jobDisplay = firstJob.length < 1 ? '' : ` | ${firstJobNoNumbers} ${jobsCountDisplay}`
 
   let development = callout.field_1482.length > 0 ? ' | ' + callout.field_1482_raw['0'].identifier : ''
