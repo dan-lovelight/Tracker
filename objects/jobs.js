@@ -523,8 +523,9 @@ async function copyFilesFromJobToDocsRecord(job, filesToMove) {
 //******************** PRE_FILL JOB CREATION FORMS FROM OPP DATA ***********
 
 const newJobFromOppForms = [
-  'knack-view-render.view_1670',
   'knack-view-render.view_1671',
+  'knack-view-render.view_2525',
+  'knack-view-render.view_2526'
 ]
 
 const newJobFromScratchForms = [
