@@ -1,15 +1,20 @@
 // Scheduling calendar
-$(document).on('knack-view-render.view_1962', function(event, view) {
+$(document).on('knack-view-render.view_1962 knack-view-render.view_2432', function(event, view) {
 
   // Insert filters and other custom features
-  pimpSchedulingCalendar(view.key, 'view_1964')
+  if(view.key === 'view_1962') pimpSchedulingCalendar(view.key, 'view_1964') // OLD
+  if(view.key === 'view_2432') pimpSchedulingCalendar(view.key, 'view_2510') // NEW
 
   // Hide the requested callouts table
-  $('#view_2325').hide() //.css('display', 'none')
+  $('#view_2325').hide() // OLD
+  $('#view_2511').hide() // NEW
 })
 
 // Scheduling calendar modals loaded
-$(document).on('knack-modal-render.view_1962', function(event, modal) {
+$(document).on('knack-modal-render', function(event, modal) {
+
+  // Exit unless on of the calendars we're targetting
+  if(!event.handleObj.namespace === "view_1962" || !event.handleObj.namespace === "view_1962") return
 
   // There are multiple modals that can pop up from interaction with the calendar
   // However there is no native way to identify them from each other
@@ -22,7 +27,8 @@ $(document).on('knack-modal-render.view_1962', function(event, modal) {
         // Execute after function
         clearInterval(after)
         // Add the requested callouts table
-        $('#view_2325').clone().prependTo('#cal_entry_view').css('display', 'block')
+        $('#view_2325').clone().prependTo('#cal_entry_view').css('display', 'block') // OLD
+        $('#view_2511').clone().prependTo('#cal_entry_view').css('display', 'block') // NEW
         // Hide the date picker that for some reason pops up
         $('#ui-datepicker-div').css('display', 'none')
       }
@@ -31,7 +37,7 @@ $(document).on('knack-modal-render.view_1962', function(event, modal) {
 })
 
 // Get the date that has been selected
-$(document).on('knack-form-submit.view_1962', function(event, view, record) {
+$(document).on('knack-form-submit.view_1962 knack-form-submit.view_2432', function(event, view, record) {
   window.selectedTime = {
     fromDate: record.field_924_raw.date_formatted,//$('#view_1962-field_924')[0].value,
     fromTime: `${record.field_924_raw.hours}:${record.field_924_raw.minutes}${record.field_924_raw.am_pm.toLowerCase()}`,//$('#view_1962-field_924-time')[0].value,
@@ -41,7 +47,7 @@ $(document).on('knack-form-submit.view_1962', function(event, view, record) {
 })
 
 // Scheduling calendar modals closed
-$(document).on('knack-modal-close.view_1962', function(event, modal) {
+$(document).on('knack-modal-close.view_1962 knack-modal-close.view_2432 ', function(event, modal) {
   window.selectedTime = undefined
 })
 

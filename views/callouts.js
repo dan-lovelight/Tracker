@@ -1,5 +1,6 @@
 const hideTablesSchedulingScenes = [
   'knack-scene-render.scene_947', // My CallOuts Calendar view for schedulers
+  'knack-scene-render.scene_1123', // New calendar - based on state business units
   'knack-scene-render.scene_1023', // Developments page
   'knack-scene-render.scene_981', // VIC Calendar
   'knack-scene-render.scene_982', // NSW Calendar
@@ -17,7 +18,7 @@ const createCallOutForms = [
 // Add call out - via My Calendar
 // https://lovelight.knack.com/tracker#my-calendar/
 // https://builder.knack.com/lovelight/tracker#pages/scene_947/views/view_1962
-$(document).on('knack-record-create.view_1962', function(event, view, record) {
+$(document).on('knack-record-create.view_1962 knack-record-create.view_2432', function(event, view, record) {
 
   Swal.fire({
     title: "Updating callout...",
