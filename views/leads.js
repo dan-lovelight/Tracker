@@ -10,6 +10,18 @@ $(document).on('knack-view-render.view_2443', async function(event, view) {
 
 })
 
+// Log a scheduled activity as complete
+$(document).on('knack-view-render.view_2482', async function(event, view) {
+
+  let leadId = view.scene.scene_id
+
+  preloadAndPimpContactField(view, 'field_1689', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
+  })
+
+})
+
 // Add Lead from a contact on the sales My Contacts page
 $(document).on('knack-view-render.view_2418', function(event, view) {
   // New submit buttons

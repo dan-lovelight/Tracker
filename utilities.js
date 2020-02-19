@@ -429,9 +429,9 @@ function getInlineUserInput({
   $input.offset(offset)
 
   // Set default value
-  if(fieldType === 'name'){
-      $input.find('.input')[0].value = defaultValue.first
-      $input.find('.input')[1].value = defaultValue.last
+  if (fieldType === 'name') {
+    $input.find('.input')[0].value = defaultValue.first
+    $input.find('.input')[1].value = defaultValue.last
   } else {
     $input.find('.input')[0].value = defaultValue
   }
@@ -603,6 +603,9 @@ function checkRequiredFields(view, fields, callbackIfOK) {
 
 }
 
+// takes the id of a file upload field
+// processes the uploaded csv file and
+// returns the processed file to the callback function
 function getCSVFromField(fileInputId, callback) {
 
   if (!window.FileReader) return alert('FileReader API is not supported by your browser.')
@@ -642,12 +645,12 @@ function csvJSON(csv) {
     var obj = {};
     var currentline = lines[i].split(",");
 
-    for (var j = 0; j < headers.length; j++) {
-      obj[headers[j].trim()] = currentline[j];
+    if (currentline.length > 1) { // Excludes empty lines at the end of the csv file
+      for (var j = 0; j < headers.length; j++) {
+        obj[headers[j].trim()] = currentline[j];
+      }
+      result.push(obj);
     }
-
-    result.push(obj);
-
   }
 
   return result //JSON
