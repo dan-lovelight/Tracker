@@ -17,8 +17,6 @@ $(document).on('knack-scene-render.scene_1108', function(event, scene) {
 
 async function generateQuote(uploadFieldId, opportunityId) {
 
-  let DEFAULT_SALES_PORTRAIT = 'https://www.lovelight.com.au/themes/lovelight.com.au/img/site-logo.svg'
-
   // Build the JSON template for the document
   // With all relevant meta data
   let pandaDoc = await getPandaDocGeneralDetails(opportunityId)
@@ -44,6 +42,9 @@ async function generateQuote(uploadFieldId, opportunityId) {
 }
 
 async function getPandaDocGeneralDetails(opportunityId){
+
+  const DEFAULT_SALES_PORTRAIT = 'https://www.lovelight.com.au/assets//Logo.png'
+
   // Get the full assocaited opportunity details
   let oppObject = new KnackObject(objects.opportunities)
   let opportunity = await oppObject.get(opportunityId)

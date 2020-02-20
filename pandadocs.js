@@ -150,9 +150,9 @@ function getQuoteOptions(catData) {
         // 9. sell_price_ex_gst
 
         let summary = {
-          "Type Display": blind.motor === 'Y' ? 'Motorised ' + toTitleCase(blind.type) : toTitleCase(blind.type),
-          "Fabric Summary": fabricSummary,
-          "Fabric Detail": fabricDetail,
+          type_display: blind.motor === 'Y' ? 'Motorised ' + toTitleCase(blind.type) : toTitleCase(blind.type),
+          fabric_summary: fabricSummary,
+          fabric_details: fabricDetail,
         }
 
         Object.entries(blind).forEach(([key, value]) => {
@@ -186,14 +186,12 @@ function getQuoteOptions(catData) {
       curtainsList = curtainsList.map(curtain => {
 
         let summary = {
-          type: toTitleCase(curtain.type),
           fabric_summary: toTitleCase(`${curtain.room_fabric} - ${curtain.room_colour}`),
-          window_ref: curtain.window_ref,
-          location: curtain.location,
-          qty: curtain.qty,
-          cost_price: curtain.cost_price,
-          sell_price_ex_gst: curtain.sell_price_ex_gst,
         }
+
+        Object.entries(curtain).forEach(([key, value]) => {
+            summary[key] = value
+        })
 
         return summary
 
@@ -225,18 +223,13 @@ function getQuoteOptions(catData) {
       shuttersList = shuttersList.map(shutter => {
 
         let summary = {
-          type: toTitleCase(shutter.type),
           fabric_summary: toTitleCase(`${shutter.room_fabric} - ${shutter.room_colour}`),
-          window_ref: shutter.window_ref,
-          location: shutter.location,
-          panels: shutter.panels,
-          shaped: shutter.shaped,
-          black: shutter.black,
-          qty: shutter.qty,
-          cost_price: shutter.cost_price,
-          sell_price_ex_gst: shutter.sell_price_ex_gst,
         }
 
+        Object.entries(shutter).forEach(([key, value]) => {
+            summary[key] = value
+        })
+        
         return summary
 
       })
@@ -487,7 +480,7 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
           "name": furnishing.type,
           "price": parseFloat(furnishing.sell_price_ex_gst),
           "cost": parseFloat(furnishing.cost_price),
-          "qty": 1, // Because we're summing the price, don't want to multiply by qty
+          "qty": 1, // Because each furnishing is listed
           "tax_first": {
             "value": 10,
             "type": "percent"
@@ -496,15 +489,33 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
         "custom_fields": {}
       }
 
+      let blindFields = ['fabric_detail', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric','window_colour', 'width', 'drop', 'linkage']
+      let curtainFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
+      let shutterFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'panels', 'black_shutter', 'shaped_shutter']
+
       Object.entries(furnishing).forEach(([key, value]) => {
 
-        // let defaultKeys = ["name", "price", "cost", "qty"]
+        let includeField = false
 
-        // if (defaultKeys.includes(key)) {
-        //   row.custom_fields[key] = value
-        // } else {
+        switch(type){
+          case 'blinds':
+            if(blindFields.includes(key)) includeField = true
+          break
+          case 'curtains':
+            if(curtainFields.includes(key)) includeField = true
+            if(key === 'room_fabric') key = 'fabric'
+            if(key === 'room_colour') key = 'colour'
+          break
+            case 'shutters':
+            if(shutterFields.includes(key)) includeField = true
+            if(key === 'room_fabric') key = 'product'
+            if(key === 'room_colour') key = 'colour'
+          break
+        }
+
+        if(includeField){
           row.custom_fields[toTitleCase(key.replace(/_/g, ' '))] = value
-        // }
+          }
 
       })
 
