@@ -12,6 +12,10 @@
 
 function getQuoteOptions(catData) {
 
+  //Filter out any apartment data
+  catData = filterBusinessUnit(catData, 'Custom')
+
+  // Count the number of options in the data
   let blindOptions = countNumberOfOptions(catData, 'Blinds')
   let curtainOptions = countNumberOfOptions(catData, 'Curtains')
 
@@ -229,7 +233,7 @@ function getQuoteOptions(catData) {
         Object.entries(shutter).forEach(([key, value]) => {
             summary[key] = value
         })
-        
+
         return summary
 
       })
@@ -489,9 +493,9 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
         "custom_fields": {}
       }
 
-      let blindFields = ['fabric_detail', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric','window_colour', 'width', 'drop', 'linkage']
-      let curtainFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
-      let shutterFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'panels', 'black_shutter', 'shaped_shutter']
+      let blindFields = ['fabric_details', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric','window_colour', 'width', 'drop', 'linkage']
+      let curtainFields = ['fabric_summary', 'room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
+      let shutterFields = ['fabric_summary', 'room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'panels', 'black_shutter', 'shaped_shutter']
 
       Object.entries(furnishing).forEach(([key, value]) => {
 
@@ -584,4 +588,10 @@ function countNumberOfOptions(catData, type) {
     }
   })
   return options.size
+}
+
+// Filter CAT data to only include the required business unit
+// Should be handled in upload, but this is an additional check
+function filterBusinessUnit(catData, businessUnit){
+  return catData.filter(furnishing => furnishing.business_unit.toLowerCase() === businessUnit.toLowerCase())
 }
