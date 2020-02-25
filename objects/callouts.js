@@ -1014,6 +1014,7 @@ function handleCalloutNotes(callout, previous, changes, action) {
 
     data.field_1655 = user.name // Created by
     data.field_579 = callout.field_928_raw.map(job => job.id)
+    data.field_1741 = [callout.id] // Link note to the call out
 
     if (action.isCreate || isStatusUpdated) {
       let status = callout.field_1005
