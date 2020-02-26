@@ -1,3 +1,5 @@
+
+
 // -------------------------------------------
 // Takes a JSON object generated from a CAT csv export
 // Turns this into an array of options being offered to the customer
@@ -10,236 +12,119 @@
 //   shutters : []
 // }]
 
-function getQuoteOptions(catData) {
+function getProcessedQuoteData(catData) {
 
-  //Filter out any apartment data
-  catData = filterBusinessUnit(catData, 'Custom')
+  let quote = catData.reduce((quoteDetails, lineItem) => {
 
-  // Count the number of options in the data
-  let blindOptions = countNumberOfOptions(catData, 'Blinds')
-  let curtainOptions = countNumberOfOptions(catData, 'Curtains')
+    let quoteOption = lineItem.option
+    let isBlind = lineItem.group === 'Blinds' && (lineItem.class === 'Blind' || lineItem.class === 'Motor')
+    let isCurtain = lineItem.group === 'Curtains'
+    let isShutter = lineItem.group === 'Blinds' && lineItem.class === 'Shutter'
 
-  let options = {}
-
-  // Create an object with an array for each option
-  catData.forEach(furnishing => {
-
-    // Add each option to the options object, creating a new key if required
-    if (furnishing.option) { // handle undefined case
-      furnishing.option in options ? options[furnishing.option].push(furnishing) : options[furnishing.option] = [furnishing]
+    // Get furnishing specific details
+    let details = {}
+    let furnishingKey = ''
+    if (isBlind) {
+      details = getBlindSpecificDetails(lineItem)
+      furnishingKey = 'blinds'
+    } else if (isCurtain) {
+      details = getCurtainSpecificDetails(lineItem)
+      furnishingKey = 'curtains'
+    } else if (isShutter) {
+      details = getShutterSpecificDetails(lineItem)
+      furnishingKey = 'shutters'
     }
 
-  })
+    // Build an object to hold all the furnishing details
+    let furnishingData = {}
+    Object.entries(lineItem).forEach(([key, value]) => {
+      furnishingData[key] = value
+    })
+    // Add the furnishing specific details
+    Object.entries(details).forEach(([key, value]) => {
+      furnishingData[key] = value
+    })
 
-  // Do we need to consolidate any options?
-  // That is to say, are there multiple blind options, but only one curtain option for example?
-  // If so we treat the single option as part of the second option too
-  if (!(blindOptions === 0 || curtainOptions === 0 || blindOptions === curtainOptions)) {
-
-    // Only get here if there are options
-
-    // If there is a single blind option, this needs to be added the other options
-    if (blindOptions === 1) {
-      Object.keys(options).forEach(key => {
-        if (key > 1) {
-          options[1].forEach(furnishing => {
-            if (furnishing.group === 'Blinds') {
-              // Add flag to identify that we've added this in
-              furnishing.repeated = true
-              options[key].push(furnishing)
-            }
-          })
-        }
-      })
+    if (quoteOption in quoteDetails) {
+      let thisOption = quoteDetails[quoteOption]
+      // Add to furnishginData if option key exists
+      thisOption[furnishingKey].push(furnishingData)
+      // Update furnishings count
+      thisOption.cntTypes = 0
+      if (thisOption.blinds.length > 0) thisOption.cntTypes++
+      if (thisOption.curtains.length > 0) thisOption.cntTypes++
+      if (thisOption.shutters.length > 0) thisOption.cntTypes++
+    } else {
+      // Otherwise create the key
+      quoteDetails = {
+        [quoteOption] : {
+          option: quoteOption.match(/\d+/g).join(''),
+          cntTypes: 1,
+          blinds: [],
+          shutters: [],
+          curtains: []
+      }}
+      // add the furnishing data
+      quoteDetails[quoteOption][furnishingKey] = [furnishingData]
     }
 
-    // If there is a single curtain option, this needs to be added the other options
-    if (curtainOptions === 1) {
-      Object.keys(options).forEach(key => {
-        if (key > 1) {
-          options[1].forEach(furnishing => {
-            if (furnishing.group === 'Curtains') {
-              // Add flag to identify that we've added this in
-              furnishing.repeated = true
-              options[key].push(furnishing)
-            }
-          })
-        }
-      })
-    }
+    return quoteDetails
 
-    // There are other edge case possibilities. Not handling these
+  }, {})
 
+  // convert object to an array
+  quote = Object.values(quote)
+
+  if(quote.length>1){
+    alert("This process currently only handles a single quote option")
+    return
+  } {
+    return quote
   }
+}
 
-  // optionsArr looks like this
-  // [
-  //  [{},{},{}], (Option 1)
-  //  [{},{},{}], (Option 2) etc
-  // ]
-  let optionsArr = Object.values(options) // Convert the options to an array
+function getQuoteTokens(optionsArr){
 
-  return getPrettyQuoteOptions(optionsArr)
+  let tokens = [
+    'blinds.products',
+    'blinds.fabrics',
+    'blinds.colours',
+  ]
 
-  function getPrettyQuoteOptions(quoteOptions) {
+  // Build tempory object to hold the value of each of these tokens
+  tokens = tokens.reduce((allTokens, thisToken)=>{
+    allTokens[thisToken] = new Set()
+    return allTokens
+  },{})
 
-    optionsArr = quoteOptions.map(option => {
+  optionsArr.map(option=>{
 
-      let blinds = getBlindsList(option)
-      let curtains = getCurtainsList(option)
-      let shutters = getShuttersList(option)
+    option.blinds.map(blind=>{
+      tokens[blinds.products].add(blind.type)
+      tokens[blinds.fabrics].add(`${blind.fabric_summary}`)
+      tokens[blinds.colours].add(blind.room_colour)
+    })
 
-      let cntTypes = 0
-      if (blinds.length > 0) cntTypes++
-      if (curtains.length > 0) cntTypes++
-      if (shutters.length > 0) cntTypes++
-
-      return {
-        option: option[0].option,
-        cntTypes: cntTypes,
-        blinds: blinds,
-        shutters: shutters,
-        curtains: curtains
-      }
+    option.curtains.map(curtain=>{
 
     })
 
-    return optionsArr
+    option.shutters.map(shutter=>{
 
-    // Take an array of furnishings from CAT csv
-    // Return an array of blinds with key fields
-    function getBlindsList(arrayOfFurnishings) {
+    })
 
-      // Blinds defined as: Group = Blind, Class = Blind || Motor
-      // Get all the blinds
-      let blindsList = arrayOfFurnishings.filter(furnishing => furnishing.group === 'Blinds' && (furnishing.class === 'Blind' || furnishing.class === 'Motor'))
+  })
 
-      // clean the list of blinds
-      blindsList = blindsList.map(blind => {
-
-        let fabricSummary
-        let fabricDetail
-
-        // Build the fabric summary
-        if (blind.class === 'Motor') {
-          fabricSummary = blind.room_fabric
-        } else if (blind.type.indexOf('DUAL') > -1) {
-          let roomColour = blind.room_colour ? `- ${blind.room_colour}` : ''
-          let windowColour = blind.window_colour ? `- ${blind.window_colour}` : ''
-          fabricSummary = `${blind.room_fabric} ${roomColour} & ${blind.window_fabric} ${windowColour}`
-        } else {
-          let colour = blind.room_colour ? `- ${blind.room_colour}` : ''
-          fabricSummary = `${blind.room_fabric} ${colour}`
-        }
-        fabricSummary = toTitleCase(fabricSummary)
-
-        // Build the fabric detailed description
-        if (blind.type.indexOf('DUAL') > -1) {
-          let roomColour = blind.room_colour ? `- ${blind.room_colour}` : ''
-          let windowColour = blind.window_colour ? `- ${blind.window_colour}` : ''
-          fabricDetail = toTitleCase(`Room side: ${blind.room_fabric} ${roomColour} | Window side: ${blind.window_fabric} ${windowColour}`)
-        } else {
-          fabricDetail = fabricSummary
-        }
-
-        // **Blinds we need the following fields:
-        // 1. type - if 'motor' is Y = 'motorised' plus type field, other wise just type field
-        // 2. fabric_summary - concatenate room_fabric and room_colour, with special case for dual rollers
-        // 3. fabric_detail - as above for single, but with room/window info for duals
-        // 4. window_ref
-        // 5. location
-        // 6. linkage
-        // 7. qty
-        // 8. cost_price
-        // 9. sell_price_ex_gst
-
-        let summary = {
-          type_display: blind.motor === 'Y' ? 'Motorised ' + toTitleCase(blind.type) : toTitleCase(blind.type),
-          fabric_summary: fabricSummary,
-          fabric_details: fabricDetail,
-        }
-
-        Object.entries(blind).forEach(([key, value]) => {
-            summary[key] = value
-        })
-
-        return summary
-
-      })
-
-      return blindsList
+  tokens.map(token=>{
+    return {
+      "name": ""
     }
+  })
 
-    // Take an array of furnishings from CAT csv
-    // Return an array of curtains with key fields
-    function getCurtainsList(arrayOfFurnishings) {
-
-      // Curtains defined as: Group = Curtains
-      // Get all the blinds
-      let curtainsList = arrayOfFurnishings.filter(furnishing => furnishing.group === 'Curtains')
-
-      // **Curtains we need the following fields:
-      // 1. type
-      // 2. fabric_summary - concatenate room_fabric and room_colour
-      // 4. window_ref
-      // 5. location
-      // 6. qty
-      // 7. cost_price
-      // 8. sell_price_ex_gst
-
-      curtainsList = curtainsList.map(curtain => {
-
-        let summary = {
-          fabric_summary: toTitleCase(`${curtain.room_fabric} - ${curtain.room_colour}`),
-        }
-
-        Object.entries(curtain).forEach(([key, value]) => {
-            summary[key] = value
-        })
-
-        return summary
-
-      })
-
-      return curtainsList
-    }
-
-    // Take an array of furnishings from CAT csv
-    // Return an array of shutters with key fields
-    function getShuttersList(arrayOfFurnishings) {
-
-      // Shutters defined as: Group = Blind, Class = Shutter
-      // Get all the shutters
-      let shuttersList = arrayOfFurnishings.filter(furnishing => furnishing.group === 'Blinds' && furnishing.class === 'Shutter')
-
-      // **Shutters we need the following fields:
-      // 1. type
-      // 2. fabric_summary - concatenate room_fabric and room_colour
-      // 4. window_ref
-      // 5. location
-      // 6. panels
-      // 7. shaped
-      // 8. black
-      // 9. qty
-      // 10. cost_price
-      // 11. sell_price_ex_gst
-
-      shuttersList = shuttersList.map(shutter => {
-
-        let summary = {
-          fabric_summary: toTitleCase(`${shutter.room_fabric} - ${shutter.room_colour}`),
-        }
-
-        Object.entries(shutter).forEach(([key, value]) => {
-            summary[key] = value
-        })
-
-        return summary
-
-      })
-      return shuttersList
-    }
-  }
+  return [{
+      "name": "blinds.products",
+      "value": `rollers\nvenetials`
+    }]
 }
 
 // -------------------------------------------
@@ -493,33 +378,33 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
         "custom_fields": {}
       }
 
-      let blindFields = ['fabric_details', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric','window_colour', 'width', 'drop', 'linkage']
-      let curtainFields = ['fabric_summary', 'room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
+      let blindFields = ['fabric_details', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric', 'window_colour', 'width', 'drop', 'linkage']
+      let curtainFields = ['fabric_summary', 'room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour']
       let shutterFields = ['fabric_summary', 'room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'panels', 'black_shutter', 'shaped_shutter']
 
       Object.entries(furnishing).forEach(([key, value]) => {
 
         let includeField = false
 
-        switch(type){
+        switch (type) {
           case 'blinds':
-            if(blindFields.includes(key)) includeField = true
-          break
+            if (blindFields.includes(key)) includeField = true
+            break
           case 'curtains':
-            if(curtainFields.includes(key)) includeField = true
-            if(key === 'room_fabric') key = 'fabric'
-            if(key === 'room_colour') key = 'colour'
-          break
-            case 'shutters':
-            if(shutterFields.includes(key)) includeField = true
-            if(key === 'room_fabric') key = 'product'
-            if(key === 'room_colour') key = 'colour'
-          break
+            if (curtainFields.includes(key)) includeField = true
+            if (key === 'room_fabric') key = 'fabric'
+            if (key === 'room_colour') key = 'colour'
+            break
+          case 'shutters':
+            if (shutterFields.includes(key)) includeField = true
+            if (key === 'room_fabric') key = 'product'
+            if (key === 'room_colour') key = 'colour'
+            break
         }
 
-        if(includeField){
+        if (includeField) {
           row.custom_fields[toTitleCase(key.replace(/_/g, ' '))] = value
-          }
+        }
 
       })
 
@@ -537,9 +422,7 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
   }
 }
 
-function buildPricingTableArray(catData) {
-
-  let quoteOptions = getQuoteOptions(catData)
+function buildPricingTableArray(quoteOptions) {
 
   let quoteTable = buildQuotePricingTable(quoteOptions, "PricingTable1")
   let blindsTable = buildFurnishingPricingTable(quoteOptions, "PricingTable2", 'blinds')
@@ -577,21 +460,112 @@ async function createPandaDoc(body) {
   }
 }
 
-// returns the number of options for the given blind them
-// type can be either 'blinds' or 'curtains'
-// if type is blank considers all furnishings
-function countNumberOfOptions(catData, type) {
-  let options = new Set()
-  catData.forEach(furnishing => {
-    if (furnishing.group.toLowerCase() === type.toLowerCase()) {
-      options.add(furnishing.option)
-    }
-  })
-  return options.size
-}
-
 // Filter CAT data to only include the required business unit
 // Should be handled in upload, but this is an additional check
-function filterBusinessUnit(catData, businessUnit){
+function filterBusinessUnit(catData, businessUnit) {
   return catData.filter(furnishing => furnishing.business_unit.toLowerCase() === businessUnit.toLowerCase())
 }
+
+function getBlindSpecificDetails(blind) {
+
+  let fabricSummary
+  let fabricDetail
+
+  // Build the fabric summary
+  if (blind.class === 'Motor') {
+    fabricSummary = blind.room_fabric
+  } else if (blind.type.indexOf('DUAL') > -1) {
+    let roomColour = blind.room_colour ? `- ${blind.room_colour}` : ''
+    let windowColour = blind.window_colour ? `- ${blind.window_colour}` : ''
+    fabricSummary = `${blind.room_fabric} ${roomColour} & ${blind.window_fabric} ${windowColour}`
+  } else {
+    let colour = blind.room_colour ? `- ${blind.room_colour}` : ''
+    fabricSummary = `${blind.room_fabric} ${colour}`
+  }
+
+  fabricSummary = toTitleCase(fabricSummary)
+
+  // Build the fabric detailed description
+  if (blind.type.indexOf('DUAL') > -1) {
+    let roomColour = blind.room_colour ? `- ${blind.room_colour}` : ''
+    let windowColour = blind.window_colour ? `- ${blind.window_colour}` : ''
+    fabricDetail = toTitleCase(`Room side: ${blind.room_fabric} ${roomColour} | Window side: ${blind.window_fabric} ${windowColour}`)
+  } else {
+    fabricDetail = fabricSummary
+  }
+
+  return {
+    type: blind.motor === 'Y' ? 'Motorised ' + toTitleCase(blind.type) : toTitleCase(blind.type),
+    fabric_summary: fabricSummary,
+    fabric_detail: fabricDetail
+  }
+
+}
+
+function getCurtainSpecificDetails(curtain) {
+
+  return {
+    fabric_summary: toTitleCase(`${curtain.room_fabric} - ${curtain.room_colour}`)
+  }
+
+}
+
+function getShutterSpecificDetails(shutter) {
+
+  return {
+    fabric_summary: toTitleCase(`${shutter.room_fabric} - ${shutter.room_colour}`)
+  }
+
+}
+
+// **************
+// This was originally written to handle quote options. Revist later
+// ****************
+
+// if (countOptions > 1) {
+//
+//   // Count the number of options in the data
+//   let blindOptions = countNumberOfOptions(catData, 'Blinds')
+//   let curtainOptions = countNumberOfOptions(catData, 'Curtains')
+//
+//   // Do we need to consolidate any options?
+//   // That is to say, are there multiple blind options, but only one curtain option for example?
+//   // If so we treat the single option as part of the second option too
+//   if (!(blindOptions === 0 || curtainOptions === 0 || blindOptions === curtainOptions)) {
+//
+//     // Only get here if there are options
+//
+//     // If there is a single blind option, this needs to be added the other options
+//     if (blindOptions === 1) {
+//       Object.keys(options).forEach(key => {
+//         if (key > 1) {
+//           options[1].forEach(furnishing => {
+//             if (furnishing.group === 'Blinds') {
+//               // Add flag to identify that we've added this in
+//               furnishing.repeated = true
+//               options[key].push(furnishing)
+//             }
+//           })
+//         }
+//       })
+//     }
+//
+//     // If there is a single curtain option, this needs to be added the other options
+//     if (curtainOptions === 1) {
+//       Object.keys(options).forEach(key => {
+//         if (key > 1) {
+//           options[1].forEach(furnishing => {
+//             if (furnishing.group === 'Curtains') {
+//               // Add flag to identify that we've added this in
+//               furnishing.repeated = true
+//               options[key].push(furnishing)
+//             }
+//           })
+//         }
+//       })
+//     }
+//
+//     // There are other edge case possibilities. Not handling these
+//
+//   }
+// }

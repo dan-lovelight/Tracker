@@ -29,10 +29,25 @@ async function generateQuote(uploadFieldId, opportunityId) {
   async function createQuoteInPandaDocs(uploadedCsvData){
     // Convert the csv data to JSON
     let uploadedData = csvJSON(uploadedCsvData)
+
+    // Filter out any apartment data
+    uploadedData = filterBusinessUnit(uploadedData, 'Custom')
+
+    // Get processed Data
+    let quoteOptions = getProcessedQuoteData(uploadedData)
+
     // Build pricing talbes from the data
-    let pricingTables = buildPricingTableArray(uploadedData)
+    let pricingTables = buildPricingTableArray(quoteOptions)
+
     // Add the pricing tables to the scheme
     pandaDoc.pricing_tables = pricingTables
+
+    // Get quote specific tokens
+    let quoteTokens = getQuoteTokens(quoteOptions)
+
+    // Add tokens to schema
+    pandaDoc.tokens = pandaDoc.tokens.concat(quoteTokens)
+
     // generate the quote
     let quote = await createPandaDoc(pandaDoc)
     // redirect the user to the quote
@@ -173,114 +188,3 @@ $(document).on('knack-scene-render.scene_414', function(event, scene) {
   });
 
 })
-
-
-$(document).on('knack-view-render.view_##', function(event, view, data) {
-
-  //-----------------------------------------------------------------------------------------
-  // This function will take the csv file that is uploaded using #load-file click
-  // event below
-  //------------------------------------------------------------------------------------------
-
-  function processData(allText) {
-
-    var allTextLines = allText.split(/\r\n|\n/);
-    var headers = allTextLines[0].split(',');
-    var lines = [];
-
-    var MyData = {};
-
-    for (var i = 1; i < allTextLines.length; i++) {
-      var data = allTextLines[i].split(',');
-
-      if (data.length == headers.length) {
-
-        var tarr = [];
-        for (var j = 0; j < headers.length; j++) {
-          tarr.push(headers[j] + ":" + data[j]);
-        }
-
-        lines.push(tarr);
-
-        //Create the data for the record POST
-        MyData = {
-          field_108: data[0], //Replace with your fields in your object. Should match your csv file
-          field_109: data[1],
-          field_110: data[2],
-          field_111: data[3]
-        }
-
-        //Create a new record for each line of the csv file
-
-        newrecord(MyData)
-
-      }
-
-    }
-
-    //alert(lines); //used if just showing the output
-
-  }
-
-
-
-
-
-
-
-
-
-  /*---------------------------------------------------------------------
-
-  Peter Day 27/1/2019
-
-  Function to create a new record
-
-  ---------------------------------------------------------------------*/
-
-  function newrecord(Mydata) {
-
-    $.ajax({
-
-      url: 'https://api.knack.com/v1/objects/”Your object ie. Object_5”/records',
-
-      type: 'POST',
-
-      headers:
-
-      {
-
-        'X-Knack-Application-Id': "API ID",
-
-        'X-Knack-REST-API-Key': "API Key"
-
-      },
-
-      data: Mydata,
-
-      success: function(data)
-
-      {
-
-        alert('Successful New');
-
-      }
-
-    });
-
-  }
-
-
-
-  //-------------------------------------------------------------------------------
-  // Load file actions when the prescribed button is clicked. This can be embedded
-  // in a Rich Text Field  by pasting the following into the HTML area of the Rich Text field:
-  // <input type="file" id="file"><input type="button" id="load-file" value="Load">
-  // or you can simply create a .kn-button and replace an event for this button being clicked.
-  // Once the file is loaded it calls processData which loops through it, strips out the ‘,’ and
-  // loads into an array to POST using the API
-  //--------------------------------------------------------------------------------
-
-
-
-});
