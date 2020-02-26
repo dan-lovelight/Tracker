@@ -11,14 +11,65 @@ $(document).on('knack-view-render.view_2443', async function(event, view) {
 })
 
 // Log a scheduled activity as complete
-$(document).on('knack-view-render.view_2482', async function(event, view) {
+$(document).on('knack-view-render.view_2482', async function(event, view, data) {
 
-  let leadId = view.scene.scene_id
+  let leadId = data.field_1690_raw[0].id // This relies on the lead field being on the form
+  window.activitySelected = data.field_1685_raw[0].identifier
+
+  $('.modal-card-title')[0].innerText = `Log ${window.activitySelected}`
 
   preloadAndPimpContactField(view, 'field_1689', async function(){
     let contacts = await getLeadContacts(leadId)
     return contacts
   })
+
+  // New submit buttons
+  let newSubmitButtons = [{
+      "name": "Submit",
+      "primary": true,
+      "submit": true,
+    },
+    {
+      "name": "Submit and Book Another",
+      "primary": false,
+      "submit": true,
+      "callbackAfter": showLogLeadActivityModal,
+      "callbackAfterArgs":[leadId]
+    }
+  ]
+
+  replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
+
+})
+
+// Add new lead from myLeads
+$(document).on('knack-view-render.view_1300', async function(event, view, data){
+
+  // New submit buttons
+  let newSubmitButtons = [{
+      "name": "Save",
+      "primary": true,
+      "submit": true,
+      "callbackAfter": redirectToParentPage
+    },
+    {
+      "name": "Save and Create Another",
+      "primary": false,
+      "submit": true,
+    },
+    {
+      "name": "Save and Schedule Activity",
+      "primary": false,
+      "submit": true,
+      "callbackBeforeArgs":[],
+      "callbackBefore": async function(){
+        catchCreatedLead(showScheduleLeadActivityModal)
+        return true
+      }
+    }
+  ]
+
+  replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
 
 })
 
@@ -101,7 +152,7 @@ $(document).on('knack-scene-render.scene_1118', function(event, scene) {
 })
 
 // Schedule or Log an activity from within lead details
-$(document).on('knack-view-render.view_2445 knack-view-render.view_2446', async function(event, view) {
+$(document).on('knack-view-render.view_2445 knack-view-render.view_2446 knack-view-render.view_2547', async function(event, view) {
 
   // Add activity option menu
   let activityOptions = [{
@@ -121,8 +172,6 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446', async 
     return: "Task",
     optionID: "5dde09f4b5d12c00185236fa"
   }, ]
-
-
 
   // New submit buttons
   let newSubmitButtons = [{
@@ -346,7 +395,11 @@ function showLeadActivityOptionsDropdown(activityOptions) {
   // Set the activity type in the hidden field
   $('#kn-input-field_1685').show()
   let $activityType = $(`[id^=view_][id$=-field_1685]`)
-  let activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
+  // Set default selected activity in the menu
+  let activityDetails = 'Call'
+  // If the previous selection is know, get it
+  if(typeof activitySelected !== 'undefined') activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
+  // Build the option menu
   $activityType.html(`<option value='${activityDetails.optionID}'>${activityDetails.return}</option>`).trigger('liszt:updated')
   if ($activityType[0].value === '' || $activityType[0].value === undefined) throw new Error('activity type not set')
   return true
@@ -364,6 +417,38 @@ async function markTargetLeadAsDeadAndRedirectToParent() {
 // Utils
 function redirectToParentPage() {
   if (Knack.getPreviousScene().link !== '#') window.location.href = Knack.getPreviousScene().link
+}
+
+// Update the URL to show the log completed lead activity modal
+function showLogLeadActivityModal(leadId){
+  $(document).ready(function(){
+    window.location.href = `${window.location.href}/log-lead-activity/${leadId}/`
+  })
+}
+
+// Update the URL to show the schedule lead activity modal
+function showScheduleLeadActivityModal(leadId){
+  $(document).ready(function(){
+    window.location.href = `${window.location.href}/schedule-lead-activity/${leadId}/`
+  })
+}
+
+// Pass the lead Id to the callback when a lead record is created
+function catchCreatedLead(callback){
+
+  $(document).on('knack-record-create.any', getLeadId)
+
+  function getLeadId(event, view, record){
+
+    if(view.source.object === objects.leads){ // Make sure it's a lead
+      callback(record.id) // Pass lead id to callback
+    }
+
+    // detach the listner
+    $(document).off('knack-record-create.any', getLeadId)
+
+  }
+
 }
 
 // Adds display details functionality to a contact field and preloads with contacts passed in
