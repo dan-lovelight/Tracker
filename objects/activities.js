@@ -108,7 +108,7 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
           data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}scheduled for ${date}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
-        if(noteType === 'Complete' && callOutcome === 'Success'){
+        if(noteType === 'Complete' && callOutcome === 'Connected'){
           data.field_1659 = ['5de0401cfaf6780015e6dab7'] // note type
           data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}logged: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))

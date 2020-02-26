@@ -1,48 +1,27 @@
-// Add note to an existing lead
-$(document).on('knack-view-render.view_2443', async function(event, view) {
+// ****** ADD, VIEW & UPDATE LEADS *****//
 
-  let leadId = view.scene.scene_id
+// Lead details page
+// https://builder.knack.com/lovelight/tracker#pages/scene_1118
+$(document).on('knack-scene-render.scene_1118', function(event, scene) {
+  formatLeadHeading()
+  addZendeskButtonToMenu('view_2436')
 
-  preloadAndPimpContactField(view, 'field_1679', async function(){
-    let contacts = await getLeadContacts(leadId)
-    return contacts
-  })
-
-})
-
-// Log a scheduled activity as complete
-$(document).on('knack-view-render.view_2482', async function(event, view, data) {
-
-  let leadId = data.field_1690_raw[0].id // This relies on the lead field being on the form
-  window.activitySelected = data.field_1685_raw[0].identifier
-
-  $('.modal-card-title')[0].innerText = `Log ${window.activitySelected}`
-
-  preloadAndPimpContactField(view, 'field_1689', async function(){
-    let contacts = await getLeadContacts(leadId)
-    return contacts
-  })
-
-  // New submit buttons
-  let newSubmitButtons = [{
-      "name": "Submit",
-      "primary": true,
-      "submit": true,
-    },
-    {
-      "name": "Submit and Book Another",
-      "primary": false,
-      "submit": true,
-      "callbackAfter": showLogLeadActivityModal,
-      "callbackAfterArgs":[leadId]
-    }
-  ]
-
-  replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
-
+  function formatLeadHeading() {
+    let $headerView = $('#view_2419')
+    let $leadStatus = $('.job-status-wrapper')
+    let $leadTeam = $('#view_2447 div.field_962 > div > span')
+    // Move the status into the heading
+    $headerView.find('.kn-detail-body').append($leadStatus)
+    $headerView.find('.kn-detail-body').append($leadTeam)
+    $leadTeam.addClass('pull-right').attr("id", "lead-team")
+    // Remove the second table column
+    $headerView.find('.kn-details-group > div:nth-child(2)').remove()
+    // Move the team field into the heading
+  }
 })
 
 // Add new lead from myLeads
+// https://builder.knack.com/lovelight/tracker#pages/scene_580/views/view_1300
 $(document).on('knack-view-render.view_1300', async function(event, view, data){
 
   // New submit buttons
@@ -74,24 +53,20 @@ $(document).on('knack-view-render.view_1300', async function(event, view, data){
 })
 
 // Add Lead from a contact on the sales My Contacts page
+// https://builder.knack.com/lovelight/tracker#pages/scene_1117/views/view_2418
 $(document).on('knack-view-render.view_2418', function(event, view) {
   // New submit buttons
   let newSubmitButtons = [{
       "name": "Create",
       "primary": true,
-      "callbackBefore": undefined,
-      "callbackBeforeArgs": [],
       "submit": true,
       "callbackAfter": redirectToParentPage
     },
     {
       "name": "Create and Add Another",
       "primary": false,
-      "callbackBefore": undefined,
-      "callbackBeforeArgs": [],
       "submit": true,
-      "callbackAfter": false
-    }, ,
+    },
     {
       "name": "Create and Schedule Activity",
       "primary": false,
@@ -132,27 +107,57 @@ async function createLeadFromContactForm() {
 
 }
 
-// Lead details page
-$(document).on('knack-scene-render.scene_1118', function(event, scene) {
-  formatLeadHeading()
-  addZendeskButtonToMenu('view_2436')
+// ****** ADD, VIEW & UPDATE LEAD ACTIVITIES *****//
 
-  function formatLeadHeading() {
-    let $headerView = $('#view_2419')
-    let $leadStatus = $('.job-status-wrapper')
-    let $leadTeam = $('#view_2447 div.field_962 > div > span')
-    // Move the status into the heading
-    $headerView.find('.kn-detail-body').append($leadStatus)
-    $headerView.find('.kn-detail-body').append($leadTeam)
-    $leadTeam.addClass('pull-right').attr("id", "lead-team")
-    // Remove the second table column
-    $headerView.find('.kn-details-group > div:nth-child(2)').remove()
-    // Move the team field into the heading
-  }
+// Add note to an existing lead
+// https://builder.knack.com/lovelight/tracker#pages/scene_1131/views/view_2443
+$(document).on('knack-view-render.view_2443', async function(event, view) {
+
+  let leadId = view.scene.scene_id
+
+  preloadAndPimpContactField(view, 'field_1679', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
+  })
+
 })
 
-// Schedule or Log an activity from within lead details
-$(document).on('knack-view-render.view_2445 knack-view-render.view_2446 knack-view-render.view_2547', async function(event, view) {
+// Log a scheduled activity as complete
+// https://builder.knack.com/lovelight/tracker#pages/scene_1148/views/view_2482
+$(document).on('knack-view-render.view_2482', async function(event, view, data) {
+
+  let leadId = data.field_1690_raw[0].id // This relies on the lead field being on the form
+  window.activitySelected = data.field_1685_raw[0].identifier
+
+  $('.modal-card-title')[0].innerText = `Log ${window.activitySelected}`
+
+  preloadAndPimpContactField(view, 'field_1689', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
+  })
+
+  // New submit buttons
+  let newSubmitButtons = [{
+      "name": "Submit",
+      "primary": true,
+      "submit": true,
+    },
+    {
+      "name": "Submit and Book Another",
+      "primary": false,
+      "submit": true,
+      "callbackAfter": showScheduleLeadActivityModal,
+      "callbackAfterArgs":[leadId]
+    }
+  ]
+
+  replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
+
+})
+
+// Schedule an activity from within lead details
+// https://builder.knack.com/lovelight/tracker#pages/scene_1130/views/view_2445 - schedule
+$(document).on('knack-view-render.view_2445', async function(event, view) {
 
   // Add activity option menu
   let activityOptions = [{
@@ -175,7 +180,7 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446 knack-vi
 
   // New submit buttons
   let newSubmitButtons = [{
-      "name": "Submit",
+      "name": "Schedule",
       "primary": true,
       "callbackBefore": showLeadActivityOptionsDropdown,
       "callbackBeforeArgs": [activityOptions],
@@ -183,7 +188,7 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446 knack-vi
       "callbackAfter": redirectToParentPage
     },
     {
-      "name": "Submit and Book Another",
+      "name": "Schedule and Book Another",
       "primary": false,
       "callbackBefore": showLeadActivityOptionsDropdown,
       "callbackBeforeArgs": [activityOptions],
@@ -191,23 +196,6 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446 knack-vi
       "callbackAfter": false
     }
   ]
-
-  // Only submit as dead for logged activities
-  if (view.key === 'view_2446') {
-    // Logged activities are 'rebooked'
-    newSubmitButtons[1].name = "Submit and Rebook"
-    // Logged activities allow submit as dead
-    newSubmitButtons.push({
-      "name": "Submit as Dead",
-      "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [],
-      "submit": true,
-      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
-    })
-    // The display rules function needs to know this activity is complete
-    activityOptions[0].status = 'Complete'
-  }
 
   // Add the activity options menu if it doesn't already exist.
   let $activityOptionsMenu = $('#activityOptionsMenu')
@@ -232,6 +220,83 @@ $(document).on('knack-view-render.view_2445 knack-view-render.view_2446 knack-vi
 
 })
 
+// Log an activity from within lead details
+// https://builder.knack.com/lovelight/tracker#pages/scene_1132/views/view_2446 - create & log
+$(document).on('knack-view-render.view_2446', async function(event, view) {
+
+  // Add activity option menu
+  let activityOptions = [{
+    display: '📞 Call',
+    return: "Call",
+    optionID: "5dde09f0b19ce90016428186"
+  }, {
+    display: '🤝 Meeting',
+    return: "Meeting",
+    optionID: "5dde0a04225c5f00151ee8f4"
+  }, {
+    display: '📧 Email',
+    return: "Email",
+    optionID: "5dde09fb8f1b080015f60d47"
+  }, {
+    display: '✅ Task',
+    return: "Task",
+    optionID: "5dde09f4b5d12c00185236fa"
+  }, ]
+
+  // New submit buttons
+  let newSubmitButtons = [{
+      "name": "Log Complete",
+      "primary": true,
+      "callbackBefore": showLeadActivityOptionsDropdown,
+      "callbackBeforeArgs": [activityOptions],
+      "submit": true,
+      "callbackAfter": redirectToParentPage
+    },
+    {
+      "name": "Log Complete & Log Another",
+      "primary": false,
+      "callbackBefore": showLeadActivityOptionsDropdown,
+      "callbackBeforeArgs": [activityOptions],
+      "submit": true,
+      "callbackAfter": false
+    },
+    {
+      "name": "Log Complete & Submit Lead as Dead",
+      "primary": false,
+      "callbackBefore": showLeadActivityOptionsDropdown,
+      "callbackBeforeArgs": [],
+      "submit": true,
+      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
+    }
+  ]
+
+  // Add the activity options menu if it doesn't already exist.
+  let $activityOptionsMenu = $('#activityOptionsMenu')
+  if ($activityOptionsMenu.length === 0) insertOptionMenu(`#${view.key}`, activityOptions, toggleActivity, 'activityOptionsMenu')
+
+  // If required, swap out submit buttons on add activity view
+  let $activitiesSubmitButtons = $('#altSubmitActivities')
+  if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
+
+  // Format scene display
+  toggleActivity(window.activitySelected || 'Call', activityOptions)
+  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
+    applyActivityDisplayRules(activityOptions[0].status)
+  })
+
+  // Preload contacts menu
+  let leadId = view.scene.scene_id
+  preloadAndPimpContactField(view, 'field_1689', async function(){
+    let contacts = await getLeadContacts(leadId)
+    return contacts
+  })
+
+})
+
+// LEGACY CODE? Not sure this page is in use any more
+// https://builder.knack.com/lovelight/tracker#pages/scene_1122 - record lead activity page, houses both views below
+// https://builder.knack.com/lovelight/tracker#pages/scene_1122/views/view_2428 - create & log
+// https://builder.knack.com/lovelight/tracker#pages/scene_1122/views/view_2424 - create note
 $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-view-render.view_2424', async function(event, sceneOrView) {
 
   // Add activity option menu
@@ -410,7 +475,7 @@ async function markTargetLeadAsDeadAndRedirectToParent() {
   await leadsObj.update(Knack.hash_id, {
     "field_1705": ['5de043d64546590015b8d4c8']
   })
-  window.location.href = Knack.getPreviousScene().link
+  redirectToParentPage()
 }
 
 // **************
@@ -420,11 +485,11 @@ function redirectToParentPage() {
 }
 
 // Update the URL to show the log completed lead activity modal
-function showLogLeadActivityModal(leadId){
-  $(document).ready(function(){
-    window.location.href = `${window.location.href}/log-lead-activity/${leadId}/`
-  })
-}
+// function showLogLeadActivityModal(leadId){
+//   $(document).ready(function(){
+//     window.location.href = `${window.location.href}/log-lead-activity/${leadId}/`
+//   })
+// }
 
 // Update the URL to show the schedule lead activity modal
 function showScheduleLeadActivityModal(leadId){
