@@ -1,14 +1,26 @@
 // Limit the selectable time range to 6am to 8pm & show duration in to-time
 // Takes a string for the target field id eg 'view_123-field_123'
 function pimpTimePicker(view, fieldId) {
+
+  let timeSelector
+  let toTimeSelector
+
+  if (view) {
+    timeSelector = `#${view.key}-${fieldId}-time`
+    toTimeSelector = `#${view.key}-${fieldId}-time-to`
+  } else {
+    timeSelector = `[id$="-${fieldId}-time"]`
+    toTimeSelector = `[id$="-${fieldId}-time-to"]`
+  }
+
   // Set the time to 5am to 8pm
-  $(`#${view.key}-${fieldId}-time`).timepicker({
+  $(timeSelector).timepicker({
     'minTime': '5:00am',
     'maxTime': '8:00pm',
     'showDuration': false
   });
   // Set the time to 5am to 8pm
-  $(`#${view.key}-${fieldId}-time-to`).timepicker({
+  $(toTimeSelector).timepicker({
     'minTime': '5:00am',
     'maxTime': '8:00pm',
     'showDuration': true
@@ -17,10 +29,10 @@ function pimpTimePicker(view, fieldId) {
   $('#kn-input-' + fieldId + ' > div:nth-child(3)').remove()
 
   // Update the start time of to-time for accurate duration when start time changes
-  $(`input#${view.key}-${fieldId}-time`).on('focusout', function() {
+  $(`input${timeSelector}`).on('focusout', function() {
     console.log('focusOut from time')
-    $(`#${view.key}-${fieldId}-time-to`).timepicker('option', {
-      minTime: $(`#${view.key}-${fieldId}-time`).val()
+    $(toTimeSelector).timepicker('option', {
+      minTime: $(timeSelector).val()
     })
   })
 }
@@ -128,7 +140,7 @@ function createFilterFromArrayOfIDs(arrRecordIDs) {
 // Function checks if the passed variable is an array
 // Feturns true or false
 function isItAnArray(array) {
-  if (array.length === 0 || !Array.isArray(array)) {
+  if (!Array.isArray(array) || array.length === 0) {
     return false
   } else {
     return true

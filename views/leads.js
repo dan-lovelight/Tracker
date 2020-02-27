@@ -22,7 +22,7 @@ $(document).on('knack-scene-render.scene_1118', function(event, scene) {
 
 // Add new lead from myLeads
 // https://builder.knack.com/lovelight/tracker#pages/scene_580/views/view_1300
-$(document).on('knack-view-render.view_1300', async function(event, view, data){
+$(document).on('knack-view-render.view_1300', async function(event, view, data) {
 
   // New submit buttons
   let newSubmitButtons = [{
@@ -40,8 +40,7 @@ $(document).on('knack-view-render.view_1300', async function(event, view, data){
       "name": "Save and Schedule Activity",
       "primary": false,
       "submit": true,
-      "callbackBeforeArgs":[],
-      "callbackBefore": async function(){
+      "callbackBefore": async function() {
         catchCreatedLead(showScheduleLeadActivityModal)
         return true
       }
@@ -71,7 +70,6 @@ $(document).on('knack-view-render.view_2418', function(event, view) {
       "name": "Create and Schedule Activity",
       "primary": false,
       "callbackBefore": checkLeadFields,
-      "callbackBeforeArgs": [],
       "submit": false,
       "callbackAfter": createLeadFromContactForm
     }
@@ -115,39 +113,45 @@ $(document).on('knack-view-render.view_2443', async function(event, view) {
 
   let leadId = view.scene.scene_id
 
-  preloadAndPimpContactField(view, 'field_1679', async function(){
+  preloadAndPimpContactField(view, 'field_1679', async function() {
     let contacts = await getLeadContacts(leadId)
     return contacts
   })
 
 })
 
-// Log a scheduled activity as complete
+// UPDATE ACTIVITY: Log a scheduled activity as complete
 // https://builder.knack.com/lovelight/tracker#pages/scene_1148/views/view_2482
 $(document).on('knack-view-render.view_2482', async function(event, view, data) {
 
   let leadId = data.field_1690_raw[0].id // This relies on the lead field being on the form
-  window.activitySelected = data.field_1685_raw[0].identifier
+  let activitySelected = data.field_1685_raw[0].identifier
 
-  $('.modal-card-title')[0].innerText = `Log ${window.activitySelected}`
+  $('.modal-card-title')[0].innerText = `Log ${activitySelected}`
 
-  preloadAndPimpContactField(view, 'field_1689', async function(){
+  preloadAndPimpContactField(view, 'field_1689', async function() {
     let contacts = await getLeadContacts(leadId)
     return contacts
   })
 
   // New submit buttons
   let newSubmitButtons = [{
-      "name": "Submit",
+      "name": "Log Complete",
       "primary": true,
       "submit": true,
     },
     {
-      "name": "Submit and Book Another",
+      "name": "Log Complete and Book Another",
       "primary": false,
       "submit": true,
       "callbackAfter": showScheduleLeadActivityModal,
-      "callbackAfterArgs":[leadId]
+      "callbackAfterArgs": [leadId]
+    },
+    {
+      "name": "Log Complete & Submit Lead as Dead",
+      "primary": false,
+      "submit": true,
+      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
     }
   ]
 
@@ -155,327 +159,495 @@ $(document).on('knack-view-render.view_2482', async function(event, view, data) 
 
 })
 
-// Schedule an activity from within lead details
+// CREATE ACTIVITY: Schedule an activity from within lead details
 // https://builder.knack.com/lovelight/tracker#pages/scene_1130/views/view_2445 - schedule
 $(document).on('knack-view-render.view_2445', async function(event, view) {
 
-  // Add activity option menu
-  let activityOptions = [{
-    display: '📞 Call',
-    return: "Call",
-    optionID: "5dde09f0b19ce90016428186"
-  }, {
-    display: '🤝 Meeting',
-    return: "Meeting",
-    optionID: "5dde0a04225c5f00151ee8f4"
-  }, {
-    display: '📧 Email',
-    return: "Email",
-    optionID: "5dde09fb8f1b080015f60d47"
-  }, {
-    display: '✅ Task',
-    return: "Task",
-    optionID: "5dde09f4b5d12c00185236fa"
-  }, ]
+  // // Add activity option menu
+  // let activityOptions = [{
+  //   display: '📞 Call',
+  //   return: "Call",
+  //   optionID: "5dde09f0b19ce90016428186"
+  // }, {
+  //   display: '🤝 Meeting',
+  //   return: "Meeting",
+  //   optionID: "5dde0a04225c5f00151ee8f4"
+  // }, {
+  //   display: '📧 Email',
+  //   return: "Email",
+  //   optionID: "5dde09fb8f1b080015f60d47"
+  // }, {
+  //   display: '✅ Task',
+  //   return: "Task",
+  //   optionID: "5dde09f4b5d12c00185236fa"
+  // }, ]
 
   // New submit buttons
   let newSubmitButtons = [{
       "name": "Schedule",
       "primary": true,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [activityOptions],
+      "callbackBefore": setSelectedLeadActivityType,
+      // "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": redirectToParentPage
     },
     {
       "name": "Schedule and Book Another",
       "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [activityOptions],
+      "callbackBefore": setSelectedLeadActivityType,
+      // "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": false
     }
   ]
 
-  // Add the activity options menu if it doesn't already exist.
-  let $activityOptionsMenu = $('#activityOptionsMenu')
-  if ($activityOptionsMenu.length === 0) insertOptionMenu(`#${view.key}`, activityOptions, toggleActivity, 'activityOptionsMenu')
+  updateCreateActivityUi(view, newSubmitButtons)
 
-  // If required, swap out submit buttons on add activity view
-  let $activitiesSubmitButtons = $('#altSubmitActivities')
-  if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
-
-  // Format scene display
-  toggleActivity(window.activitySelected || 'Call', activityOptions)
-  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
-    applyActivityDisplayRules(activityOptions[0].status)
-  })
-
-  // Preload contacts menu
-  let leadId = view.scene.scene_id
-  preloadAndPimpContactField(view, 'field_1689', async function(){
-    let contacts = await getLeadContacts(leadId)
-    return contacts
-  })
+  // // Hide the activity type dropdown
+  // // Still need this field in the form so that it can be manually set when form is submitted
+  // $('#kn-input-field_1685').hide()
+  //
+  // // Add the activity options menu if it doesn't already exist.
+  // let $activityOptionsMenu = $('#activityOptionsMenu')
+  // if ($activityOptionsMenu.length === 0) insertActivitiesOptionMenu(view)
+  //
+  // // If required, swap out submit buttons on add activity view
+  // let $activitiesSubmitButtons = $('#altSubmitActivities')
+  // if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
+  //
+  // // Format scene display
+  // updateCreateActivityUiForSelectedActivity('Call')
+  // // setActivityTimeFields()//window.activitySelected || 'Call') //, activityOptions)
+  // // $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
+  // //   applyActivityDisplayRules(activityOptions[0].status)
+  // // })
+  //
+  // // Preload contacts menu
+  // let leadId = view.scene.scene_id
+  // preloadAndPimpContactField(view, 'field_1689', async function(){
+  //   let contacts = await getLeadContacts(leadId)
+  //   return contacts
+  // })
 
 })
 
-// Log an activity from within lead details
+// CREATE ACTIVITY: Log an activity from within lead details
 // https://builder.knack.com/lovelight/tracker#pages/scene_1132/views/view_2446 - create & log
 $(document).on('knack-view-render.view_2446', async function(event, view) {
 
-  // Add activity option menu
-  let activityOptions = [{
-    display: '📞 Call',
-    return: "Call",
-    optionID: "5dde09f0b19ce90016428186"
-  }, {
-    display: '🤝 Meeting',
-    return: "Meeting",
-    optionID: "5dde0a04225c5f00151ee8f4"
-  }, {
-    display: '📧 Email',
-    return: "Email",
-    optionID: "5dde09fb8f1b080015f60d47"
-  }, {
-    display: '✅ Task',
-    return: "Task",
-    optionID: "5dde09f4b5d12c00185236fa"
-  }, ]
+  // // Add activity option menu
+  // let activityOptions = [{
+  //   display: '📞 Call',
+  //   return: "Call",
+  //   optionID: "5dde09f0b19ce90016428186"
+  // }, {
+  //   display: '🤝 Meeting',
+  //   return: "Meeting",
+  //   optionID: "5dde0a04225c5f00151ee8f4"
+  // }, {
+  //   display: '📧 Email',
+  //   return: "Email",
+  //   optionID: "5dde09fb8f1b080015f60d47"
+  // }, {
+  //   display: '✅ Task',
+  //   return: "Task",
+  //   optionID: "5dde09f4b5d12c00185236fa"
+  // }, ]
 
   // New submit buttons
   let newSubmitButtons = [{
       "name": "Log Complete",
       "primary": true,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [activityOptions],
+      "callbackBefore": setSelectedLeadActivityType,
+      // "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": redirectToParentPage
     },
     {
       "name": "Log Complete & Log Another",
       "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [activityOptions],
+      "callbackBefore": setSelectedLeadActivityType,
+      // "callbackBeforeArgs": [activityOptions],
       "submit": true,
       "callbackAfter": false
     },
     {
       "name": "Log Complete & Submit Lead as Dead",
       "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [],
+      "callbackBefore": setSelectedLeadActivityType,
+      // "callbackBeforeArgs": [],
       "submit": true,
       "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
     }
   ]
 
+  updateCreateActivityUi(view, newSubmitButtons)
+
+  // // Hide the activity type dropdown
+  // // Still need this field in the form so that it can be manually set when form is submitted
+  // $('#kn-input-field_1685').hide()
+  //
+  // // Add the activity options menu if it doesn't already exist.
+  // let $activityOptionsMenu = $('#activityOptionsMenu')
+  // if ($activityOptionsMenu.length === 0) insertActivitiesOptionMenu(view)
+  //
+  // // If required, swap out submit buttons on add activity view
+  // let $activitiesSubmitButtons = $('#altSubmitActivities')
+  // if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
+  //
+  // // Format scene display
+  // updateCreateActivityUiForSelectedActivity('Call')
+  // //window.activitySelected || 'Call') //, activityOptions)
+  // // $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
+  // //   applyActivityDisplayRules(activityOptions[0].status)
+  // // })
+  //
+  // // Preload contacts menu
+  // let leadId = view.scene.scene_id
+  // preloadAndPimpContactField(view, 'field_1689', async function(){
+  //   let contacts = await getLeadContacts(leadId)
+  //   return contacts
+  // })
+
+})
+
+// // LEGACY CODE? Not sure this page is in use any more
+// // https://builder.knack.com/lovelight/tracker#pages/scene_1122 - record lead activity page, houses both views below
+// // https://builder.knack.com/lovelight/tracker#pages/scene_1122/views/view_2428 - create & log
+// // https://builder.knack.com/lovelight/tracker#pages/scene_1122/views/view_2424 - create note
+// $(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-view-render.view_2424', async function(event, sceneOrView) {
+//
+//   // Add activity option menu
+//   let activityOptions = [{
+//     display: '📄 Note',
+//     return: "Note"
+//   }, {
+//     display: '📞 Call',
+//     return: "Call",
+//     optionID: "5dde09f0b19ce90016428186"
+//   }, {
+//     display: '🤝 Meeting',
+//     return: "Meeting",
+//     optionID: "5dde0a04225c5f00151ee8f4"
+//   }, {
+//     display: '📧 Email',
+//     return: "Email",
+//     optionID: "5dde09fb8f1b080015f60d47"
+//   }, {
+//     display: '✅ Task',
+//     return: "Task",
+//     optionID: "5dde09f4b5d12c00185236fa"
+//   }, ]
+//
+//   // New submit buttons
+//   let newSubmitButtons = [{
+//       "name": "Submit",
+//       "primary": true,
+//       "callbackBefore": setSelectedLeadActivityType,
+//       // "callbackBeforeArgs": [activityOptions],
+//       "submit": true,
+//       "callbackAfter": redirectToParentPage
+//     },
+//     {
+//       "name": "Submit and Rebook",
+//       "primary": false,
+//       "callbackBefore": setSelectedLeadActivityType,
+//       // "callbackBeforeArgs": [activityOptions],
+//       "submit": true,
+//       "callbackAfter": false
+//     },
+//     {
+//       "name": "Submit as Dead",
+//       "primary": false,
+//       "callbackBefore": setSelectedLeadActivityType,
+//       // "callbackBeforeArgs": [],
+//       "submit": true,
+//       "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
+//     }
+//   ]
+//
+//   // Get all views, approach varies if called by scene or view
+//   let allViews = sceneOrView.views || sceneOrView.scene.views
+//
+//   // Add the activity options menu if it doesn't already exist.
+//   let $activityOptionsMenu = $('#activityOptionsMenu')
+//   if ($activityOptionsMenu.length === 0) insertActivitiesOptionMenu(view)
+//
+//   // If required, swap out submit buttons on add note view
+//   let notesView = allViews.filter(view => view.key === 'view_2424')[0]
+//   let $notesSubmitButtons = $('#altSubmitNote')
+//   if ($notesSubmitButtons.length === 0) replaceSubmitButton(notesView, newSubmitButtons, 'altSubmitNote')
+//
+//   // If required, swap out submit buttons on add activity view
+//   let activitiesView = allViews.filter(view => view.key === 'view_2428')[0]
+//   let $activitiesSubmitButtons = $('#altSubmitActivities')
+//   if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(activitiesView, newSubmitButtons, 'altSubmitActivities')
+//
+//   // Format scene display
+//   pimpContactField(activitiesView, 'field_1689')
+//   pimpContactField(notesView, 'field_1679')
+//   $("#kn-input-field_1688 > div [value=Cancelled]").parent().remove() // Remove cancelled as a status option
+//   toggleActivity(window.activitySelected || 'Note')
+//   $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
+//     applyActivityDisplayRules()
+//   })
+//
+//   // Preload contacts menu
+//   let leadId = view.scene.scene_id
+//   preloadAndPimpContactField(activitiesView, 'field_1679', async function(){
+//     let contacts = await getLeadContacts(leadId)
+//     return contacts
+//   })
+//   preloadAndPimpContactField(notesView, 'field_1689', async function(){
+//     let contacts = await getLeadContacts(leadId)
+//     return contacts
+//   })
+//
+// })
+
+// Add options menu
+// Add new submit buttons
+// Update dispay
+function updateCreateActivityUi(view, newSubmitButtons) {
+
+  // Hide the activity type dropdown
+  // Still need this field in the form so that it can be manually set when form is submitted
+  $('#kn-input-field_1685').hide()
+
   // Add the activity options menu if it doesn't already exist.
   let $activityOptionsMenu = $('#activityOptionsMenu')
-  if ($activityOptionsMenu.length === 0) insertOptionMenu(`#${view.key}`, activityOptions, toggleActivity, 'activityOptionsMenu')
+  if ($activityOptionsMenu.length === 0) insertActivitiesOptionMenu(view)
 
   // If required, swap out submit buttons on add activity view
   let $activitiesSubmitButtons = $('#altSubmitActivities')
   if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(view, newSubmitButtons, 'altSubmitActivities')
 
   // Format scene display
-  toggleActivity(window.activitySelected || 'Call', activityOptions)
-  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
-    applyActivityDisplayRules(activityOptions[0].status)
-  })
+  updateCreateActivityUiForSelectedActivity('Call')
 
   // Preload contacts menu
   let leadId = view.scene.scene_id
-  preloadAndPimpContactField(view, 'field_1689', async function(){
+  preloadAndPimpContactField(view, 'field_1689', async function() {
     let contacts = await getLeadContacts(leadId)
     return contacts
   })
 
-})
+}
 
-// LEGACY CODE? Not sure this page is in use any more
-// https://builder.knack.com/lovelight/tracker#pages/scene_1122 - record lead activity page, houses both views below
-// https://builder.knack.com/lovelight/tracker#pages/scene_1122/views/view_2428 - create & log
-// https://builder.knack.com/lovelight/tracker#pages/scene_1122/views/view_2424 - create note
-$(document).on('knack-scene-render.scene_1122 knack-view-render.view_2428 knack-view-render.view_2424', async function(event, sceneOrView) {
+// Add a menu that displays the add activity options
+// The callback 'toggleActivity' updates the display when an option is selected
+function insertActivitiesOptionMenu(view) {
 
   // Add activity option menu
   let activityOptions = [{
-    display: '📄 Note',
-    return: "Note"
-  }, {
     display: '📞 Call',
     return: "Call",
-    optionID: "5dde09f0b19ce90016428186"
   }, {
     display: '🤝 Meeting',
     return: "Meeting",
-    optionID: "5dde0a04225c5f00151ee8f4"
   }, {
     display: '📧 Email',
     return: "Email",
-    optionID: "5dde09fb8f1b080015f60d47"
   }, {
     display: '✅ Task',
     return: "Task",
-    optionID: "5dde09f4b5d12c00185236fa"
   }, ]
 
-  // New submit buttons
-  let newSubmitButtons = [{
-      "name": "Submit",
-      "primary": true,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [activityOptions],
-      "submit": true,
-      "callbackAfter": redirectToParentPage
-    },
-    {
-      "name": "Submit and Rebook",
-      "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [activityOptions],
-      "submit": true,
-      "callbackAfter": false
-    },
-    {
-      "name": "Submit as Dead",
-      "primary": false,
-      "callbackBefore": showLeadActivityOptionsDropdown,
-      "callbackBeforeArgs": [],
-      "submit": true,
-      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
-    }
-  ]
+  // Insert the menu
+  insertOptionMenu(`#${view.key}`, activityOptions, updateCreateActivityUiForSelectedActivity, 'activityOptionsMenu')
+}
 
-  // Get all views, approach varies if called by scene or view
-  let allViews = sceneOrView.views || sceneOrView.scene.views
+function updateCreateActivityUiForSelectedActivity(selectedActivity) {
+  // set a global varialbe to store the selected activity type
+  // necessary as this type needs to be set when the form is submitted
+  window.activitySelected = selectedActivity
+  setActivityTimeFields(selectedActivity)
+  toggleCallOutcomesDisplay(selectedActivity)
+  toggleCallDetailsInputGivenCallOutcome()
 
-  // Add the activity options menu if it doesn't already exist.
-  let $activityOptionsMenu = $('#activityOptionsMenu')
-  if ($activityOptionsMenu.length === 0) insertOptionMenu('#view_2424', activityOptions, toggleActivity, 'activityOptionsMenu')
-
-  // If required, swap out submit buttons on add note view
-  let notesView = allViews.filter(view => view.key === 'view_2424')[0]
-  let $notesSubmitButtons = $('#altSubmitNote')
-  if ($notesSubmitButtons.length === 0) replaceSubmitButton(notesView, newSubmitButtons, 'altSubmitNote')
-
-  // If required, swap out submit buttons on add activity view
-  let activitiesView = allViews.filter(view => view.key === 'view_2428')[0]
-  let $activitiesSubmitButtons = $('#altSubmitActivities')
-  if ($activitiesSubmitButtons.length === 0) replaceSubmitButton(activitiesView, newSubmitButtons, 'altSubmitActivities')
-
-  // Format scene display
-  pimpContactField(activitiesView, 'field_1689')
-  pimpContactField(notesView, 'field_1679')
-  $("#kn-input-field_1688 > div [value=Cancelled]").parent().remove() // Remove cancelled as a status option
-  toggleActivity(window.activitySelected || 'Note')
-  $('#kn-input-field_1688 > div, #kn-input-field_1711 > div').on('click', function() {
-    applyActivityDisplayRules()
+  // Add listner to show/hide details input box based on call outcome
+  $('#kn-input-field_1711 > div').on('click', function() {
+    toggleCallDetailsInputGivenCallOutcome()
   })
 
-  // Preload contacts menu
-  let leadId = view.scene.scene_id
-  preloadAndPimpContactField(activitiesView, 'field_1679', async function(){
-    let contacts = await getLeadContacts(leadId)
-    return contacts
-  })
-  preloadAndPimpContactField(notesView, 'field_1689', async function(){
-    let contacts = await getLeadContacts(leadId)
-    return contacts
-  })
+}
 
-})
+// // Notes required
+// function toggleActivity(activitySelected) {
+//
+//   // Add activity option menu
+//   // let activityOptions = [{
+//   //   return: "Call",
+//   // }, {
+//   //   return: "Meeting",
+//   // }, {
+//   //   return: "Email",
+//   // }, {
+//   //   return: "Task",
+//   // }, ]
+//
+//   // let notesViewKey = 'view_2424'
+//   // let $notesView = $(`#${notesViewKey}`)
+//   //
+//   // let activitiesViewKey = 'view_2428'
+//   // let $activitiesView = $(`#${activitiesViewKey}`)
+//
+//   // Set global variable to keep track of last option selected
+//   window.activitySelected = activitySelected
+//
+//   // if (activitySelected === 'Note') {
+//   //   $activitiesView.hide()
+//   //   $notesView.show()
+//   // } else {
+//     // $activitiesView.show()
+//     // $notesView.hide()
+//     // let activityStatus = activityOptions ? activityOptions.filter(activity => activity.return === activitySelected)[0].status : undefined
+//     // applyActivityDisplayRules(activityStatus)
+//
+//     // Hide the activity type dropdown
+//     // Still need this field in the form so that it can be manually set when form is submitted
+//     // $('#kn-input-field_1685').hide()
+//
+//     // Toggle the date field
+//     if (activitySelected === "Meeting") {
+//       $('#kn-input-field_1707').hide()
+//       $('#kn-input-field_1687').show()
+//       pimpTimePicker(undefined, 'field_1687')
+//     } else {
+//       $('#kn-input-field_1707').show()
+//       $('#kn-input-field_1687').hide()
+//       pimpTimePicker(undefined, 'field_1707')
+//     }
+//
+//   //}
+// }
 
-// Notes required
-function toggleActivity(activitySelected, optionsArray) {
-
-  let notesViewKey = 'view_2424'
-  let $notesView = $(`#${notesViewKey}`)
-
-  let activitiesViewKey = 'view_2428'
-  let $activitiesView = $(`#${activitiesViewKey}`)
-
-  // Set global variable to keep track of last option selected
-  window.activitySelected = activitySelected
-
-  if (activitySelected === 'Note') {
-    $activitiesView.hide()
-    $notesView.show()
+function setActivityTimeFields(type) {
+  if (type === 'Meeting') {
+    setMeetingTimeFields()
   } else {
-    $activitiesView.show()
-    $notesView.hide()
-    let activityStatus = optionsArray ? optionsArray.filter(activity => activity.return === activitySelected)[0].status : undefined
-    applyActivityDisplayRules(activityStatus)
-    // Hide the activity type dropdown
-    $('#kn-input-field_1685').hide()
+    setCallEmailTaskTimeFields()
+  }
+}
 
-    // Toggle the date field
-    if (activitySelected === "Meeting") {
-      $('#kn-input-field_1707').hide()
-      $('#kn-input-field_1687').show()
-      pimpTimePicker({
-        key: activitiesViewKey
-      }, 'field_1687')
-    } else {
-      $('#kn-input-field_1707').show()
-      $('#kn-input-field_1687').hide()
-      pimpTimePicker({
-        key: activitiesViewKey
-      }, 'field_1707')
-    }
+function setMeetingTimeFields() {
+  $('#kn-input-field_1707').hide()
+  $('#kn-input-field_1687').show()
+  pimpTimePicker(undefined, 'field_1687')
+}
 
+function setCallEmailTaskTimeFields() {
+  $('#kn-input-field_1707').show()
+  $('#kn-input-field_1687').hide()
+  pimpTimePicker(undefined, 'field_1707')
+}
+
+function toggleCallOutcomesDisplay(type) {
+  if (type === 'Call') {
+    $('#kn-input-field_1711').show()
+  } else {
+    $('#kn-input-field_1711').hide()
+  }
+}
+
+function toggleCallDetailsInputGivenCallOutcome() {
+  let isSuccess = $('input[name$=-field_1711]:checked').val() === 'Connected'
+  // Hide details unless successful
+  if (isSuccess) {
+    $('#kn-input-field_1691').show()
+  } else {
+    $('#kn-input-field_1691').hide()
+    //$('#field_1691')[0].value = $('input[name$=-field_1711]:checked').val()
   }
 }
 
 // activityStatus is optional - no need to pass if this is set explicity on the form.
-function applyActivityDisplayRules(activityStatus) {
-  let activity = window.activitySelected
-  let isComplete = $('input[name$=-field_1688]:checked').val() === 'Complete' || activityStatus === 'Complete'
-  let isSuccess = $('input[name$=-field_1711]:checked').val() === 'Success'
-
-  // Show call outcomes if a call
-  if (isComplete && activity === 'Call') {
-    $('#kn-input-field_1711').show()
-
-    // Hide details unless successful
-    if (isSuccess) {
-      $('#kn-input-field_1691').show()
-    } else {
-      $('#kn-input-field_1691').hide()
-    }
-
-  } else {
-    // Hide call outcomes
-    $('#kn-input-field_1711').hide()
-    // Show details field
-    $('#kn-input-field_1691').show()
-  }
-}
+// function applyActivityDisplayRules(activityStatus) {
+//   let activity = window.activitySelected
+//   let isComplete = $('input[name$=-field_1688]:checked').val() === 'Complete' || activityStatus === 'Complete'
+//   let isSuccess = $('input[name$=-field_1711]:checked').val() === 'Success'
+//
+//   // Show call outcomes if a call
+//   if (isComplete && activity === 'Call') {
+//     $('#kn-input-field_1711').show()
+//
+//     // Hide details unless successful
+//     if (isSuccess) {
+//       $('#kn-input-field_1691').show()
+//     } else {
+//       $('#kn-input-field_1691').hide()
+//     }
+//
+//   } else {
+//     // Hide call outcomes
+//     $('#kn-input-field_1711').hide()
+//     // Show details field
+//     $('#kn-input-field_1691').show()
+//   }
+// }
 
 // ***********************
 // Functions for new buttons
-function showLeadActivityOptionsDropdown(activityOptions) {
+function setSelectedLeadActivityType() {
+
+  let activityOptions = [{
+    return: "Call",
+    optionID: "5dde09f0b19ce90016428186"
+  }, {
+    return: "Meeting",
+    optionID: "5dde0a04225c5f00151ee8f4"
+  }, {
+    return: "Email",
+    optionID: "5dde09fb8f1b080015f60d47"
+  }, {
+    return: "Task",
+    optionID: "5dde09f4b5d12c00185236fa"
+  }, ]
 
   // Set the activity type in the hidden field
   $('#kn-input-field_1685').show()
   let $activityType = $(`[id^=view_][id$=-field_1685]`)
+
   // Set default selected activity in the menu
-  let activityDetails = 'Call'
-  // If the previous selection is know, get it
-  if(typeof activitySelected !== 'undefined') activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
-  // Build the option menu
+  let activitySelected = window.activitySelected || 'Call'
+
+  // Get the details for the selected option
+  activityDetails = activityOptions.filter(activity => activity.return === activitySelected)[0]
+
+  // Set the type option menu
   $activityType.html(`<option value='${activityDetails.optionID}'>${activityDetails.return}</option>`).trigger('liszt:updated')
-  if ($activityType[0].value === '' || $activityType[0].value === undefined) throw new Error('activity type not set')
+  if ($activityType[0].value === '' || $activityType[0].value === 'undefined') throw new Error('activity type not set')
+
   return true
 }
 
 async function markTargetLeadAsDeadAndRedirectToParent() {
+
+  let notes = []
+  let data = {}
   let leadsObj = new KnackObject(objects.leads)
-  await leadsObj.update(Knack.hash_id, {
+  let leadId = Knack.hash_id
+
+  // No need for the user to wait
+  redirectToParentPage()
+
+  // get the lead details
+  let previous = await leadsObj.get(leadId)
+
+  // update lead status
+  leadsObj.update(Knack.hash_id, {
     "field_1705": ['5de043d64546590015b8d4c8']
   })
-  redirectToParentPage()
+
+  data.field_1655 = Knack.getUserAttributes().name // Updated by
+  data.field_1692 = leadId // Link to lead
+  data.field_1659 = ['5de04200da511100150e07d1'] // Lead Dead
+  data.field_576 = `Status changed from ${previous.field_1705_raw[0].identifier} to Dead`
+  notes.push(JSON.parse(JSON.stringify(data)))
+
+  // Add history to record dead lead
+  addActivityRecords(notes)
+
 }
 
 // **************
@@ -492,20 +664,20 @@ function redirectToParentPage() {
 // }
 
 // Update the URL to show the schedule lead activity modal
-function showScheduleLeadActivityModal(leadId){
-  $(document).ready(function(){
+function showScheduleLeadActivityModal(leadId) {
+  $(document).ready(function() {
     window.location.href = `${window.location.href}/schedule-lead-activity/${leadId}/`
   })
 }
 
 // Pass the lead Id to the callback when a lead record is created
-function catchCreatedLead(callback){
+function catchCreatedLead(callback) {
 
   $(document).on('knack-record-create.any', getLeadId)
 
-  function getLeadId(event, view, record){
+  function getLeadId(event, view, record) {
 
-    if(view.source.object === objects.leads){ // Make sure it's a lead
+    if (view.source.object === objects.leads) { // Make sure it's a lead
       callback(record.id) // Pass lead id to callback
     }
 
@@ -611,7 +783,15 @@ function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
       // Execute before submit callback
       let callbackBeforeSuccess = true
       if (button.callbackBefore) {
-        callbackBeforeSuccess = await button.callbackBefore(...button.callbackBeforeArgs || undefined)
+
+        if (isItAnArray(button.callbackBeforeArgs)) {
+          callbackBeforeSuccess = await button.callbackBefore(...button.callbackBeforeArgs)
+        } else if (typeof button.callbackBeforeArgs === 'undefined') {
+          callbackBeforeSuccess = await button.callbackBefore()
+        } else {
+          throw new Error('callbackBeforeArgs must be an array')
+        }
+
       }
 
       // Submit the form
