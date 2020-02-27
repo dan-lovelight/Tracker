@@ -29,7 +29,8 @@ $(document).on('knack-view-render.view_1300', async function(event, view, data) 
       "name": "Save",
       "primary": true,
       "submit": true,
-      "callbackAfter": redirectToParentPage
+      "callbackAfter": redirectToPage,
+      "callbackAfterArgs": [getParentPage()]
     },
     {
       "name": "Save and Create Another",
@@ -59,7 +60,8 @@ $(document).on('knack-view-render.view_2418', function(event, view) {
       "name": "Create",
       "primary": true,
       "submit": true,
-      "callbackAfter": redirectToParentPage
+      "callbackAfter": redirectToPage,
+      "callbackAfterArgs": [getParentPage()]
     },
     {
       "name": "Create and Add Another",
@@ -151,7 +153,8 @@ $(document).on('knack-view-render.view_2482', async function(event, view, data) 
       "name": "Log Complete & Submit Lead as Dead",
       "primary": false,
       "submit": true,
-      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
+      "callbackAfter": markTargetLeadAsDeadAndRedirectPage,
+      "callbackAfterArgs":[leadId, getParentPage()]
     }
   ]
 
@@ -169,7 +172,8 @@ $(document).on('knack-view-render.view_2445', async function(event, view) {
       "primary": true,
       "callbackBefore": setSelectedLeadActivityType,
       "submit": true,
-      "callbackAfter": redirectToParentPage
+      "callbackAfter": redirectToPage,
+      "callbackAfterArgs": [getParentPage()]
     },
     {
       "name": "Schedule and Book Another",
@@ -194,7 +198,8 @@ $(document).on('knack-view-render.view_2446', async function(event, view) {
       "primary": true,
       "callbackBefore": setSelectedLeadActivityType,
       "submit": true,
-      "callbackAfter": redirectToParentPage
+      "callbackAfter": redirectToPage,
+      "callbackAfterArgs": [getParentPage()]
     },
     {
       "name": "Log Complete & Log Another",
@@ -208,7 +213,8 @@ $(document).on('knack-view-render.view_2446', async function(event, view) {
       "primary": false,
       "callbackBefore": setSelectedLeadActivityType,
       "submit": true,
-      "callbackAfter": markTargetLeadAsDeadAndRedirectToParent
+      "callbackAfter": markTargetLeadAsDeadAndRedirectPage,
+      "callbackAfterArgs":[Knack.hash_id,getParentPage()]
     }
   ]
 
@@ -357,21 +363,17 @@ function setSelectedLeadActivityType() {
   return true
 }
 
-async function markTargetLeadAsDeadAndRedirectToParent() {
+async function markLeadAsDead(leadId){
 
   let notes = []
   let data = {}
   let leadsObj = new KnackObject(objects.leads)
-  let leadId = Knack.hash_id
-
-  // No need for the user to wait
-  redirectToParentPage()
 
   // get the lead details
   let previous = await leadsObj.get(leadId)
 
   // update lead status
-  leadsObj.update(Knack.hash_id, {
+  leadsObj.update(leadId, {
     "field_1705": ['5de043d64546590015b8d4c8']
   })
 
@@ -383,6 +385,12 @@ async function markTargetLeadAsDeadAndRedirectToParent() {
 
   // Add history to record dead lead
   addActivityRecords(notes)
+}
+
+function markTargetLeadAsDeadAndRedirectPage(leadId,redirectHref) {
+
+  redirectToPage(redirectHref)
+  markLeadAsDead(leadId)
 
 }
 
@@ -390,6 +398,18 @@ async function markTargetLeadAsDeadAndRedirectToParent() {
 // Utils
 function redirectToParentPage() {
   if (Knack.getPreviousScene().link !== '#') window.location.href = Knack.getPreviousScene().link
+}
+
+function redirectToPage(href) {
+  window.location.href = href
+}
+
+function getParentPage(){
+  if (Knack.getPreviousScene().link !== '#') {
+    return Knack.getPreviousScene().link
+  } else {
+    return window.location.href
+  }
 }
 
 // Update the URL to show the log completed lead activity modal
