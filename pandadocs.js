@@ -1,4 +1,128 @@
+async function generateQuote(uploadFieldId, opportunityId) {
 
+  // Build the JSON template for the document
+  // With all relevant meta data
+  let pandaDoc = await getPandaDocGeneralDetails(opportunityId)
+
+  // Combine the above with the uploaded details from CAT
+  // to generate a quote in Panda Docs
+  getCSVFromField(uploadFieldId, createQuoteInPandaDocs)
+
+
+  async function createQuoteInPandaDocs(uploadedCsvData){
+    // Convert the csv data to JSON
+    let uploadedData = csvJSON(uploadedCsvData)
+
+    // Filter out any apartment data
+    uploadedData = filterBusinessUnit(uploadedData, 'Custom')
+
+    // Get processed Data
+    let quoteOptions = getProcessedQuoteData(uploadedData)
+
+    // Build pricing talbes from the data
+    let pricingTables = buildPricingTableArray(quoteOptions)
+
+    // Add the pricing tables to the scheme
+    pandaDoc.pricing_tables = pricingTables
+
+    // Get quote specific tokens
+    let quoteTokens = getQuoteTokens(quoteOptions)
+
+    // Add tokens to schema
+    pandaDoc.tokens = pandaDoc.tokens.concat(quoteTokens)
+
+    // generate the quote
+    let quote = await createPandaDoc(pandaDoc)
+    // redirect the user to the quote
+    window.open(`https://app.pandadoc.com/a/#/document/v1/editor/${quote.id}/content`, "_blank")
+  }
+
+}
+
+async function getPandaDocGeneralDetails(opportunityId){
+
+  const DEFAULT_SALES_PORTRAIT = 'https://cdn.business2community.com/wp-content/uploads/2017/08/blank-profile-picture-973460_640.png'
+
+  // Get the full assocaited opportunity details
+  let oppObject = new KnackObject(objects.opportunities)
+  let opportunity = await oppObject.get(opportunityId)
+
+  // Use the opportunity details to get the client and salesperson details
+  let contactObj = new KnackObject(objects.contacts)
+  let salesObj = new KnackObject(objects.salespeople)
+  let gettingClient = contactObj.get(opportunity.field_119_raw[0].id)
+  let gettingSalesperson = salesObj.get(opportunity.field_1274_raw[0].id)
+  let client = await gettingClient
+  let salesperson = await gettingSalesperson
+
+  let pandaDoc = {
+    "name": `${opportunity.field_123} - ${$('#field_1671')[0].value}`,
+    "template_uuid": $('#view_2422-field_1672')[0].value.split('templateId')[1].split('"')[1],
+    "recipients": [{
+      "email": client.field_76_raw.email,
+      "first_name": client.field_108_raw.first,
+      "last_name": client.field_108_raw.last,
+      "role": "client"
+    }],
+    "tokens": [{
+        "name": "sales.Name",
+        "value": salesperson.field_956
+      },
+      {
+        "name": "sales.FirstName",
+        "value": salesperson.field_1404
+      },
+      {
+        "name": "sales.Email",
+        "value": salesperson.field_957_raw.email
+      },
+      {
+        "name": "sales.Mobile",
+        "value": salesperson.field_1602_raw.number
+      },
+      {
+        "name": "quote.QuotedBy",
+        "value": opportunity.field_1275_raw[0].identifier
+      },
+      {
+        "name": "quote.SiteAddress",
+        "value": `${opportunity.field_121_raw.street}${opportunity.field_121_raw.street2 === "" ? "" : " " + opportunity.field_121_raw.street2} ${opportunity.field_121_raw.city}`
+      },
+      {
+        "name": "quote.Business",
+        "value": opportunity.field_1460_raw && opportunity.field_1460_raw.length > 0 ? opportunity.field_1460_raw[0].identifier : ''
+      },
+      {
+        "name": "quote.Version",
+        "value": $('#field_1671')[0].value
+      },
+      {
+        "name": "quote.Name",
+        "value": opportunity.field_123
+      }
+    ],
+    "fields": {},
+    "images": [{
+      "name": "TextBlock1",
+      "urls": [
+        salesperson.field_1675_raw ? salesperson.field_1675_raw.url : DEFAULT_SALES_PORTRAIT
+      ]
+    }],
+    "metadata": {
+      "opportunityId": opportunity.id,
+      "clientId": client.id,
+      "businessId": opportunity.field_1460_raw && opportunity.field_1460_raw.length > 0 ? opportunity.field_1460_raw[0].id : ''
+    },
+    "tags": [
+      opportunity.field_118.toLowerCase(),
+      opportunity.field_117.toLowerCase(),
+      "quote",
+      getCurrentFiscalYear(),
+      getCurrentFiscalQuarter()
+    ]
+  }
+  return pandaDoc
+}
 
 // -------------------------------------------
 // Takes a JSON object generated from a CAT csv export
@@ -21,24 +145,41 @@ function getProcessedQuoteData(catData) {
     let isCurtain = lineItem.group === 'Curtains'
     let isShutter = lineItem.group === 'Blinds' && lineItem.class === 'Shutter'
 
+    let blindFields = ['fabric_detail', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric','window_colour', 'width', 'drop', 'linkage']
+    let curtainFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
+    let shutterFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'panels', 'black_shutter', 'shaped_shutter']
+    let requiredFields
+
     // Get furnishing specific details
     let details = {}
     let furnishingKey = ''
     if (isBlind) {
       details = getBlindSpecificDetails(lineItem)
       furnishingKey = 'blinds'
+      requiredFields = blindFields
     } else if (isCurtain) {
       details = getCurtainSpecificDetails(lineItem)
       furnishingKey = 'curtains'
+      requiredFields = curtainFields
     } else if (isShutter) {
       details = getShutterSpecificDetails(lineItem)
       furnishingKey = 'shutters'
+      requiredFields = shutterFields
     }
 
     // Build an object to hold all the furnishing details
     let furnishingData = {}
     Object.entries(lineItem).forEach(([key, value]) => {
-      furnishingData[key] = value
+      // check if we want the field
+      if(requiredFields.includes(key)){
+        // modify field name if necessary
+        if(isCurtain && key === 'room_fabric') key = 'fabric'
+        if(isCurtain && key === 'room_colour') key = 'colour'
+        if(isShutter && key === 'room_fabric') key = 'product'
+        if(isShutter && key === 'room_colour') key = 'colour'
+        // convert key
+        furnishingData[toTitleCase(key.replace(/_/g, ' '))] = value
+      }
     })
     // Add the furnishing specific details
     Object.entries(details).forEach(([key, value]) => {
@@ -83,6 +224,7 @@ function getProcessedQuoteData(catData) {
   }
 }
 
+
 function getQuoteTokens(optionsArr){
 
   let tokens = [
@@ -92,6 +234,11 @@ function getQuoteTokens(optionsArr){
   ]
 
   // Build tempory object to hold the value of each of these tokens
+  // {
+  //  'blinds.products': Set,
+  //  blinds.fabrics': Set,
+  //  etc
+  // }
   tokens = tokens.reduce((allTokens, thisToken)=>{
     allTokens[thisToken] = new Set()
     return allTokens
@@ -100,9 +247,11 @@ function getQuoteTokens(optionsArr){
   optionsArr.map(option=>{
 
     option.blinds.map(blind=>{
-      tokens[blinds.products].add(blind.type)
-      tokens[blinds.fabrics].add(`${blind.fabric_summary}`)
-      tokens[blinds.colours].add(blind.room_colour)
+      tokens['blinds.products'].add(blind["Type"])
+      tokens['blinds.fabrics'].add(`${blind["Room Fabric"]}`)
+      tokens['blinds.fabrics'].add(`${blind["Window Fabric"]}`)
+      tokens['blinds.colours'].add(blind["Room Colour"])
+      tokens['blinds.colours'].add(blind["Window Colour"])
     })
 
     option.curtains.map(curtain=>{
@@ -115,16 +264,19 @@ function getQuoteTokens(optionsArr){
 
   })
 
-  tokens.map(token=>{
-    return {
-      "name": ""
-    }
+  let result = []
+
+  Object.entries(tokens).forEach(([key, value]) => {
+      result.push(
+        {
+          "name": key,
+          "value": Array.from(value).join(', ')
+        }
+      )
   })
 
-  return [{
-      "name": "blinds.products",
-      "value": `rollers\nvenetials`
-    }]
+  return result
+
 }
 
 // -------------------------------------------
@@ -378,34 +530,8 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
         "custom_fields": {}
       }
 
-      let blindFields = ['fabric_details', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric', 'window_colour', 'width', 'drop', 'linkage']
-      let curtainFields = ['fabric_summary', 'room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour']
-      let shutterFields = ['fabric_summary', 'room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'panels', 'black_shutter', 'shaped_shutter']
-
       Object.entries(furnishing).forEach(([key, value]) => {
-
-        let includeField = false
-
-        switch (type) {
-          case 'blinds':
-            if (blindFields.includes(key)) includeField = true
-            break
-          case 'curtains':
-            if (curtainFields.includes(key)) includeField = true
-            if (key === 'room_fabric') key = 'fabric'
-            if (key === 'room_colour') key = 'colour'
-            break
-          case 'shutters':
-            if (shutterFields.includes(key)) includeField = true
-            if (key === 'room_fabric') key = 'product'
-            if (key === 'room_colour') key = 'colour'
-            break
-        }
-
-        if (includeField) {
-          row.custom_fields[toTitleCase(key.replace(/_/g, ' '))] = value
-        }
-
+          row.custom_fields[key] = value
       })
 
       rows.push(row)
@@ -495,9 +621,9 @@ function getBlindSpecificDetails(blind) {
   }
 
   return {
-    type: blind.motor === 'Y' ? 'Motorised ' + toTitleCase(blind.type) : toTitleCase(blind.type),
-    fabric_summary: fabricSummary,
-    fabric_detail: fabricDetail
+    "Type": blind.motor === 'Y' ? 'Motorised ' + toTitleCase(blind.type) : toTitleCase(blind.type),
+    "Fabric Summary": fabricSummary,
+    "Fabric Detail": fabricDetail
   }
 
 }
@@ -505,7 +631,7 @@ function getBlindSpecificDetails(blind) {
 function getCurtainSpecificDetails(curtain) {
 
   return {
-    fabric_summary: toTitleCase(`${curtain.room_fabric} - ${curtain.room_colour}`)
+    "Fabric Summary": toTitleCase(`${curtain.room_fabric} - ${curtain.room_colour}`)
   }
 
 }
@@ -513,7 +639,7 @@ function getCurtainSpecificDetails(curtain) {
 function getShutterSpecificDetails(shutter) {
 
   return {
-    fabric_summary: toTitleCase(`${shutter.room_fabric} - ${shutter.room_colour}`)
+    "Fabric Summary": toTitleCase(`${shutter.room_fabric} - ${shutter.room_colour}`)
   }
 
 }
