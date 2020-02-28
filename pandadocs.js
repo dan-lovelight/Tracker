@@ -101,7 +101,15 @@ async function getPandaDocGeneralDetails(opportunityId){
         "value": opportunity.field_123
       }
     ],
-    "fields": {},
+    "fields": {
+      "client.name": {
+        "value": `${client.field_108_raw.first} ${client.field_108_raw.last}`,
+        "title": "Name"
+      },
+      "date": {
+        "value": '',
+        "title": "Date"
+      }},
     "images": [{
       "name": "TextBlock1",
       "urls": [
@@ -145,10 +153,10 @@ function getProcessedQuoteData(catData) {
     let isCurtain = lineItem.group === 'Curtains'
     let isShutter = lineItem.group === 'Blinds' && lineItem.class === 'Shutter'
 
-    let blindFields = ['fabric_detail', 'fabric_summary', 'location', 'window_ref', 'room_fabric', 'room_colour', 'window_fabric','window_colour', 'width', 'drop', 'linkage']
-    let curtainFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
-    let shutterFields = ['room_fabric', 'room_colour', 'location', 'window_ref', 'width', 'drop', 'panels', 'black_shutter', 'shaped_shutter']
-    let requiredFields
+    let requiredFields = ['location', 'width', 'drop', 'room_colour', 'room_fabric', 'window_ref', 'sell_price_ex_gst', 'cost_price', 'qty']
+    let blindFields = ['fabric_detail', 'fabric_summary', 'window_fabric','window_colour', 'linkage']
+    let curtainFields = ['type', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
+    let shutterFields = ['type', 'panels', 'black_shutter', 'shaped_shutter']
 
     // Get furnishing specific details
     let details = {}
@@ -156,15 +164,15 @@ function getProcessedQuoteData(catData) {
     if (isBlind) {
       details = getBlindSpecificDetails(lineItem)
       furnishingKey = 'blinds'
-      requiredFields = blindFields
+      requiredFields = requiredFields.concat(blindFields)
     } else if (isCurtain) {
       details = getCurtainSpecificDetails(lineItem)
       furnishingKey = 'curtains'
-      requiredFields = curtainFields
+      requiredFields = requiredFields.concat(curtainFields)
     } else if (isShutter) {
       details = getShutterSpecificDetails(lineItem)
       furnishingKey = 'shutters'
-      requiredFields = shutterFields
+      requiredFields = requiredFields.concat(shutterFields)
     }
 
     // Build an object to hold all the furnishing details
@@ -231,6 +239,14 @@ function getQuoteTokens(optionsArr){
     'blinds.products',
     'blinds.fabrics',
     'blinds.colours',
+    'curtains.products',
+    'curtains.fabrics',
+    'curtains.colours',
+    'curtains.headings',
+    'curtains.hems',
+    'shutters.types',
+    'shutters.products',
+    'shutters.colours',
   ]
 
   // Build tempory object to hold the value of each of these tokens
@@ -248,18 +264,25 @@ function getQuoteTokens(optionsArr){
 
     option.blinds.map(blind=>{
       tokens['blinds.products'].add(blind["Type"])
-      tokens['blinds.fabrics'].add(`${blind["Room Fabric"]}`)
-      tokens['blinds.fabrics'].add(`${blind["Window Fabric"]}`)
+      tokens['blinds.fabrics'].add(blind["Room Fabric"])
+      tokens['blinds.fabrics'].add(blind["Window Fabric"])
       tokens['blinds.colours'].add(blind["Room Colour"])
       tokens['blinds.colours'].add(blind["Window Colour"])
     })
 
     option.curtains.map(curtain=>{
-
+      tokens['curtains.products'].add(curtain["Type"])
+      tokens['curtains.fabrics'].add(curtain["Fabric"])
+      tokens['curtains.colours'].add(curtain["Colour"])
+      tokens['curtains.headings'].add(curtain["Heading"])
+      tokens['curtains.hems'].add(`Hems: ${curtain["Hems"]}`)
+      tokens['curtains.hems'].add(`Side hems: ${curtain["Side Hems"]}`)
     })
 
     option.shutters.map(shutter=>{
-
+      tokens['shutters.types'].add(shutter["Type"])
+      tokens['shutters.products'].add(shutter["Product"])
+      tokens['shutters.colours'].add(shutter["Colour"])
     })
 
   })
@@ -270,7 +293,7 @@ function getQuoteTokens(optionsArr){
       result.push(
         {
           "name": key,
-          "value": Array.from(value).join(', ')
+          "value": Array.from(value).filter(detail => detail !== '').join(', ')
         }
       )
   })
@@ -408,7 +431,7 @@ function buildQuotePricingTable(optionsArr, tableName) {
         // We're building a summary table
         // We need to group all similar furnishing subtypes together
         // Different subtypes could be 'Rollers', 'Dual Rollers', 'Motorised Rollers' etc
-        let furnishingSubType = furnishing.type
+        let furnishingSubType = furnishing["Type"]
 
         // We need to know where in the rows array this subType is positioned
         let subTypeIndex = -1
@@ -421,9 +444,9 @@ function buildQuotePricingTable(optionsArr, tableName) {
         // If the subType row has already been created, update the data
         if (subTypeIndex > -1) {
           let subTypeRow = rows[subTypeIndex]
-          subTypeRow.data.price = subTypeRow.data.price + parseFloat(furnishing.sell_price_ex_gst)
-          subTypeRow.data.cost = subTypeRow.data.cost + parseFloat(furnishing.cost_price)
-          subTypeRow.custom_fields["Quantity"] = subTypeRow.custom_fields["Quantity"] + parseFloat(furnishing.qty)
+          subTypeRow.data.price = subTypeRow.data.price + parseFloat(furnishing["Sell Price Ex Gst"])
+          subTypeRow.data.cost = subTypeRow.data.cost + parseFloat(furnishing["Cost Price"])
+          subTypeRow.custom_fields["Quantity"] = subTypeRow.custom_fields["Quantity"] + parseFloat(furnishing["Qty"])
         }
 
         // Otherwise create a new row for this subType
@@ -434,9 +457,9 @@ function buildQuotePricingTable(optionsArr, tableName) {
               "multichoice_selected": false
             },
             "data": {
-              "name": furnishing.type,
-              "price": parseFloat(furnishing.sell_price_ex_gst),
-              "cost": parseFloat(furnishing.cost_price),
+              "name": furnishing["Type"],
+              "price": parseFloat(furnishing["Sell Price Ex Gst"]),
+              "cost": parseFloat(furnishing["Cost Price"]),
               "qty": 1, // This is a summary row. Price & cost increment. Qty fixed at 1 (as it otherwise is used to multiply out price)
               "tax_first": {
                 "value": 10,
@@ -444,7 +467,7 @@ function buildQuotePricingTable(optionsArr, tableName) {
               }
             },
             "custom_fields": {
-              "Quantity": parseFloat(furnishing.qty)
+              "Quantity": parseFloat(furnishing["Qty"])
             }
           }
 
@@ -518,9 +541,9 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
           "multichoice_selected": false
         },
         "data": {
-          "name": furnishing.type,
-          "price": parseFloat(furnishing.sell_price_ex_gst),
-          "cost": parseFloat(furnishing.cost_price),
+          "name": furnishing["Type"],
+          "price": parseFloat(furnishing["Sell Price Ex Gst"]),
+          "cost": parseFloat(furnishing["Cost Price"]),
           "qty": 1, // Because each furnishing is listed
           "tax_first": {
             "value": 10,
@@ -575,6 +598,8 @@ async function createPandaDoc(body) {
       },
       body: JSON.stringify(body)
     }
+
+    console.log(body)
 
     let response = await fetch(url, params)
     if (!response.ok) throw Error(response.statusText)
