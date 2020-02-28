@@ -83,8 +83,8 @@ function isInvoiceIssueDateUpdated(changes) {
 function getInvoiceDueDate(invoice) {
 
   let dueDate = {}
-  dueDate.date = moment().format("DD/MM/YYYY")
-  dueDate.utc = moment().format()
+  dueDate.date = moment().tz('Australia/Melbourne').format("DD/MM/YYYY")
+  dueDate.utc = moment().tz('Australia/Melbourne').format()
 
   let dueDateOption = invoice.field_1399
 
@@ -96,7 +96,7 @@ function getInvoiceDueDate(invoice) {
   else  if (dueDateOption.indexOf('30 days from the end of this month') >= 0) {
     dueDate.date = moment().endOf('month').add(30, 'days').format("DD/MM/YYYY");
     dueDate.utc = moment().endOf('month').add(30, 'days').format();
-  } 
+  }
 
   else  if (dueDateOption.indexOf('45 days from the end of this month') >= 0) {
     dueDate.date = moment().endOf('month').add(45, 'days').format("DD/MM/YYYY");
