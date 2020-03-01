@@ -96,7 +96,7 @@ function getInvoiceDueDate(invoice) {
   else  if (dueDateOption.indexOf('30 days from the end of this month') >= 0) {
     dueDate.date = moment().endOf('month').add(30, 'days').format("DD/MM/YYYY");
     dueDate.utc = moment().endOf('month').add(30, 'days').format();
-  } 
+  }
 
   else  if (dueDateOption.indexOf('45 days from the end of this month') >= 0) {
     dueDate.date = moment().endOf('month').add(45, 'days').format("DD/MM/YYYY");
@@ -311,6 +311,8 @@ async function handleSendingInvoices(invoice) {
     data.accountCode = xeroAccount;
     data.state = invoice.field_434;
     data.salesPerson = salesperson.field_957_raw.email;
+    data.invoiceTrackerId = invoice.field_158;
+    data.user = Knack.getUserAttributes().email
 
     return triggerZap('cmjwd2', data, 'Create Invoice');
 
