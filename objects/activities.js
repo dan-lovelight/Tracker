@@ -39,12 +39,18 @@ function isActivityStatusUpdated(changes) {
   return false
 }
 
+function isDateUpdated(changes) {
+  if (changes.includes('field_1708')) return true
+  return false
+}
+
 function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
   try {
 
     let type = activity.field_1685_raw[0].identifier
     let user = Knack.getUserAttributes()
     let isStatusUpdated = isActivityStatusUpdated(changes)
+    let isDateUpdated = isDateUpdated(changes)
     let status = activity.field_1688
     let isCreated = isNewActivity
     let date = type === 'Meeting' ? activity.field_1708_raw.date_formatted : activity.field_1687_raw.date_formatted
@@ -65,6 +71,8 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
     let noteType
     if(isCreated || isStatusUpdated){
       noteType = status // If the activity is just created, or the status has been changed, then the note required is determined by the new status
+    } else if(isDateUpdated){
+      noteType = 'Rescheduled'
     } else {
       return
     }
@@ -83,7 +91,7 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
 
         if(noteType === 'Scheduled'){
           data.field_1659 = ['5de040c84546590015b8d2f5'] // note type
-          data.field_576 = `Email ${activity.field_1689.length > 0 ? `to ${contactNames} ` : ''}scheduled for ${date}`
+          data.field_576 = `Email ${activity.field_1689.length > 0 ? `to ${contactNames} ` : ''}scheduled for ${date}: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
         if(noteType === 'Complete'){
@@ -96,6 +104,11 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
           data.field_576 = `Email ${activity.field_1689.length > 0 ? `to ${contactNames} ` : ''}cancelled: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
+        if(noteType === 'Rescheduled'){
+          data.field_1659 = ['5e5ca878fbc9650019b47a73'] // note type
+          data.field_576 = `Email ${activity.field_1689.length > 0 ? `to ${contactNames} ` : ''}rescheduled for ${date}: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
       break
       }
 
@@ -105,7 +118,7 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
 
         if(noteType === 'Scheduled'){
           data.field_1659 = ['5de03fc9b646f10015abf9e1'] // note type
-          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}scheduled for ${date}`
+          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}scheduled for ${date}: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
         if(noteType === 'Complete' && callOutcome === 'Connected'){
@@ -128,6 +141,11 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
           data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}cancelled: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
+        if(noteType === 'Rescheduled'){
+          data.field_1659 = ['5e5ca8b5ab5546001600c521'] // note type
+          data.field_576 = `Call ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}rescheduled for ${date}: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
       break
       }
 
@@ -135,7 +153,7 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
 
         if(noteType === 'Scheduled'){
           data.field_1659 = ['5de0414e6ca77100154b7925'] // note type
-          data.field_576 = `Meeting ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}scheduled for ${date} at ${time}`
+          data.field_576 = `Meeting ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}scheduled for ${date} at ${time}: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
         if(noteType === 'Complete'){
@@ -146,6 +164,11 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
         if(noteType === 'Cancelled'){
           data.field_1659 = ['5dedce47df15170015bc96f2'] // note type
           data.field_576 = `Meeting ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}cancelled: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Rescheduled'){
+          data.field_1659 = ['5e5ca8f064ce240016b9447a'] // note type
+          data.field_576 = `Meeting ${activity.field_1689.length > 0 ? `with ${contactNames} ` : ''}rescheduled for ${date} at ${time}: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
       break
@@ -166,6 +189,11 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
         if(noteType === 'Cancelled'){
           data.field_1659 = ['5dedcec410f0b80016b9f5d9'] // note type
           data.field_576 = `Task cancelled: ${activity.field_1691}`
+          notes.push(JSON.parse(JSON.stringify(data)))
+        }
+        if(noteType === 'Rescheduled'){
+          data.field_1659 = ['5e5ca92e64ce240016b944b7'] // note type
+          data.field_576 = `Task rescheduled for ${date}: ${activity.field_1691}`
           notes.push(JSON.parse(JSON.stringify(data)))
         }
       break
