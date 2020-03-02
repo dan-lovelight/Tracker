@@ -640,7 +640,7 @@ function getBlindSpecificDetails(blind) {
   if (blind.type.indexOf('DUAL') > -1) {
     let roomColour = blind.room_colour ? `- ${blind.room_colour}` : ''
     let windowColour = blind.window_colour ? `- ${blind.window_colour}` : ''
-    fabricDetail = toTitleCase(`Room side: ${blind.room_fabric} ${roomColour} | Window side: ${blind.window_fabric} ${windowColour}`)
+    fabricDetail = toTitleCase(`Room: ${blind.room_fabric} ${roomColour} \n Window: ${blind.window_fabric} ${windowColour}`)
   } else {
     fabricDetail = fabricSummary
   }
