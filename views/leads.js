@@ -318,7 +318,9 @@ function toggleCallOutcomesDisplay(type) {
 }
 
 function toggleCallDetailsInputGivenCallOutcome() {
-  let isSuccess = $('input[name$=-field_1711]:checked').val() === 'Connected'
+
+  let callOutcome = $('input[name$=-field_1711]:checked').val()
+  let isSuccess = typeof callOutcome === 'undefined' ? true : callOutcome  === 'Connected'
   // Hide details unless successful
   if (isSuccess) {
     $('#kn-input-field_1691').show()
@@ -364,7 +366,6 @@ function setSelectedLeadActivityType() {
 }
 
 async function markLeadAsDead(leadId){
-
   let notes = []
   let data = {}
   let leadsObj = new KnackObject(objects.leads)
@@ -565,8 +566,10 @@ function replaceSubmitButton(view, arrayOfButtons, buttonGroupId) {
             if (!isLoading) clearInterval(wait)
             if (!isError) {
               if (button.callbackAfterArgs) {
+                clearInterval(wait)
                 await button.callbackAfter(...button.callbackAfterArgs)
               } else {
+                clearInterval(wait)
                 await button.callbackAfter()
               }
             }
