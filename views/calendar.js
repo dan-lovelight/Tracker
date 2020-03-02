@@ -279,6 +279,7 @@ function colourMultiPersonEvents(elements) {
         percentColoured = percentColoured + 100 / numberOfColours
       })
       background += ')'
+      background = background.replace(/;/g,'')
       event.children[0].style.background = background
       event.children[0].children[0].style.background = background
       event.innerHTML = event.innerHTML.replace(/👤/g, '')
