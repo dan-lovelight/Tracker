@@ -280,6 +280,7 @@ function updateCreateActivityUiForSelectedActivity(selectedActivity) {
   window.activitySelected = selectedActivity
   setActivityTimeFields(selectedActivity)
   toggleCallOutcomesDisplay(selectedActivity)
+  toggleMeetingOutcomesDisplay(selectedActivity)
   toggleCallDetailsInputGivenCallOutcome()
 
   // Add listner to show/hide details input box based on call outcome
@@ -314,6 +315,14 @@ function toggleCallOutcomesDisplay(type) {
     $('#kn-input-field_1711').show()
   } else {
     $('#kn-input-field_1711').hide()
+  }
+}
+
+function toggleMeetingOutcomesDisplay(type) {
+  if (type === 'Meeting') {
+    $('#kn-input-field_1743').show()
+  } else {
+    $('#kn-input-field_1743').hide()
   }
 }
 
