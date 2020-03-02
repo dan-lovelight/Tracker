@@ -39,7 +39,7 @@ function isActivityStatusUpdated(changes) {
   return false
 }
 
-function isDateUpdated(changes) {
+function isActivityDateUpdated(changes) {
   if (changes.includes('field_1708')) return true
   return false
 }
@@ -50,7 +50,7 @@ function handleActivityNotes(activity, isNewActivity, view, previous, changes) {
     let type = activity.field_1685_raw[0].identifier
     let user = Knack.getUserAttributes()
     let isStatusUpdated = isActivityStatusUpdated(changes)
-    let isDateUpdated = isDateUpdated(changes)
+    let isDateUpdated = isActivityDateUpdated(changes)
     let status = activity.field_1688
     let isCreated = isNewActivity
     let date = type === 'Meeting' ? activity.field_1708_raw.date_formatted : activity.field_1687_raw.date_formatted
