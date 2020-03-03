@@ -313,6 +313,7 @@ async function handleSendingInvoices(invoice) {
     data.salesPerson = salesperson.field_957_raw.email;
     data.invoiceTrackerId = invoice.field_158;
     data.user = Knack.getUserAttributes().email
+    data.timestamp = moment.utc().format()
 
     return triggerZap('cmjwd2', data, 'Create Invoice');
 
