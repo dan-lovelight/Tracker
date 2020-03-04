@@ -9,7 +9,7 @@ async function generateQuote(uploadFieldId, opportunityId) {
   getCSVFromField(uploadFieldId, createQuoteInPandaDocs)
 
 
-  async function createQuoteInPandaDocs(uploadedCsvData){
+  async function createQuoteInPandaDocs(uploadedCsvData) {
     // Convert the csv data to JSON
     let uploadedData = csvJSON(uploadedCsvData)
 
@@ -39,7 +39,7 @@ async function generateQuote(uploadFieldId, opportunityId) {
 
 }
 
-async function getPandaDocGeneralDetails(opportunityId){
+async function getPandaDocGeneralDetails(opportunityId) {
 
   const DEFAULT_SALES_PORTRAIT = 'https://cdn.business2community.com/wp-content/uploads/2017/08/blank-profile-picture-973460_640.png'
 
@@ -109,7 +109,8 @@ async function getPandaDocGeneralDetails(opportunityId){
       "date": {
         "value": '',
         "title": "Date"
-      }},
+      }
+    },
     "images": [{
       "name": "TextBlock1",
       "urls": [
@@ -154,8 +155,8 @@ function getProcessedQuoteData(catData) {
     let isShutter = lineItem.group === 'Blinds' && lineItem.class === 'Shutter'
 
     let requiredFields = ['location', 'width', 'drop', 'room_colour', 'room_fabric', 'window_ref', 'sell_price_ex_gst', 'cost_price', 'qty']
-    let blindFields = ['fabric_detail', 'fabric_summary', 'window_fabric','window_colour', 'linkage']
-    let curtainFields = ['type', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour' ]
+    let blindFields = ['fabric_detail', 'fabric_summary', 'window_fabric', 'window_colour', 'linkage']
+    let curtainFields = ['type', 'heading', 'open_direction', 'operation', 'fixing', 'side_hems', 'hems', 'track', 'track_colour']
     let shutterFields = ['type', 'panels', 'black_shutter', 'shaped_shutter']
 
     // Get furnishing specific details
@@ -179,12 +180,12 @@ function getProcessedQuoteData(catData) {
     let furnishingData = {}
     Object.entries(lineItem).forEach(([key, value]) => {
       // check if we want the field
-      if(requiredFields.includes(key)){
+      if (requiredFields.includes(key)) {
         // modify field name if necessary
-        if(isCurtain && key === 'room_fabric') key = 'fabric'
-        if(isCurtain && key === 'room_colour') key = 'colour'
-        if(isShutter && key === 'room_fabric') key = 'product'
-        if(isShutter && key === 'room_colour') key = 'colour'
+        if (isCurtain && key === 'room_fabric') key = 'fabric'
+        if (isCurtain && key === 'room_colour') key = 'colour'
+        if (isShutter && key === 'room_fabric') key = 'product'
+        if (isShutter && key === 'room_colour') key = 'colour'
         // convert key
         furnishingData[toTitleCase(key.replace(/_/g, ' '))] = value
       }
@@ -205,14 +206,13 @@ function getProcessedQuoteData(catData) {
       if (thisOption.shutters.length > 0) thisOption.cntTypes++
     } else {
       // Otherwise create the key
-      quoteDetails = {
-        [quoteOption] : {
-          option: quoteOption.match(/\d+/g).join(''),
-          cntTypes: 1,
-          blinds: [],
-          shutters: [],
-          curtains: []
-      }}
+      quoteDetails[quoteOption] = {
+        option: quoteOption.match(/\d+/g).join(''), // this regex is no longer needed, should already just be a number
+        cntTypes: 1,
+        blinds: [],
+        shutters: [],
+        curtains: []
+      }
       // add the furnishing data
       quoteDetails[quoteOption][furnishingKey] = [furnishingData]
     }
@@ -223,17 +223,18 @@ function getProcessedQuoteData(catData) {
 
   // convert object to an array
   quote = Object.values(quote)
+  return quote
 
-  if(quote.length>1){
-    alert("This process currently only handles a single quote option")
-    return
-  } {
-    return quote
-  }
+  // if(quote.length>1){
+  //   alert("This process currently only handles a single quote option")
+  //   return
+  // } {
+  //   return quote
+  // }
 }
 
 
-function getQuoteTokens(optionsArr){
+function getQuoteTokens(optionsArr) {
 
   let tokens = [
     'blinds.products',
@@ -244,6 +245,8 @@ function getQuoteTokens(optionsArr){
     'curtains.colours',
     'curtains.headings',
     'curtains.hems',
+    'curtains.track',
+    'curtains.operation',
     'shutters.types',
     'shutters.products',
     'shutters.colours',
@@ -255,14 +258,14 @@ function getQuoteTokens(optionsArr){
   //  blinds.fabrics': Set,
   //  etc
   // }
-  tokens = tokens.reduce((allTokens, thisToken)=>{
+  tokens = tokens.reduce((allTokens, thisToken) => {
     allTokens[thisToken] = new Set()
     return allTokens
-  },{})
+  }, {})
 
-  optionsArr.map(option=>{
+  optionsArr.map(option => {
 
-    option.blinds.map(blind=>{
+    option.blinds.map(blind => {
       tokens['blinds.products'].add(blind["Type"])
       tokens['blinds.fabrics'].add(blind["Room Fabric"])
       tokens['blinds.fabrics'].add(blind["Window Fabric"])
@@ -270,16 +273,18 @@ function getQuoteTokens(optionsArr){
       tokens['blinds.colours'].add(blind["Window Colour"])
     })
 
-    option.curtains.map(curtain=>{
+    option.curtains.map(curtain => {
       tokens['curtains.products'].add(curtain["Type"])
       tokens['curtains.fabrics'].add(curtain["Fabric"])
       tokens['curtains.colours'].add(curtain["Colour"])
       tokens['curtains.headings'].add(curtain["Heading"])
-      tokens['curtains.hems'].add(`Hems: ${curtain["Hems"]}`)
-      tokens['curtains.hems'].add(`Side hems: ${curtain["Side Hems"]}`)
+      tokens['curtains.hems'].add(`${curtain["Hems"] !== '' ? `Hems: ${curtain["Hems"]}`: ''}`)
+      tokens['curtains.hems'].add(`${curtain["Side Hems"] !== '' ? `Side hems: ${curtain["Side Hems"]}`: ''}`)
+      tokens['curtains.track'].add(`${curtain["Track"] !== '' && curtain["Track Colour"] !== '' ? `${curtain["Track"]} in ${curtain["Track Colour"]}` : ''}`)
+      tokens['curtains.operation'].add(curtain["Operation"])
     })
 
-    option.shutters.map(shutter=>{
+    option.shutters.map(shutter => {
       tokens['shutters.types'].add(shutter["Type"])
       tokens['shutters.products'].add(shutter["Product"])
       tokens['shutters.colours'].add(shutter["Colour"])
@@ -290,12 +295,10 @@ function getQuoteTokens(optionsArr){
   let result = []
 
   Object.entries(tokens).forEach(([key, value]) => {
-      result.push(
-        {
-          "name": key,
-          "value": Array.from(value).filter(detail => detail !== '').join(', ')
-        }
-      )
+    result.push({
+      "name": key,
+      "value": Array.from(value).filter(detail => detail !== '').join(', ')
+    })
   })
 
   return result
@@ -357,6 +360,7 @@ function buildQuotePricingTable(optionsArr, tableName) {
       optionsArr.forEach(option => {
 
         let data = {}
+        let customFields = {}
 
         option.blinds.forEach(sumOption)
         option.curtains.forEach(sumOption)
@@ -365,17 +369,20 @@ function buildQuotePricingTable(optionsArr, tableName) {
         function sumOption(furnishing) {
           if (!data.name) {
             data.name = `Option ${option.option}`
-            data.price = parseFloat(furnishing.sell_price_ex_gst)
-            data.cost = parseFloat(furnishing.cost_price)
-            data.qty = parseFloat(furnishing.qty)
+            data.price = parseFloat(furnishing['Sell Price Ex Gst'])
+            data.cost = parseFloat(furnishing['Cost Price'])
+            data.qty = 1
+            customFields = {
+              "Quantity": parseFloat(furnishing['Qty'])
+            }
             data.tax_first = {
               "value": 10,
               "type": "percent"
             }
           } else {
-            data.price = data.price + parseFloat(furnishing.sell_price_ex_gst)
-            data.cost = data.cost + parseFloat(furnishing.cost_price)
-            data.qty = data.qty + parseFloat(furnishing.qty)
+            data.price += parseFloat(furnishing['Sell Price Ex Gst'])
+            data.cost += parseFloat(furnishing['Cost Price'])
+            customFields["Quantity"] += parseFloat(furnishing['Qty'])
           }
         }
 
@@ -383,7 +390,8 @@ function buildQuotePricingTable(optionsArr, tableName) {
           "options": {
             "multichoice_selected": false
           },
-          "data": data
+          "data": data,
+          "custom_fields": customFields
         })
 
       })
@@ -496,20 +504,33 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
     // Get the section details
     let section = buildFurnishingDetailsSection(furnishingType, option)
 
+    // Set default to false if it's not the first option (section)
+    if (optionsArr.length > 1) {
+
+      // If the section is blank, add a blank section to make it clear it's not in this option
+      if (!section) {
+        section = {
+          "title": `Option ${option.option}`,
+          "default": false,
+          "multichoice_enabled": false,
+          "rows": [{
+            "options": {
+              "multichoice_selected": false
+            },
+            "data": {
+              "name": `No ${furnishingType} in this option`,
+              "price": 0,
+              "qty":0
+            }
+          }]
+        }
+      }
+      section.default = false
+    }
+
     // If there is section data, add it to the sections array
     if (section) {
-
-      // Add option number to title if there are options (multiple sections)
-      if (optionsArr.length > 1) {
-        section.title += ' & ' + option.option
-      }
-
-      // Set default to false if it's not the first option (section)
-      if (sections.length > 0) {
-        section.default = false
-      }
-
-      sections.push(section)
+      sections.unshift(section)
     }
 
   })
@@ -554,7 +575,7 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
       }
 
       Object.entries(furnishing).forEach(([key, value]) => {
-          row.custom_fields[key] = value
+        row.custom_fields[key] = value
       })
 
       rows.push(row)
@@ -563,7 +584,7 @@ function buildFurnishingPricingTable(optionsArr, tableName, furnishingType) {
     }, [])
 
     return {
-      "title": type === 'blinds' ? `Blinds Option ${furnishings.option}` : type === 'curtains' ? `Curtains Option ${furnishings.option}` : `Shutters Option ${furnishings.option}`,
+      "title": `Option ${furnishings.option}`,
       "default": true,
       "multichoice_enabled": false,
       "rows": formattedRows
