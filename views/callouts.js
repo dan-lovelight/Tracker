@@ -303,17 +303,18 @@ $(document).on('knack-view-render.view_2316 knack-view-render.view_2366', functi
   // Add a listner for changes in invoicing time
   let $invoiceTime = $('#' + view.key + '-field_1625')
   $invoiceTime.on('change', async function() {
+    // We've replaced the submit button, hence '#new-submit'
     if ($invoiceTime[0].value.indexOf('Before') > -1) {
-      $('#' + view.key + ' > form > div > button')[0].innerText = 'Submit >> Create Invoice'
+      $('#new-submit')[0].innerText = 'Submit >> Create Invoice'
     } else {
-      $('#' + view.key + ' > form > div > button')[0].innerText = 'Submit'
+      $('#new-submit')[0].innerText = 'Submit'
     }
   })
 
 });
 
 // Submit service call request
-$(document).on('knack-form-submit.view_2314 knack-form-submit.view_2316', async function(event, view, record) {
+$(document).on('knack-form-submit.view_2314 knack-form-submit.view_2316 knack-form-submit.view_2366', async function(event, view, record) {
   if (record.field_1625.indexOf('Before') > -1) {
     Knack.showSpinner()
     try {
